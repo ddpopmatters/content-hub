@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, CardHeader, CardContent, CardTitle } from '../../components/ui';
 import { cx } from '../../lib/utils';
-import { CONTENT_PILLARS, CAMPAIGNS, ALL_PLATFORMS } from '../../constants';
+import { CONTENT_PILLARS, CAMPAIGNS } from '../../constants';
 import type { Entry } from '../../types/models';
 
 export interface NarrativeViewProps {
@@ -445,5 +445,3 @@ export function NarrativeView({
     </div>
   );
 }
-
-export type { NarrativeViewProps };

@@ -2,7 +2,6 @@ import React from 'react';
 import { cx, ensureArray } from '../../lib/utils';
 import { selectBaseClasses, fileInputClasses } from '../../lib/styles';
 import { getPlatformCaption, isImageMedia, determineWorkflowStatus } from '../../lib/sanitizers';
-import { appendAudit } from '../../lib/audit';
 import { FALLBACK_GUIDELINES } from '../../lib/guidelines';
 import {
   ALL_PLATFORMS,

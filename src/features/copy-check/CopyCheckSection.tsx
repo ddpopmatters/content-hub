@@ -1,4 +1,4 @@
-import React, { useState, useCallback, type ChangeEvent } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '../../components/ui';
 import { PlatformIcon } from '../../components/common';
 import { getPlatformCaption, FALLBACK_GUIDELINES } from '../../lib';
@@ -71,7 +71,7 @@ export interface CopyCheckSectionProps {
 }
 
 /**
- * Validates and normalizes API response to prevent crashes from malformed data
+ * Validates and normalises API response to prevent crashes from malformed data
  */
 function normalizeResult(raw: unknown): CopyCheckResult {
   if (!raw || typeof raw !== 'object') return {};
@@ -164,7 +164,7 @@ export function CopyCheckSection({
           }
           rawJson = await res.json();
         }
-        // Validate and normalize response to prevent crashes from malformed data
+        // Validate and normalise response to prevent crashes from malformed data
         return { platform, data: normalizeResult(rawJson) };
       });
       const settled = await Promise.allSettled(tasks);

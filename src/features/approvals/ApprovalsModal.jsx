@@ -1,4 +1,3 @@
-import React from 'react';
 import { CHECKLIST_ITEMS, WORKFLOW_STAGES } from '../../constants';
 import { cx } from '../../lib/utils';
 import { ensureChecklist, isImageMedia } from '../../lib/sanitizers';

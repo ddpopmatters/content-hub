@@ -45,8 +45,8 @@ function formatDateKey(date: Date): string {
 export function WeekGrid({
   weekStart,
   entries,
-  onApprove,
-  onDelete,
+  onApprove: _onApprove,
+  onDelete: _onDelete,
   onOpen,
   onDateChange,
   dailyPostTarget = 0,

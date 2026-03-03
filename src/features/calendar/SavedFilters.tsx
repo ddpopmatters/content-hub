@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Button, Input, Badge } from '../../components/ui';
 import { XIcon } from '../../components/common';
-import { cx } from '../../lib/utils';
 
 export interface FilterPreset {
   id: string;

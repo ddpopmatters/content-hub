@@ -613,7 +613,7 @@ const GoalsPanel: React.FC<{
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {ACTION_TYPES.map((action) => {
-                  const key =
+                  const _key =
                     `weekly${action.label.replace(/[^a-zA-Z]/g, '')}s` as keyof EngagementGoals;
                   const goalKey =
                     action.value === 'comment'

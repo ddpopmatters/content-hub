@@ -67,8 +67,8 @@ export function Header({
   profileMenuOpen,
   onProfileMenuToggle,
   profileMenuRef,
-  onSignOut,
-  onChangePassword,
+  onSignOut: _onSignOut,
+  onChangePassword: _onChangePassword,
   notificationBell,
   children,
 }: HeaderProps) {
