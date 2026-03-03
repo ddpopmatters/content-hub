@@ -94,6 +94,22 @@ const iconMap: Record<string, React.ReactNode> = {
       />
     </svg>
   ),
+  radar: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" strokeWidth="2" />
+      <circle cx="12" cy="12" r="5" strokeWidth="2" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" strokeWidth="1" />
+      <path d="M12 12l6-6" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
+  clipboard: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <rect x="5" y="4" width="14" height="18" rx="2" strokeWidth="2" />
+      <path d="M9 4.5h6v3H9z" strokeWidth="2" />
+      <line x1="8" y1="12" x2="16" y2="12" strokeWidth="2" />
+      <line x1="8" y1="16" x2="16" y2="16" strokeWidth="2" />
+    </svg>
+  ),
   linkedin: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
@@ -152,6 +168,8 @@ export function Sidebar({
     if (currentView === 'dashboard' || currentView === 'menu') return 'dashboard';
     if (currentView === 'analytics') return 'analytics';
     if (currentView === 'engagement') return 'engagement';
+    if (currentView === 'opportunities') return 'opportunities';
+    if (currentView === 'requests') return 'requests';
     if (currentView === 'admin') return 'admin';
     if (currentView === 'influencers') return 'influencers';
     if (currentView === 'form') return 'content';
@@ -169,6 +187,8 @@ export function Sidebar({
     { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard', enabled: true },
     { id: 'analytics', label: 'Analytics', icon: 'bar-chart', enabled: true },
     { id: 'engagement', label: 'Engagement', icon: 'users', enabled: true },
+    { id: 'opportunities', label: 'Opportunities', icon: 'radar', enabled: true },
+    { id: 'requests', label: 'Requests', icon: 'clipboard', enabled: true },
     {
       id: 'content',
       label: 'Content',
@@ -205,28 +225,16 @@ export function Sidebar({
             key={item.id}
             onClick={() => onNavigate(item.id)}
             className={cx(
-              'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all group',
+              'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors',
               activeItem === item.id
-                ? 'bg-ocean-500 text-white shadow-lg'
-                : 'text-ocean-900 hover:bg-ocean-50',
+                ? 'bg-ocean-50 text-ocean-700 font-medium'
+                : 'text-graystone-600 hover:bg-graystone-50 hover:text-graystone-900',
             )}
           >
-            <div className="relative flex items-center justify-center">
-              {/* Hover Circle - Behind Icon */}
-              <div
-                className={cx(
-                  'absolute w-10 h-10 rounded-full transition-all duration-300',
-                  activeItem === item.id
-                    ? 'scale-0 opacity-0'
-                    : 'scale-0 opacity-0 group-hover:scale-100 group-hover:opacity-100',
-                )}
-                style={{ backgroundColor: '#0CFFFF' }}
-              />
-              <span className="relative z-10">{iconMap[item.icon]}</span>
-            </div>
-            <span className="font-heading text-sm tracking-wide">{item.label}</span>
+            <span className="shrink-0">{iconMap[item.icon]}</span>
+            <span className="text-sm">{item.label}</span>
             {item.badge && item.badge > 0 && (
-              <span className="ml-auto text-xs font-semibold bg-aqua-400 text-ocean-900 rounded-full px-2 py-0.5">
+              <span className="ml-auto text-xs font-semibold bg-ocean-100 text-ocean-700 rounded-full px-2 py-0.5">
                 {item.badge}
               </span>
             )}

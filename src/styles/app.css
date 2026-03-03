@@ -2,6 +2,8 @@
 
 /* PM Dashboard custom theme tokens */
 @theme {
+  --font-sans:
+    'Neue Haas Grotesk Display', 'Neue Haas Grotesk', 'Helvetica Neue', Arial, sans-serif;
   /* Ocean */
   --color-ocean-50: #e6f7fb;
   --color-ocean-100: #bfecf6;

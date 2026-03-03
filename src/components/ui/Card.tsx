@@ -13,7 +13,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
     return (
       <div
         ref={ref}
-        className={cx('rounded-3xl border border-graystone-200 bg-white', className)}
+        className={cx('rounded-2xl border border-graystone-200 bg-white', className)}
         {...props}
       >
         {children}
@@ -34,11 +34,7 @@ export interface CardHeaderProps extends HTMLAttributes<HTMLDivElement> {
 export const CardHeader = forwardRef<HTMLDivElement, CardHeaderProps>(
   ({ className = '', children, ...props }, ref) => {
     return (
-      <div
-        ref={ref}
-        className={cx('border-b border-graystone-100 px-6 py-5', className)}
-        {...props}
-      >
+      <div ref={ref} className={cx('px-6 py-5', className)} {...props}>
         {children}
       </div>
     );
