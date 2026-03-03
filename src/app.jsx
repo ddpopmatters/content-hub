@@ -44,7 +44,7 @@ import { GuidelinesModal } from './features/guidelines';
 import { IdeasBoard, IdeaForm } from './features/ideas';
 import { OpportunitiesView } from './features/opportunities';
 import { ContentRequestsView } from './features/requests';
-import { MiniCalendar, NarrativeView } from './features/calendar';
+import { MiniCalendar, NarrativeView, MonthlyGlance } from './features/calendar';
 import { EntryForm, EntryModal, EntryPreviewModal } from './features/entry';
 import { normalizeGuidelines, saveGuidelines } from './lib/guidelines';
 import { appendAudit } from './lib/audit';
@@ -1444,6 +1444,20 @@ function ContentDashboard() {
                         Narrative
                       </Button>
                     )}
+                    {canUseCalendar && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => setPlanTab('glance')}
+                        className={cx(
+                          'rounded-2xl px-4 py-2 text-sm transition',
+                          planTab === 'glance'
+                            ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                            : 'text-ocean-600 hover:bg-aqua-100',
+                        )}
+                      >
+                        Glance
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1610,6 +1624,26 @@ function ContentDashboard() {
                           )
                         }
                         onOpenEntry={openEntry}
+                      />
+                    );
+                  case 'glance':
+                    if (!canUseCalendar) return null;
+                    return (
+                      <MonthlyGlance
+                        entries={entries}
+                        monthCursor={monthCursor}
+                        onPrevMonth={() =>
+                          setMonthCursor(
+                            new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1),
+                          )
+                        }
+                        onNextMonth={() =>
+                          setMonthCursor(
+                            new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1),
+                          )
+                        }
+                        onOpenEntry={openEntry}
+                        onUpdate={upsert}
                       />
                     );
                   default:

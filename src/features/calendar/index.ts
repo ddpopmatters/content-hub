@@ -1,4 +1,5 @@
 export { MonthGrid, type MonthGridProps } from './MonthGrid';
+export { MonthlyGlance, type MonthlyGlanceProps } from './MonthlyGlance';
 export { NarrativeView, type NarrativeViewProps } from './NarrativeView';
 export { WeekGrid } from './WeekGrid';
 export { CalendarView, type CalendarViewProps } from './CalendarView';
