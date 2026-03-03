@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Card, CardHeader, CardContent, CardTitle, Badge } from '../../components/ui';
 import { PlatformIcon, ClockIcon } from '../../components/common';
 import { cx } from '../../lib/utils';
+import { PRIORITY_TIERS, PRIORITY_TIER_BADGE_CLASSES } from '../../constants';
 import type { Entry } from '../../types/models';
 
 export interface UpcomingDeadlinesProps {
@@ -97,6 +98,9 @@ export function UpcomingDeadlines({
           <div className="space-y-2">
             {deadlineEntries.map((entry) => {
               const status = getDeadlineStatus(entry.daysUntil);
+              const priorityTier = PRIORITY_TIERS.includes(entry.priorityTier)
+                ? entry.priorityTier
+                : 'Medium';
               const deadlineStr = entry.deadlineDate.toLocaleDateString(undefined, {
                 weekday: 'short',
                 month: 'short',
@@ -133,6 +137,11 @@ export function UpcomingDeadlines({
                         )}
                         <Badge variant="outline" className="text-[10px]">
                           {entry.assetType}
+                        </Badge>
+                        <Badge
+                          className={cx('text-[10px]', PRIORITY_TIER_BADGE_CLASSES[priorityTier])}
+                        >
+                          {priorityTier}
                         </Badge>
                       </div>
                       <p className="mt-1 line-clamp-1 text-xs text-graystone-700">

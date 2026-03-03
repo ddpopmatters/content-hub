@@ -8,6 +8,7 @@ import { QuickActionsWidget } from './widgets/QuickActionsWidget';
 import { PillarBalanceWidget } from './widgets/PillarBalanceWidget';
 import { PlatformCoverageWidget } from './widgets/PlatformCoverageWidget';
 import { AudienceSegmentWidget } from './widgets/AudienceSegmentWidget';
+import { UrgentOpportunitiesWidget } from './widgets/UrgentOpportunitiesWidget';
 import { UpcomingDeadlines } from '../calendar/UpcomingDeadlines';
 import type { Entry, EngagementActivity, EngagementGoals } from '../../types/models';
 
@@ -18,10 +19,12 @@ export interface DashboardViewProps {
   engagementActivities: EngagementActivity[];
   engagementGoals: EngagementGoals;
   pendingApprovalCount: number;
+  urgentOpportunityCount?: number;
   onOpenEntry: (id: string) => void;
   onNavigate: (view: string, tab?: string) => void;
   onOpenGuidelines: () => void;
   onOpenApprovals: () => void;
+  onOpenOpportunities?: () => void;
 }
 
 export function DashboardView({
@@ -31,10 +34,12 @@ export function DashboardView({
   engagementActivities,
   engagementGoals,
   pendingApprovalCount,
+  urgentOpportunityCount = 0,
   onOpenEntry,
   onNavigate,
   onOpenGuidelines,
   onOpenApprovals,
+  onOpenOpportunities,
 }: DashboardViewProps): React.ReactElement {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -65,6 +70,10 @@ export function DashboardView({
 
         {/* Middle Column */}
         <div className="space-y-6">
+          <UrgentOpportunitiesWidget
+            urgentOpenCount={urgentOpportunityCount}
+            onOpenOpportunities={onOpenOpportunities || (() => onNavigate('opportunities'))}
+          />
           <ApprovalQueueWidget
             entries={entries}
             currentUser={currentUser}

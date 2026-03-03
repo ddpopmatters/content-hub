@@ -10,7 +10,12 @@ import { Card, CardHeader, CardContent, CardTitle, Badge, Button } from '../../c
 import { PlatformIcon, LoaderIcon, TrashIcon } from '../../components/common';
 import { cx, isoFromParts } from '../../lib/utils';
 import { ensureChecklist, isImageMedia } from '../../lib/sanitizers';
-import { CHECKLIST_ITEMS, WORKFLOW_STAGES } from '../../constants';
+import {
+  CHECKLIST_ITEMS,
+  WORKFLOW_STAGES,
+  PRIORITY_TIERS,
+  PRIORITY_TIER_BADGE_CLASSES,
+} from '../../constants';
 import type { Entry } from '../../types/models';
 
 export interface MonthGridProps {
@@ -296,6 +301,9 @@ export function MonthGrid({
                 const hasPreviewImage = isImageMedia(entry.previewUrl);
                 const hasPerformance = entry.analytics && Object.keys(entry.analytics).length > 0;
                 const isFocusedEntry = isFocusedDay && focusedEntryIndex === entryIndex;
+                const priorityTier = PRIORITY_TIERS.includes(entry.priorityTier)
+                  ? entry.priorityTier
+                  : 'Medium';
                 return (
                   <div
                     key={entry.id}
@@ -331,6 +339,9 @@ export function MonthGrid({
                         )}
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="outline">{entry.assetType}</Badge>
+                          <Badge className={PRIORITY_TIER_BADGE_CLASSES[priorityTier]}>
+                            {priorityTier}
+                          </Badge>
                           <span className="inline-flex items-center rounded-full bg-aqua-100 px-2 py-1 text-xs font-medium text-ocean-700">
                             {entry.statusDetail || WORKFLOW_STAGES[0]}
                           </span>

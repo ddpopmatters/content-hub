@@ -1,6 +1,8 @@
 import React, { useState, useCallback } from 'react';
+import { Badge } from '../../components/ui';
 import { PlatformIcon } from '../../components/common';
 import { cx } from '../../lib/utils';
+import { PRIORITY_TIERS, PRIORITY_TIER_BADGE_CLASSES } from '../../constants';
 import type { Entry } from '../../types/models';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -140,71 +142,84 @@ export function WeekGrid({
 
             {/* Entries for this day */}
             <div className="space-y-1.5">
-              {dayEntries.map((entry) => (
-                <div
-                  key={entry.id}
-                  role="button"
-                  tabIndex={0}
-                  draggable={!!onDateChange}
-                  onDragStart={(e) => handleDragStart(e, entry.id)}
-                  onClick={() => onOpen(entry.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onOpen(entry.id);
-                    }
-                  }}
-                  className={cx(
-                    'w-full rounded-lg border px-2 py-1.5 text-left transition hover:shadow-md',
-                    entry.workflowStatus === 'Approved' || entry.status === 'Approved'
-                      ? 'border-emerald-200 bg-emerald-50'
-                      : entry.workflowStatus === 'Published'
-                        ? 'border-ocean-200 bg-ocean-50'
-                        : 'border-graystone-200 bg-white',
-                    onDateChange && 'cursor-grab active:cursor-grabbing',
-                  )}
-                >
-                  <div className="flex items-start gap-1.5">
-                    {/* Platform icons */}
-                    <div className="flex shrink-0 flex-wrap gap-0.5">
-                      {(entry.platforms || []).slice(0, 3).map((platform) => (
-                        <span key={platform}>
-                          <PlatformIcon platform={platform} size="xs" />
-                        </span>
-                      ))}
-                      {entry.platforms && entry.platforms.length > 3 && (
-                        <span className="text-[10px] text-graystone-500">
-                          +{entry.platforms.length - 3}
-                        </span>
-                      )}
-                    </div>
-                    {/* Caption preview */}
-                    <div className="min-w-0 flex-1">
-                      <p className="line-clamp-2 text-[11px] leading-tight text-graystone-700">
-                        {entry.caption || 'No caption'}
-                      </p>
-                    </div>
-                  </div>
-                  {/* Status badge */}
-                  <div className="mt-1 flex items-center gap-1">
-                    <span
-                      className={cx(
-                        'inline-block rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide',
-                        entry.workflowStatus === 'Approved' || entry.status === 'Approved'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : entry.workflowStatus === 'Published'
-                            ? 'bg-ocean-100 text-ocean-700'
-                            : 'bg-amber-100 text-amber-700',
-                      )}
-                    >
-                      {entry.workflowStatus || entry.status || 'Draft'}
-                    </span>
-                    {entry.assetType && (
-                      <span className="text-[9px] text-graystone-400">{entry.assetType}</span>
+              {dayEntries.map((entry) => {
+                const priorityTier = PRIORITY_TIERS.includes(entry.priorityTier)
+                  ? entry.priorityTier
+                  : 'Medium';
+                return (
+                  <div
+                    key={entry.id}
+                    role="button"
+                    tabIndex={0}
+                    draggable={!!onDateChange}
+                    onDragStart={(e) => handleDragStart(e, entry.id)}
+                    onClick={() => onOpen(entry.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onOpen(entry.id);
+                      }
+                    }}
+                    className={cx(
+                      'w-full rounded-lg border px-2 py-1.5 text-left transition hover:shadow-md',
+                      entry.workflowStatus === 'Approved' || entry.status === 'Approved'
+                        ? 'border-emerald-200 bg-emerald-50'
+                        : entry.workflowStatus === 'Published'
+                          ? 'border-ocean-200 bg-ocean-50'
+                          : 'border-graystone-200 bg-white',
+                      onDateChange && 'cursor-grab active:cursor-grabbing',
                     )}
+                  >
+                    <div className="flex items-start gap-1.5">
+                      {/* Platform icons */}
+                      <div className="flex shrink-0 flex-wrap gap-0.5">
+                        {(entry.platforms || []).slice(0, 3).map((platform) => (
+                          <span key={platform}>
+                            <PlatformIcon platform={platform} size="xs" />
+                          </span>
+                        ))}
+                        {entry.platforms && entry.platforms.length > 3 && (
+                          <span className="text-[10px] text-graystone-500">
+                            +{entry.platforms.length - 3}
+                          </span>
+                        )}
+                      </div>
+                      {/* Caption preview */}
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 text-[11px] leading-tight text-graystone-700">
+                          {entry.caption || 'No caption'}
+                        </p>
+                      </div>
+                    </div>
+                    {/* Status badge */}
+                    <div className="mt-1 flex items-center gap-1">
+                      <span
+                        className={cx(
+                          'inline-block rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide',
+                          entry.workflowStatus === 'Approved' || entry.status === 'Approved'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : entry.workflowStatus === 'Published'
+                              ? 'bg-ocean-100 text-ocean-700'
+                              : 'bg-amber-100 text-amber-700',
+                        )}
+                      >
+                        {entry.workflowStatus || entry.status || 'Draft'}
+                      </span>
+                      <Badge
+                        className={cx(
+                          'px-1.5 py-0.5 text-[9px] uppercase tracking-wide',
+                          PRIORITY_TIER_BADGE_CLASSES[priorityTier],
+                        )}
+                      >
+                        {priorityTier}
+                      </Badge>
+                      {entry.assetType && (
+                        <span className="text-[9px] text-graystone-400">{entry.assetType}</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {dayEntries.length === 0 && dailyPostTarget > 0 && (
                 <div className="flex flex-col items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-2 text-xs text-amber-700">
                   <span className="font-medium">Content gap</span>

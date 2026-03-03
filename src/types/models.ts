@@ -1,6 +1,8 @@
 /**
  * Domain model types for PM Dashboard frontend
  */
+import type { PriorityTier } from '../constants';
+export type { PriorityTier };
 
 /**
  * Attachment model - file attachments with metadata
@@ -87,6 +89,7 @@ export interface Entry {
   platformCaptions: Record<string, string>;
   firstComment: string;
   status: string;
+  priorityTier: PriorityTier;
   approvers: string[];
   author: string;
   campaign: string;
@@ -138,13 +141,14 @@ export interface Entry {
   } | null;
   // Influencer attribution
   influencerId?: string;
-  // UI-specific fields (not in database)
+  // Content production fields
   url?: string;
-  approvalDeadline?: string;
-  analyticsUpdatedAt?: string;
   script?: string;
   designCopy?: string;
   carouselSlides?: string[];
+  // Derived/transient fields (not persisted)
+  approvalDeadline?: string;
+  analyticsUpdatedAt?: string;
   comments?: Comment[];
   links?: string[];
   attachments?: Attachment[];
@@ -169,6 +173,41 @@ export interface Idea {
   convertedToEntryId?: string;
   /** Timestamp when this idea was converted to an entry */
   convertedAt?: string;
+}
+
+export type OpportunityUrgency = 'High' | 'Medium' | 'Low';
+export type OpportunityStatus = 'Open' | 'Acted' | 'Dismissed';
+
+export interface Opportunity {
+  id: string;
+  date: string;
+  description: string;
+  angle: string;
+  urgency: OpportunityUrgency;
+  status: OpportunityStatus;
+  createdBy: string;
+  linkedEntryId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ContentRequestStatus = 'Pending' | 'In Progress' | 'Converted' | 'Declined';
+
+export interface ContentRequest {
+  id: string;
+  title: string;
+  keyMessages: string;
+  assetsNeeded: string;
+  audienceSegments: string[];
+  approvers: string[];
+  deadline?: string;
+  notes: string;
+  generatedBrief: string;
+  status: ContentRequestStatus;
+  createdBy: string;
+  convertedEntryId?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**

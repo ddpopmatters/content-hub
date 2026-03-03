@@ -1,6 +1,7 @@
 // Supabase client and API wrapper - matching PM-Productivity-Tool pattern
 import type { SupabaseClient, Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { APP_CONFIG, Logger } from './config';
+import { PRIORITY_TIERS } from '../constants';
 import { daysInMonth } from './utils';
 
 /**
@@ -61,6 +62,68 @@ const mapWorkflowStatusFromDb = (status: string | undefined): string => {
     default:
       return 'Draft';
   }
+};
+
+const mapPriorityTierToDb = (priorityTier: string | undefined): string => {
+  if (!priorityTier) return 'Medium';
+  if (PRIORITY_TIERS.includes(priorityTier as (typeof PRIORITY_TIERS)[number])) {
+    return priorityTier;
+  }
+  return 'Medium';
+};
+
+const mapPriorityTierFromDb = (
+  priorityTier: string | undefined,
+): (typeof PRIORITY_TIERS)[number] => {
+  return PRIORITY_TIERS.find((tier) => tier === priorityTier) ?? 'Medium';
+};
+
+const OPPORTUNITY_URGENCY_LEVELS = ['High', 'Medium', 'Low'] as const;
+const OPPORTUNITY_STATUS_VALUES = ['Open', 'Acted', 'Dismissed'] as const;
+const CONTENT_REQUEST_STATUS_VALUES = ['Pending', 'In Progress', 'Converted', 'Declined'] as const;
+
+const mapOpportunityUrgencyToDb = (urgency: string | undefined): string => {
+  if (!urgency) return 'Medium';
+  if (OPPORTUNITY_URGENCY_LEVELS.includes(urgency as (typeof OPPORTUNITY_URGENCY_LEVELS)[number])) {
+    return urgency;
+  }
+  return 'Medium';
+};
+
+const mapOpportunityUrgencyFromDb = (
+  urgency: string | undefined,
+): (typeof OPPORTUNITY_URGENCY_LEVELS)[number] => {
+  return OPPORTUNITY_URGENCY_LEVELS.find((value) => value === urgency) ?? 'Medium';
+};
+
+const mapOpportunityStatusToDb = (status: string | undefined): string => {
+  if (!status) return 'Open';
+  if (OPPORTUNITY_STATUS_VALUES.includes(status as (typeof OPPORTUNITY_STATUS_VALUES)[number])) {
+    return status;
+  }
+  return 'Open';
+};
+
+const mapOpportunityStatusFromDb = (
+  status: string | undefined,
+): (typeof OPPORTUNITY_STATUS_VALUES)[number] => {
+  return OPPORTUNITY_STATUS_VALUES.find((value) => value === status) ?? 'Open';
+};
+
+const mapContentRequestStatusToDb = (status: string | undefined): string => {
+  if (!status) return 'Pending';
+  if (
+    CONTENT_REQUEST_STATUS_VALUES.includes(status as (typeof CONTENT_REQUEST_STATUS_VALUES)[number])
+  ) {
+    return status;
+  }
+  return 'Pending';
+};
+
+const mapContentRequestStatusFromDb = (
+  status: string | undefined,
+): (typeof CONTENT_REQUEST_STATUS_VALUES)[number] => {
+  return CONTENT_REQUEST_STATUS_VALUES.find((value) => value === status) ?? 'Pending';
 };
 
 /**
@@ -175,8 +238,10 @@ const mapTestingFrameworkToDb = (framework: {
 
 import type {
   Attachment,
+  ContentRequest,
   Entry,
   Idea,
+  Opportunity,
   Guidelines,
   Influencer,
   PlatformProfile,
@@ -232,6 +297,7 @@ interface EntryRow {
   first_comment: string;
   approval_deadline: string;
   status: string;
+  priority_tier: string;
   approvers: string[];
   author: string;
   campaign: string;
@@ -245,6 +311,15 @@ interface EntryRow {
   ai_score: Record<string, number>;
   testing_framework_id: string;
   testing_framework_name: string;
+  audience_segments: string[];
+  golden_thread_pass: boolean | null;
+  assessment_scores: Record<string, unknown> | null;
+  influencer_id: string | null;
+  evergreen: boolean;
+  url: string | null;
+  script: string | null;
+  design_copy: string | null;
+  carousel_slides: string[];
   created_at: string;
   updated_at: string;
   approved_at: string | null;
@@ -263,6 +338,38 @@ interface IdeaRow {
   target_date: string;
   target_month: string;
   created_at: string;
+}
+
+interface OpportunityRow {
+  id: string;
+  date: string;
+  description: string;
+  angle: string;
+  urgency: string;
+  status: string;
+  created_by: string;
+  created_by_email: string;
+  linked_entry_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ContentRequestRow {
+  id: string;
+  title: string;
+  key_messages: string;
+  assets_needed: string;
+  audience_segments: string[];
+  approvers: string[];
+  deadline: string | null;
+  notes: string;
+  generated_brief: string;
+  status: string;
+  created_by: string;
+  created_by_email: string;
+  converted_entry_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface LinkedInRow {
@@ -394,7 +501,7 @@ interface AuthResult {
 // Supabase client instance
 let supabase: SupabaseClient | null = null;
 
-// Initialize Supabase client
+// Initialise Supabase client
 export const initSupabase = async (): Promise<SupabaseClient | null> => {
   if (supabase) return supabase;
 
@@ -616,6 +723,171 @@ export const SUPABASE_API = {
     } catch (error) {
       Logger.error(error, 'deleteIdea');
       return false;
+    }
+  },
+
+  // ==========================================
+  // OPPORTUNITIES
+  // ==========================================
+
+  fetchOpportunities: async (): Promise<Opportunity[]> => {
+    await initSupabase();
+    if (!supabase) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('opportunities')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        Logger.error(error, 'fetchOpportunities');
+        return [];
+      }
+
+      return ((data as OpportunityRow[]) || []).map(SUPABASE_API.mapOpportunityToApp);
+    } catch (error) {
+      Logger.error(error, 'fetchOpportunities');
+      return [];
+    }
+  },
+
+  createOpportunity: async (
+    opportunity: Partial<Opportunity>,
+    userEmail: string,
+  ): Promise<Opportunity | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    try {
+      const dbOpportunity = SUPABASE_API.mapOpportunityToDb(opportunity, userEmail);
+
+      const { data, error } = await supabase
+        .from('opportunities')
+        .insert(dbOpportunity)
+        .select()
+        .single();
+
+      if (error) {
+        Logger.error(error, 'createOpportunity');
+        return null;
+      }
+
+      return data ? SUPABASE_API.mapOpportunityToApp(data as OpportunityRow) : null;
+    } catch (error) {
+      Logger.error(error, 'createOpportunity');
+      return null;
+    }
+  },
+
+  updateOpportunityStatus: async (
+    id: string,
+    status: Opportunity['status'],
+  ): Promise<Opportunity | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('opportunities')
+        .update({ status: mapOpportunityStatusToDb(status) })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        Logger.error(error, 'updateOpportunityStatus');
+        return null;
+      }
+
+      return data ? SUPABASE_API.mapOpportunityToApp(data as OpportunityRow) : null;
+    } catch (error) {
+      Logger.error(error, 'updateOpportunityStatus');
+      return null;
+    }
+  },
+
+  // ==========================================
+  // CONTENT REQUESTS
+  // ==========================================
+
+  fetchContentRequests: async (): Promise<ContentRequest[]> => {
+    await initSupabase();
+    if (!supabase) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('content_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        Logger.error(error, 'fetchContentRequests');
+        return [];
+      }
+
+      return ((data as ContentRequestRow[]) || []).map(SUPABASE_API.mapContentRequestToApp);
+    } catch (error) {
+      Logger.error(error, 'fetchContentRequests');
+      return [];
+    }
+  },
+
+  createContentRequest: async (
+    request: Partial<ContentRequest>,
+    userEmail: string,
+  ): Promise<ContentRequest | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    try {
+      const dbRequest = SUPABASE_API.mapContentRequestToDb(request, userEmail);
+
+      const { data, error } = await supabase
+        .from('content_requests')
+        .insert(dbRequest)
+        .select()
+        .single();
+
+      if (error) {
+        Logger.error(error, 'createContentRequest');
+        return null;
+      }
+
+      return data ? SUPABASE_API.mapContentRequestToApp(data as ContentRequestRow) : null;
+    } catch (error) {
+      Logger.error(error, 'createContentRequest');
+      return null;
+    }
+  },
+
+  updateContentRequest: async (
+    id: string,
+    updates: Partial<ContentRequest>,
+  ): Promise<ContentRequest | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    try {
+      const patch = SUPABASE_API.mapContentRequestPatchToDb(updates);
+      if (Object.keys(patch).length === 0) return null;
+
+      const { data, error } = await supabase
+        .from('content_requests')
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        Logger.error(error, 'updateContentRequest');
+        return null;
+      }
+
+      return data ? SUPABASE_API.mapContentRequestToApp(data as ContentRequestRow) : null;
+    } catch (error) {
+      Logger.error(error, 'updateContentRequest');
+      return null;
     }
   },
 
@@ -1240,6 +1512,7 @@ export const SUPABASE_API = {
     firstComment: row.first_comment,
     approvalDeadline: row.approval_deadline,
     status: row.status,
+    priorityTier: mapPriorityTierFromDb(row.priority_tier),
     approvers: row.approvers || [],
     author: row.author,
     campaign: row.campaign,
@@ -1253,6 +1526,15 @@ export const SUPABASE_API = {
     aiScore: row.ai_score || {},
     testingFrameworkId: row.testing_framework_id,
     testingFrameworkName: row.testing_framework_name,
+    audienceSegments: row.audience_segments || [],
+    goldenThreadPass: row.golden_thread_pass ?? null,
+    assessmentScores: row.assessment_scores || null,
+    influencerId: row.influencer_id || undefined,
+    evergreen: row.evergreen || false,
+    url: row.url || undefined,
+    script: row.script || undefined,
+    designCopy: row.design_copy || undefined,
+    carouselSlides: row.carousel_slides || [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     approvedAt: row.approved_at,
@@ -1269,6 +1551,7 @@ export const SUPABASE_API = {
     first_comment: entry.firstComment,
     approval_deadline: dateOrNull(entry.approvalDeadline),
     status: entry.status || 'Pending',
+    priority_tier: mapPriorityTierToDb(entry.priorityTier),
     approvers: entry.approvers || [],
     author: entry.author,
     author_email: userEmail,
@@ -1283,6 +1566,15 @@ export const SUPABASE_API = {
     ai_score: entry.aiScore || {},
     testing_framework_id: entry.testingFrameworkId,
     testing_framework_name: entry.testingFrameworkName,
+    audience_segments: entry.audienceSegments || [],
+    golden_thread_pass: entry.goldenThreadPass ?? null,
+    assessment_scores: entry.assessmentScores || null,
+    influencer_id: entry.influencerId || null,
+    evergreen: entry.evergreen || false,
+    url: entry.url || null,
+    script: entry.script || null,
+    design_copy: entry.designCopy || null,
+    carousel_slides: entry.carouselSlides || [],
   }),
 
   mapIdeaToApp: (row: IdeaRow): Idea => ({
@@ -1312,6 +1604,82 @@ export const SUPABASE_API = {
     target_date: dateOrNull(idea.targetDate),
     target_month: idea.targetMonth || (idea.targetDate ? idea.targetDate.substring(0, 7) : null),
   }),
+
+  mapOpportunityToApp: (row: OpportunityRow): Opportunity => ({
+    id: row.id,
+    date: row.date,
+    description: row.description || '',
+    angle: row.angle || '',
+    urgency: mapOpportunityUrgencyFromDb(row.urgency),
+    status: mapOpportunityStatusFromDb(row.status),
+    createdBy: row.created_by || '',
+    linkedEntryId: row.linked_entry_id || undefined,
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || row.created_at || '',
+  }),
+
+  mapOpportunityToDb: (opportunity: Partial<Opportunity>, userEmail: string) => ({
+    id: opportunity.id || undefined,
+    date: dateOrNull(opportunity.date),
+    description: opportunity.description || '',
+    angle: opportunity.angle || '',
+    urgency: mapOpportunityUrgencyToDb(opportunity.urgency),
+    status: mapOpportunityStatusToDb(opportunity.status),
+    created_by: opportunity.createdBy || '',
+    created_by_email: userEmail,
+    linked_entry_id: opportunity.linkedEntryId || null,
+  }),
+
+  mapContentRequestToApp: (row: ContentRequestRow): ContentRequest => ({
+    id: row.id,
+    title: row.title || '',
+    keyMessages: row.key_messages || '',
+    assetsNeeded: row.assets_needed || '',
+    audienceSegments: row.audience_segments || [],
+    approvers: row.approvers || [],
+    deadline: row.deadline || undefined,
+    notes: row.notes || '',
+    generatedBrief: row.generated_brief || '',
+    status: mapContentRequestStatusFromDb(row.status),
+    createdBy: row.created_by || '',
+    convertedEntryId: row.converted_entry_id || undefined,
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || row.created_at || '',
+  }),
+
+  mapContentRequestToDb: (request: Partial<ContentRequest>, userEmail: string) => ({
+    id: request.id || undefined,
+    title: request.title || '',
+    key_messages: request.keyMessages || '',
+    assets_needed: request.assetsNeeded || '',
+    audience_segments: request.audienceSegments || [],
+    approvers: request.approvers || [],
+    deadline: dateOrNull(request.deadline),
+    notes: request.notes || '',
+    generated_brief: request.generatedBrief || '',
+    status: mapContentRequestStatusToDb(request.status),
+    created_by: request.createdBy || '',
+    created_by_email: userEmail,
+    converted_entry_id: request.convertedEntryId || null,
+  }),
+
+  mapContentRequestPatchToDb: (request: Partial<ContentRequest>) => {
+    const patch: Record<string, unknown> = {};
+    if (request.title !== undefined) patch.title = request.title;
+    if (request.keyMessages !== undefined) patch.key_messages = request.keyMessages;
+    if (request.assetsNeeded !== undefined) patch.assets_needed = request.assetsNeeded;
+    if (request.audienceSegments !== undefined) patch.audience_segments = request.audienceSegments;
+    if (request.approvers !== undefined) patch.approvers = request.approvers;
+    if (request.deadline !== undefined) patch.deadline = dateOrNull(request.deadline);
+    if (request.notes !== undefined) patch.notes = request.notes;
+    if (request.generatedBrief !== undefined) patch.generated_brief = request.generatedBrief;
+    if (request.status !== undefined) patch.status = mapContentRequestStatusToDb(request.status);
+    if (request.createdBy !== undefined) patch.created_by = request.createdBy;
+    if (request.convertedEntryId !== undefined) {
+      patch.converted_entry_id = request.convertedEntryId || null;
+    }
+    return patch;
+  },
 
   mapLinkedInToApp: (row: LinkedInRow): LinkedInSubmission => ({
     id: row.id,
@@ -1533,4 +1901,13 @@ export const AUTH = {
 };
 
 // Export types for use in other modules
-export type { EntryRow, IdeaRow, LinkedInRow, GuidelinesRow, UserProfileRow, ActivityLogRow };
+export type {
+  EntryRow,
+  IdeaRow,
+  OpportunityRow,
+  ContentRequestRow,
+  LinkedInRow,
+  GuidelinesRow,
+  UserProfileRow,
+  ActivityLogRow,
+};

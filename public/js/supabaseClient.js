@@ -1028,6 +1028,15 @@ function mapEntryToApp(row) {
     aiScore: row.ai_score || {},
     testingFrameworkId: row.testing_framework_id,
     testingFrameworkName: row.testing_framework_name,
+    audienceSegments: row.audience_segments || [],
+    goldenThreadPass: row.golden_thread_pass ?? null,
+    assessmentScores: row.assessment_scores || null,
+    influencerId: row.influencer_id || undefined,
+    evergreen: row.evergreen || false,
+    url: row.url || undefined,
+    script: row.script || undefined,
+    designCopy: row.design_copy || undefined,
+    carouselSlides: row.carousel_slides || [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     approvedAt: row.approved_at,
@@ -1059,6 +1068,15 @@ function mapEntryToDb(entry, userEmail) {
     ai_score: entry.aiScore || {},
     testing_framework_id: entry.testingFrameworkId,
     testing_framework_name: entry.testingFrameworkName,
+    audience_segments: entry.audienceSegments || [],
+    golden_thread_pass: entry.goldenThreadPass ?? null,
+    assessment_scores: entry.assessmentScores || null,
+    influencer_id: entry.influencerId || null,
+    evergreen: entry.evergreen || false,
+    url: entry.url || null,
+    script: entry.script || null,
+    design_copy: entry.designCopy || null,
+    carousel_slides: entry.carouselSlides || [],
   };
 }
 
@@ -1157,7 +1175,7 @@ function mapGuidelinesToDb(guidelines) {
 }
 
 // ============================================
-// INITIALIZE AND EXPOSE API
+// INITIALISE AND EXPOSE API
 // ============================================
 
 (async () => {
@@ -1216,7 +1234,7 @@ function mapGuidelinesToDb(guidelines) {
         notify,
       });
 
-      // Dispatch ready event
+      // Despatch ready event
       try {
         window.dispatchEvent(new CustomEvent('pm-api-ready', { detail: { enabled } }));
       } catch {}

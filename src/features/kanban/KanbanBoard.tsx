@@ -10,6 +10,12 @@ import React, {
 import { Badge, Button } from '../../components/ui';
 import { cx } from '../../lib/utils';
 import { selectBaseClasses } from '../../lib/styles';
+import {
+  PRIORITY_TIERS,
+  PRIORITY_TIER_BADGE_CLASSES,
+  PRIORITY_TIER_BORDER_CLASSES,
+  PRIORITY_TIER_DOT_CLASSES,
+} from '../../constants';
 import { QuickAssessment } from '../assessment';
 import type { Entry } from '../../types/models';
 
@@ -238,6 +244,9 @@ export function KanbanBoard({
                       entry.workflowStatus && statuses.includes(entry.workflowStatus)
                         ? entry.workflowStatus
                         : defaultStatus;
+                    const priorityTier = PRIORITY_TIERS.includes(entry.priorityTier)
+                      ? entry.priorityTier
+                      : 'Medium';
                     return (
                       /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
                       <div
@@ -250,12 +259,24 @@ export function KanbanBoard({
                         aria-label={`${entry.caption || 'Untitled'}, ${entry.assetType}, ${entry.status}`}
                         onKeyDown={(e) => handleCardKeyDown(e, columnIndex, cardIndex, entry.id)}
                         className={cx(
-                          'space-y-2 rounded-2xl border border-graystone-200 bg-white p-3 shadow-sm outline-none',
+                          'space-y-2 rounded-2xl border border-graystone-200 border-l-4 bg-white p-3 shadow-sm outline-none',
+                          PRIORITY_TIER_BORDER_CLASSES[priorityTier],
                           'focus:ring-2 focus:ring-aqua-500 focus:ring-offset-1',
                         )}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <Badge variant="outline">{entry.assetType}</Badge>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline">{entry.assetType}</Badge>
+                            <Badge className={PRIORITY_TIER_BADGE_CLASSES[priorityTier]}>
+                              <span
+                                className={cx(
+                                  'mr-1 inline-block h-1.5 w-1.5 rounded-full',
+                                  PRIORITY_TIER_DOT_CLASSES[priorityTier],
+                                )}
+                              />
+                              {priorityTier}
+                            </Badge>
+                          </div>
                           {entry.analytics && Object.keys(entry.analytics).length ? (
                             <span className="rounded-full bg-ocean-500/10 px-2 py-0.5 text-[11px] font-semibold text-ocean-700">
                               Performance

@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Content Request — Population Matters</title>
+    <meta
+      name="description"
+      content="Submit a content request to the Population Matters communications team."
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --pm-blue: #0f9dde;
+        --pm-blue-dark: #0d8bc9;
+        --pm-blue-light: #e8f6fd;
+        --error: #dc2626;
+        --error-bg: #fef2f2;
+        --success: #16a34a;
+        --success-bg: #f0fdf4;
+        --border: #d1d5db;
+        --border-focus: #0f9dde;
+        --text: #111827;
+        --text-muted: #6b7280;
+        --label: #374151;
+        --bg: #f9fafb;
+        --card-bg: #ffffff;
+        --radius: 8px;
+      }
+
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        min-height: 100vh;
+        padding: 2rem 1rem;
+      }
+
+      .wrapper {
+        max-width: 640px;
+        margin: 0 auto;
+      }
+
+      /* Header */
+      .site-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 2px solid var(--pm-blue-light);
+      }
+
+      .org-name {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: var(--pm-blue);
+        letter-spacing: -0.01em;
+        margin-bottom: 0.25rem;
+      }
+
+      .page-title {
+        font-size: 1.625rem;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+        margin-bottom: 0.5rem;
+      }
+
+      .page-subtitle {
+        font-size: 0.9375rem;
+        color: var(--text-muted);
+      }
+
+      /* Card */
+      .card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        padding: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      }
+
+      /* Form */
+      .form-section {
+        margin-bottom: 1.75rem;
+      }
+
+      .form-section-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #f3f4f6;
+      }
+
+      .field {
+        margin-bottom: 1.25rem;
+      }
+
+      .field:last-child {
+        margin-bottom: 0;
+      }
+
+      label {
+        display: block;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        color: var(--label);
+        margin-bottom: 0.4rem;
+      }
+
+      .required-mark {
+        color: var(--pm-blue);
+        margin-left: 2px;
+      }
+
+      .field-hint {
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+        margin-bottom: 0.4rem;
+        margin-top: -0.2rem;
+      }
+
+      input[type='text'],
+      input[type='email'],
+      input[type='date'],
+      textarea {
+        display: block;
+        width: 100%;
+        font-family: inherit;
+        font-size: 0.9375rem;
+        color: var(--text);
+        background: #fff;
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.625rem 0.875rem;
+        transition:
+          border-color 0.15s ease,
+          box-shadow 0.15s ease;
+        appearance: none;
+        -webkit-appearance: none;
+      }
+
+      input[type='text']:focus,
+      input[type='email']:focus,
+      input[type='date']:focus,
+      textarea:focus {
+        outline: none;
+        border-color: var(--border-focus);
+        box-shadow: 0 0 0 3px rgba(15, 157, 222, 0.15);
+      }
+
+      input[type='text'].invalid,
+      input[type='email'].invalid,
+      textarea.invalid {
+        border-color: var(--error);
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 90px;
+      }
+
+      /* Checkboxes */
+      .checkbox-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+      }
+
+      @media (max-width: 480px) {
+        .checkbox-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9375rem;
+        font-weight: 400;
+        color: var(--text);
+        cursor: pointer;
+        padding: 0.5rem 0.75rem;
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        transition:
+          border-color 0.15s ease,
+          background 0.15s ease;
+        user-select: none;
+      }
+
+      .checkbox-label:hover {
+        border-color: var(--pm-blue);
+        background: var(--pm-blue-light);
+      }
+
+      .checkbox-label input[type='checkbox'] {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--pm-blue);
+        flex-shrink: 0;
+        cursor: pointer;
+      }
+
+      .checkbox-label:has(input:checked) {
+        border-color: var(--pm-blue);
+        background: var(--pm-blue-light);
+      }
+
+      /* Inline error */
+      .field-error {
+        display: none;
+        font-size: 0.8125rem;
+        color: var(--error);
+        margin-top: 0.35rem;
+        font-weight: 500;
+      }
+
+      .field-error.visible {
+        display: block;
+      }
+
+      /* Form-level error */
+      .form-error {
+        display: none;
+        background: var(--error-bg);
+        border: 1px solid #fca5a5;
+        border-radius: var(--radius);
+        padding: 0.875rem 1rem;
+        font-size: 0.9375rem;
+        color: var(--error);
+        margin-bottom: 1.25rem;
+      }
+
+      .form-error.visible {
+        display: block;
+      }
+
+      /* Submit button */
+      .btn-submit {
+        display: block;
+        width: 100%;
+        font-family: inherit;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #fff;
+        background: var(--pm-blue);
+        border: none;
+        border-radius: var(--radius);
+        padding: 0.875rem 1.5rem;
+        cursor: pointer;
+        transition:
+          background 0.15s ease,
+          opacity 0.15s ease;
+        margin-top: 1.75rem;
+        letter-spacing: -0.01em;
+      }
+
+      .btn-submit:hover:not(:disabled) {
+        background: var(--pm-blue-dark);
+      }
+
+      .btn-submit:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+      }
+
+      .required-note {
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+        margin-bottom: 1.5rem;
+      }
+
+      /* Success screen */
+      .success-screen {
+        display: none;
+        text-align: center;
+        padding: 2.5rem 1.5rem;
+      }
+
+      .success-screen.visible {
+        display: block;
+      }
+
+      .success-icon {
+        width: 56px;
+        height: 56px;
+        background: var(--success-bg);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.25rem;
+      }
+
+      .success-icon svg {
+        width: 28px;
+        height: 28px;
+        color: var(--success);
+      }
+
+      .success-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.02em;
+      }
+
+      .success-body {
+        font-size: 0.9375rem;
+        color: var(--text-muted);
+        max-width: 360px;
+        margin: 0 auto;
+      }
+
+      .form-view.hidden {
+        display: none;
+      }
+
+      /* Footer */
+      .site-footer {
+        margin-top: 2rem;
+        text-align: center;
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="site-header">
+        <div class="org-name">Population Matters</div>
+        <h1 class="page-title">Content request</h1>
+        <p class="page-subtitle">
+          Tell us what you need and the communications team will follow up.
+        </p>
+      </header>
+
+      <div class="card">
+        <!-- Success screen (hidden until submit) -->
+        <div class="success-screen" id="successScreen" aria-live="polite">
+          <div class="success-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <div class="success-title">Request submitted</div>
+          <p class="success-body">
+            The Content Hub team will be in touch. Thank you for getting in touch.
+          </p>
+        </div>
+
+        <!-- Form -->
+        <div class="form-view" id="formView">
+          <p class="required-note">
+            Fields marked <span style="color: var(--pm-blue); font-weight: 600">*</span> are
+            required.
+          </p>
+
+          <div class="form-error" id="formError" role="alert"></div>
+
+          <form id="requestForm" novalidate>
+            <!-- About you -->
+            <div class="form-section">
+              <div class="form-section-title">About you</div>
+
+              <div class="field">
+                <label for="createdBy"
+                  >Your name <span class="required-mark" aria-hidden="true">*</span></label
+                >
+                <input type="text" id="createdBy" name="createdBy" autocomplete="name" required />
+                <div class="field-error" id="createdByError">Please enter your name.</div>
+              </div>
+
+              <div class="field">
+                <label for="createdByEmail"
+                  >Your email <span class="required-mark" aria-hidden="true">*</span></label
+                >
+                <input
+                  type="email"
+                  id="createdByEmail"
+                  name="createdByEmail"
+                  autocomplete="email"
+                  required
+                />
+                <div class="field-error" id="createdByEmailError">
+                  Please enter a valid email address.
+                </div>
+              </div>
+            </div>
+
+            <!-- The request -->
+            <div class="form-section">
+              <div class="form-section-title">The request</div>
+
+              <div class="field">
+                <label for="title"
+                  >Request title <span class="required-mark" aria-hidden="true">*</span></label
+                >
+                <div class="field-hint">
+                  A short description of what you need — e.g. "Blog post on World Population Day"
+                </div>
+                <input type="text" id="title" name="title" required />
+                <div class="field-error" id="titleError">Please enter a request title.</div>
+              </div>
+
+              <div class="field">
+                <label for="keyMessages">Key messages</label>
+                <div class="field-hint">
+                  What do you want audiences to think, feel, or do after seeing this content?
+                </div>
+                <textarea id="keyMessages" name="keyMessages" rows="3"></textarea>
+              </div>
+
+              <div class="field">
+                <label for="assetsNeeded">Assets needed</label>
+                <div class="field-hint">e.g. blog post, social graphics, email, video script</div>
+                <textarea id="assetsNeeded" name="assetsNeeded" rows="2"></textarea>
+              </div>
+            </div>
+
+            <!-- Audience & timing -->
+            <div class="form-section">
+              <div class="form-section-title">Audience &amp; timing</div>
+
+              <div class="field">
+                <label>Target audience(s)</label>
+                <div class="field-hint">Select all that apply.</div>
+                <div class="checkbox-grid" role="group" aria-label="Target audiences">
+                  <label class="checkbox-label">
+                    <input type="checkbox" name="audiences" value="UK public donors" />
+                    UK public donors
+                  </label>
+                  <label class="checkbox-label">
+                    <input
+                      type="checkbox"
+                      name="audiences"
+                      value="International development partners"
+                    />
+                    International development partners
+                  </label>
+                  <label class="checkbox-label">
+                    <input type="checkbox" name="audiences" value="Government & parliamentary" />
+                    Government &amp; parliamentary
+                  </label>
+                  <label class="checkbox-label">
+                    <input type="checkbox" name="audiences" value="Media & press" />
+                    Media &amp; press
+                  </label>
+                  <label class="checkbox-label">
+                    <input type="checkbox" name="audiences" value="Existing supporters" />
+                    Existing supporters
+                  </label>
+                  <label class="checkbox-label">
+                    <input type="checkbox" name="audiences" value="Young people & students" />
+                    Young people &amp; students
+                  </label>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="deadline">Deadline</label>
+                <input type="date" id="deadline" name="deadline" />
+              </div>
+            </div>
+
+            <!-- Extra -->
+            <div class="form-section">
+              <div class="form-section-title">Anything else?</div>
+
+              <div class="field">
+                <label for="notes">Notes / links</label>
+                <div class="field-hint">
+                  Background reading, relevant campaigns, reference links, or any other context.
+                </div>
+                <textarea id="notes" name="notes" rows="3"></textarea>
+              </div>
+            </div>
+
+            <button type="submit" class="btn-submit" id="submitBtn">Submit request</button>
+          </form>
+        </div>
+      </div>
+
+      <footer class="site-footer">Population Matters Content Hub</footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script>
+      (function () {
+        const SUPABASE_URL = 'https://dvhjvtxtkmtsqlnurhfg.supabase.co';
+        const SUPABASE_ANON_KEY =
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aGp2dHh0a210c3FsbnVyaGZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5OTI0OTYsImV4cCI6MjA4MzU2ODQ5Nn0.c4yIpOZXqU8Doci2IN6uNKA_rWwrrMzbMDkMx9HCjcc';
+
+        const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const form = document.getElementById('requestForm');
+        const formView = document.getElementById('formView');
+        const successScreen = document.getElementById('successScreen');
+        const submitBtn = document.getElementById('submitBtn');
+        const formError = document.getElementById('formError');
+
+        // Field refs
+        const fields = {
+          createdBy: document.getElementById('createdBy'),
+          createdByEmail: document.getElementById('createdByEmail'),
+          title: document.getElementById('title'),
+        };
+
+        // Clear field errors on input
+        Object.values(fields).forEach(function (el) {
+          el.addEventListener('input', function () {
+            clearFieldError(el);
+          });
+        });
+
+        function showFieldError(input, errorId) {
+          input.classList.add('invalid');
+          var errorEl = document.getElementById(errorId);
+          if (errorEl) errorEl.classList.add('visible');
+        }
+
+        function clearFieldError(input) {
+          input.classList.remove('invalid');
+          var errorId = input.id + 'Error';
+          var errorEl = document.getElementById(errorId);
+          if (errorEl) errorEl.classList.remove('visible');
+        }
+
+        function isValidEmail(value) {
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+        }
+
+        function validate() {
+          var valid = true;
+
+          if (!fields.createdBy.value.trim()) {
+            showFieldError(fields.createdBy, 'createdByError');
+            valid = false;
+          }
+
+          if (!fields.createdByEmail.value.trim() || !isValidEmail(fields.createdByEmail.value)) {
+            showFieldError(fields.createdByEmail, 'createdByEmailError');
+            valid = false;
+          }
+
+          if (!fields.title.value.trim()) {
+            showFieldError(fields.title, 'titleError');
+            valid = false;
+          }
+
+          return valid;
+        }
+
+        function buildGeneratedBrief(data) {
+          var audienceLines =
+            data.audience_segments.length > 0
+              ? data.audience_segments
+                  .map(function (a) {
+                    return '- ' + a;
+                  })
+                  .join('\n')
+              : '- None specified';
+
+          return [
+            '## Request Title',
+            data.title,
+            '',
+            '### Key Messages',
+            data.key_messages || 'No key messages provided.',
+            '',
+            '### Target Audiences',
+            audienceLines,
+            '',
+            '### Assets Needed',
+            data.assets_needed || 'No assets specified.',
+            '',
+            '### Deadline',
+            data.deadline || 'No deadline specified.',
+            '',
+            '### Notes',
+            data.notes || 'No additional notes.',
+          ].join('\n');
+        }
+
+        function getCheckedAudiences() {
+          var checkboxes = document.querySelectorAll('input[name="audiences"]:checked');
+          return Array.from(checkboxes).map(function (cb) {
+            return cb.value;
+          });
+        }
+
+        function setSubmitting(state) {
+          submitBtn.disabled = state;
+          submitBtn.textContent = state ? 'Submitting\u2026' : 'Submit request';
+        }
+
+        form.addEventListener('submit', async function (e) {
+          e.preventDefault();
+
+          // Clear previous form-level error
+          formError.classList.remove('visible');
+          formError.textContent = '';
+
+          if (!validate()) {
+            // Scroll to first invalid field
+            var firstInvalid = form.querySelector('.invalid');
+            if (firstInvalid) firstInvalid.focus();
+            return;
+          }
+
+          var deadlineRaw = document.getElementById('deadline').value;
+
+          var payload = {
+            title: fields.title.value.trim(),
+            key_messages: document.getElementById('keyMessages').value.trim() || null,
+            assets_needed: document.getElementById('assetsNeeded').value.trim() || null,
+            audience_segments: getCheckedAudiences(),
+            deadline: deadlineRaw || null,
+            notes: document.getElementById('notes').value.trim() || null,
+            created_by: fields.createdBy.value.trim(),
+            created_by_email: fields.createdByEmail.value.trim(),
+            status: 'Pending',
+          };
+
+          payload.generated_brief = buildGeneratedBrief(payload);
+
+          setSubmitting(true);
+
+          try {
+            var result = await client.from('content_requests').insert([payload]);
+
+            if (result.error) {
+              throw result.error;
+            }
+
+            // Show success
+            formView.classList.add('hidden');
+            successScreen.classList.add('visible');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          } catch (err) {
+            var message =
+              err && err.message ? err.message : 'Something went wrong. Please try again.';
+            formError.textContent = 'Submission failed: ' + message;
+            formError.classList.add('visible');
+            formError.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            setSubmitting(false);
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

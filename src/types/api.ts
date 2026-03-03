@@ -58,6 +58,7 @@ export interface CreateEntryRequest {
   platformCaptions?: Record<string, string>;
   firstComment?: string;
   status?: string;
+  priorityTier?: 'Low' | 'Medium' | 'High' | 'Urgent';
   approvers?: string[];
   author?: string;
   user?: string;

@@ -122,9 +122,11 @@ export type ViewType =
   | 'admin'
   | 'dashboard'
   | 'analytics'
-  | 'engagement';
+  | 'engagement'
+  | 'opportunities'
+  | 'requests';
 
-export type PlanTab = 'plan' | 'trash' | 'kanban' | 'approvals' | 'ideas';
+export type PlanTab = 'plan' | 'trash' | 'kanban' | 'approvals' | 'ideas' | 'narrative';
 
 export interface AppShellProps {
   children: ReactNode;

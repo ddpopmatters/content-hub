@@ -7,3 +7,4 @@ export { QuickActionsWidget } from './QuickActionsWidget';
 export { PillarBalanceWidget } from './PillarBalanceWidget';
 export { PlatformCoverageWidget } from './PlatformCoverageWidget';
 export { AudienceSegmentWidget } from './AudienceSegmentWidget';
+export { UrgentOpportunitiesWidget } from './UrgentOpportunitiesWidget';

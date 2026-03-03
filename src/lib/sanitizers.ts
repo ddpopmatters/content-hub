@@ -9,6 +9,7 @@ import {
   KANBAN_STATUSES,
   LEGACY_STATUS_MAP,
   IDEA_TYPES,
+  PRIORITY_TIERS,
   WORKFLOW_STAGES,
 } from '../constants';
 import {
@@ -121,6 +122,10 @@ export const sanitizeEntry = (entry: unknown): Entry | null => {
     typeof raw.status === 'string' && raw.status.toLowerCase() === 'approved'
       ? 'Approved'
       : 'Pending';
+  const priorityTier =
+    typeof raw.priorityTier === 'string' && isInArray(PRIORITY_TIERS, raw.priorityTier)
+      ? raw.priorityTier
+      : 'Medium';
   const createdAt = typeof raw.createdAt === 'string' ? raw.createdAt : new Date().toISOString();
   const updatedAt = typeof raw.updatedAt === 'string' ? raw.updatedAt : createdAt;
   const author =
@@ -138,6 +143,7 @@ export const sanitizeEntry = (entry: unknown): Entry | null => {
     id: typeof raw.id === 'string' ? raw.id : uuid(),
     date: typeof raw.date === 'string' ? raw.date : new Date().toISOString().slice(0, 10),
     status,
+    priorityTier,
     approvers,
     author,
     caption,
@@ -313,6 +319,7 @@ export const entrySignature = (entry: Partial<Entry> | null | undefined): string
       entry.updatedAt,
       entry.status,
       entry.statusDetail,
+      entry.priorityTier,
       entry.campaign,
       entry.contentPillar,
       entry.caption,
@@ -358,6 +365,7 @@ export const APPROVER_ALERT_FIELDS: readonly string[] = [
   'approvalDeadline',
   'campaign',
   'contentPillar',
+  'priorityTier',
   'previewUrl',
   'checklist',
   'analytics',

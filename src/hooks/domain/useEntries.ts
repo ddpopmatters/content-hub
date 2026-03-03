@@ -264,6 +264,7 @@ export function useEntries({
             platformCaptions: entry.platformCaptions,
             firstComment: entry.firstComment,
             status: entry.status,
+            priorityTier: entry.priorityTier,
             approvers: entry.approvers,
             author: entry.author || currentUser || 'Unknown',
             campaign: entry.campaign,
@@ -304,6 +305,7 @@ export function useEntries({
           },
         });
       }
+      return createdEntry;
     },
     [
       currentUser,
@@ -332,6 +334,7 @@ export function useEntries({
         designCopy: sourceEntry.designCopy || '',
         carouselSlides: sourceEntry.carouselSlides || [],
         previewUrl: sourceEntry.previewUrl || '',
+        priorityTier: sourceEntry.priorityTier || 'Medium',
         campaign: sourceEntry.campaign || '',
         contentPillar: sourceEntry.contentPillar || '',
         testingFrameworkId: sourceEntry.testingFrameworkId || '',

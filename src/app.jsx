@@ -42,7 +42,9 @@ import { ChangePasswordModal } from './components/auth';
 import { PerformanceImportModal } from './features/performance';
 import { GuidelinesModal } from './features/guidelines';
 import { IdeasBoard, IdeaForm } from './features/ideas';
-import { MiniCalendar } from './features/calendar';
+import { OpportunitiesView } from './features/opportunities';
+import { ContentRequestsView } from './features/requests';
+import { MiniCalendar, NarrativeView } from './features/calendar';
 import { EntryForm, EntryModal, EntryPreviewModal } from './features/entry';
 import { normalizeGuidelines, saveGuidelines } from './lib/guidelines';
 import { appendAudit } from './lib/audit';
@@ -59,6 +61,8 @@ import {
   useAuth,
   useNotifications,
   useIdeas,
+  useOpportunities,
+  useContentRequests,
   useApprovals,
   useAdmin,
   useInfluencers,
@@ -116,6 +120,7 @@ function ContentDashboard() {
 
   const [currentView, setCurrentView] = useState('dashboard');
   const [planTab, setPlanTab] = useState('plan');
+  const [entryFormPrefill, setEntryFormPrefill] = useState(null);
 
   // Domain hooks — Layer 0: standalone
   const sync = useSyncQueue();
@@ -215,6 +220,33 @@ function ContentDashboard() {
     pushSyncToast: sync.pushSyncToast,
   });
   const { ideas, setIdeas, addIdea, deleteIdea, refreshIdeas, ideasByMonth } = ideasHook;
+
+  const opportunitiesHook = useOpportunities({
+    currentUser,
+    currentUserEmail,
+    runSyncTask: sync.runSyncTask,
+    pushSyncToast: sync.pushSyncToast,
+  });
+  const {
+    openOpportunities,
+    urgentOpenCount,
+    addOpportunity,
+    markOpportunityAsActed,
+    dismissOpportunity,
+  } = opportunitiesHook;
+
+  const contentRequestsHook = useContentRequests({
+    currentUser,
+    currentUserEmail,
+    runSyncTask: sync.runSyncTask,
+    pushSyncToast: sync.pushSyncToast,
+  });
+  const {
+    contentRequests,
+    addContentRequest,
+    updateContentRequestStatus,
+    markContentRequestConverted,
+  } = contentRequestsHook;
 
   const approvals = useApprovals({ apiGet, entries, currentUser });
   const { approverDirectory, refreshApprovers, outstandingApprovals } = approvals;
@@ -485,6 +517,7 @@ function ContentDashboard() {
   useEffect(() => {
     const syncFromHash = () => {
       if (window.location.hash === '#create') {
+        setEntryFormPrefill(null);
         setCurrentView('form');
         setPlanTab('plan');
         closeEntry();
@@ -498,6 +531,7 @@ function ContentDashboard() {
   useEffect(() => {
     if (currentView !== 'form') {
       setPendingAssetType(null);
+      setEntryFormPrefill(null);
     }
   }, [currentView]);
 
@@ -733,6 +767,7 @@ function ContentDashboard() {
       caption: idea.title || '', // Use idea title as starting caption
       platformCaptions: {},
       firstComment: '',
+      priorityTier: 'Medium',
       script: '',
       designCopy: '',
       carouselSlides: [],
@@ -810,6 +845,60 @@ function ContentDashboard() {
     });
   };
 
+  const buildEntryPrefillFromRequest = useCallback((request) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const captionParts = [request?.title, request?.keyMessages]
+      .map((part) => (typeof part === 'string' ? part.trim() : ''))
+      .filter(Boolean);
+    const firstCommentSections = [];
+    if (request?.assetsNeeded && request.assetsNeeded.trim()) {
+      firstCommentSections.push(`Assets needed:\\n${request.assetsNeeded.trim()}`);
+    }
+    if (request?.notes && request.notes.trim()) {
+      firstCommentSections.push(`Notes:\\n${request.notes.trim()}`);
+    }
+
+    return {
+      sourceRequestId: request?.id || '',
+      sourceRequestTitle: request?.title || 'Request',
+      date: request?.deadline || today,
+      approvalDeadline: request?.deadline ? `${request.deadline}T17:00` : '',
+      approvers: Array.isArray(request?.approvers) ? request.approvers : [],
+      audienceSegments: Array.isArray(request?.audienceSegments) ? request.audienceSegments : [],
+      assetType: 'No asset',
+      caption: captionParts.join('\\n\\n'),
+      firstComment: firstCommentSections.join('\\n\\n'),
+    };
+  }, []);
+
+  const handleConvertRequestToEntry = useCallback(
+    (request) => {
+      if (!request) return;
+      setEntryFormPrefill(buildEntryPrefillFromRequest(request));
+      if (request.status === 'Pending') {
+        updateContentRequestStatus(request.id, 'In Progress');
+      }
+      setCurrentView('form');
+      setPlanTab('plan');
+      closeEntry();
+      pushSyncToast('Request loaded into Create Content form.', 'success');
+    },
+    [buildEntryPrefillFromRequest, closeEntry, pushSyncToast, updateContentRequestStatus],
+  );
+
+  const handleEntryFormSubmit = useCallback(
+    (payload) => {
+      const createdEntry = addEntry(payload);
+      if (entryFormPrefill?.sourceRequestId) {
+        markContentRequestConverted(entryFormPrefill.sourceRequestId, createdEntry?.id);
+        pushSyncToast('Content request marked as converted.', 'success');
+        setEntryFormPrefill(null);
+      }
+      return createdEntry;
+    },
+    [addEntry, entryFormPrefill, markContentRequestConverted, pushSyncToast],
+  );
+
   const handleSignOut = () => {
     (async () => {
       try {
@@ -827,6 +916,8 @@ function ContentDashboard() {
       approvals.reset();
       influencersHook.reset();
       ideasHook.reset();
+      opportunitiesHook.reset();
+      contentRequestsHook.reset();
       setCurrentView('dashboard');
       setChangePasswordOpen(false);
     })();
@@ -842,6 +933,8 @@ function ContentDashboard() {
         dashboard: { view: 'dashboard', tab: 'plan' },
         analytics: { view: 'analytics', tab: 'plan' },
         engagement: { view: 'engagement', tab: 'plan' },
+        opportunities: { view: 'opportunities', tab: 'plan' },
+        requests: { view: 'requests', tab: 'plan' },
         content: { view: 'plan', tab: 'plan' },
         ideas: { view: 'plan', tab: 'ideas' },
         influencers: { view: 'influencers', tab: 'plan' },
@@ -1108,6 +1201,7 @@ function ContentDashboard() {
               engagementActivities={engagementActivities}
               engagementGoals={engagementGoals}
               pendingApprovalCount={outstandingCount}
+              urgentOpportunityCount={urgentOpenCount}
               onOpenEntry={openEntry}
               onNavigate={(view, tab) => {
                 setCurrentView(view);
@@ -1116,6 +1210,11 @@ function ContentDashboard() {
               }}
               onOpenGuidelines={() => setGuidelinesOpen(true)}
               onOpenApprovals={() => setApprovalsModalOpen(true)}
+              onOpenOpportunities={() => {
+                setCurrentView('opportunities');
+                setPlanTab('plan');
+                closeEntry();
+              }}
             />
           )}
 
@@ -1136,10 +1235,24 @@ function ContentDashboard() {
                   </Button>
                   <h2 className="text-2xl font-semibold text-ocean-700">Create Content</h2>
                   <p className="text-sm text-graystone-600">
-                    Submit a brief and it will appear on the calendar instantly.
+                    {entryFormPrefill?.sourceRequestId
+                      ? `Converting request: ${entryFormPrefill.sourceRequestTitle}`
+                      : 'Submit a brief and it will appear on the calendar instantly.'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {entryFormPrefill?.sourceRequestId ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setCurrentView('requests');
+                        setPlanTab('plan');
+                        closeEntry();
+                      }}
+                    >
+                      Back to requests
+                    </Button>
+                  ) : null}
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -1173,13 +1286,14 @@ function ContentDashboard() {
               <div className="grid gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(260px,1fr)]">
                 <div className="w-full">
                   <EntryForm
-                    onSubmit={addEntry}
+                    onSubmit={handleEntryFormSubmit}
                     existingEntries={entries.filter((entry) => !entry.deletedAt)}
                     onPreviewAssetType={setPendingAssetType}
                     guidelines={guidelines}
                     currentUser={currentUser}
                     currentUserEmail={currentUserEmail}
                     approverOptions={approverOptions}
+                    initialValues={entryFormPrefill}
                   />
                 </div>
                 <div className="flex w-full flex-col gap-6">
@@ -1314,6 +1428,20 @@ function ContentDashboard() {
                         )}
                       >
                         Ideas
+                      </Button>
+                    )}
+                    {canUseCalendar && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => setPlanTab('narrative')}
+                        className={cx(
+                          'rounded-2xl px-4 py-2 text-sm transition',
+                          planTab === 'narrative'
+                            ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                            : 'text-ocean-600 hover:bg-aqua-100',
+                        )}
+                      >
+                        Narrative
                       </Button>
                     )}
                   </div>
@@ -1465,6 +1593,25 @@ function ContentDashboard() {
                         />
                       </div>
                     );
+                  case 'narrative':
+                    if (!canUseCalendar) return null;
+                    return (
+                      <NarrativeView
+                        entries={entries}
+                        monthCursor={monthCursor}
+                        onPrevMonth={() =>
+                          setMonthCursor(
+                            new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1),
+                          )
+                        }
+                        onNextMonth={() =>
+                          setMonthCursor(
+                            new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1),
+                          )
+                        }
+                        onOpenEntry={openEntry}
+                      />
+                    );
                   default:
                     return null;
                 }
@@ -1515,6 +1662,33 @@ function ContentDashboard() {
                   );
                 }}
                 onUpdateGoals={(goals) => setEngagementGoals(goals)}
+              />
+            </div>
+          )}
+
+          {currentView === 'opportunities' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <OpportunitiesView
+                opportunities={openOpportunities}
+                entries={entries}
+                currentUser={currentUser}
+                onAddOpportunity={addOpportunity}
+                onMarkActed={markOpportunityAsActed}
+                onDismiss={dismissOpportunity}
+                onOpenEntry={openEntry}
+              />
+            </div>
+          )}
+
+          {currentView === 'requests' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <ContentRequestsView
+                contentRequests={contentRequests}
+                currentUser={currentUser}
+                approverOptions={approverOptions}
+                onAddContentRequest={addContentRequest}
+                onUpdateStatus={updateContentRequestStatus}
+                onConvertToEntry={handleConvertRequestToEntry}
               />
             </div>
           )}

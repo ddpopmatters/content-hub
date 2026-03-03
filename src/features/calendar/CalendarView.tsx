@@ -4,14 +4,14 @@ import {
   CardHeader,
   CardContent,
   CardTitle,
-  Badge,
   Button,
   Input,
   Label,
   Toggle,
   MultiSelect,
 } from '../../components/ui';
-import { PlatformIcon, CalendarIcon, ChevronDownIcon } from '../../components/common';
+import { PlatformIcon, CalendarIcon } from '../../components/common';
+import { downloadICS, exportEntriesForDateRange } from '../../lib/exportUtils';
 import {
   cx,
   daysInMonth,
@@ -21,7 +21,7 @@ import {
   isSafeUrl,
 } from '../../lib/utils';
 import { selectBaseClasses } from '../../lib/styles';
-import { ALL_PLATFORMS, KANBAN_STATUSES } from '../../constants';
+import { ALL_PLATFORMS, KANBAN_STATUSES, PRIORITY_TIERS } from '../../constants';
 import MonthGrid from './MonthGrid';
 import WeekGrid from './WeekGrid';
 import UpcomingDeadlines from './UpcomingDeadlines';
@@ -45,6 +45,12 @@ function getWeekEnd(date: Date): Date {
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   return end;
+}
+
+function formatLocalISO(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate(),
+  ).padStart(2, '0')}`;
 }
 
 interface PlatformFilterProps {
@@ -255,10 +261,14 @@ export function CalendarView({
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterWorkflow, setFilterWorkflow] = useState('All');
+  const [filterPriority, setFilterPriority] = useState('All');
   const [filterPlatforms, setFilterPlatforms] = useState<string[]>([]);
   const [filterQuery, setFilterQuery] = useState('');
   const [filterOverdue, setFilterOverdue] = useState(false);
   const [filterEvergreen, setFilterEvergreen] = useState(false);
+  const [useCustomExportRange, setUseCustomExportRange] = useState(false);
+  const [customExportStartDate, setCustomExportStartDate] = useState('');
+  const [customExportEndDate, setCustomExportEndDate] = useState('');
 
   // Computed values
   const monthLabel = monthCursor.toLocaleDateString(undefined, {
@@ -277,6 +287,20 @@ export function CalendarView({
 
   const startISO = monthStartISO(monthCursor);
   const endISO = monthEndISO(monthCursor);
+  const weekEnd = getWeekEnd(weekCursor);
+  const weekStartISO = formatLocalISO(weekCursor);
+  const weekEndISO = formatLocalISO(weekEnd);
+  const visibleExportStartDate = viewMode === 'month' ? startISO : weekStartISO;
+  const visibleExportEndDate = viewMode === 'month' ? endISO : weekEndISO;
+  const exportStartDate = useCustomExportRange
+    ? customExportStartDate || visibleExportStartDate
+    : visibleExportStartDate;
+  const exportEndDate = useCustomExportRange
+    ? customExportEndDate || visibleExportEndDate
+    : visibleExportEndDate;
+  const hasValidExportRange = Boolean(
+    exportStartDate && exportEndDate && exportStartDate <= exportEndDate,
+  );
   const normalizedFilterQuery = filterQuery.trim().toLowerCase();
 
   const monthEntryTotal = useMemo(
@@ -323,6 +347,7 @@ export function CalendarView({
     if (filterType !== 'All') count += 1;
     if (filterStatus !== 'All') count += 1;
     if (filterWorkflow !== 'All') count += 1;
+    if (filterPriority !== 'All') count += 1;
     if (filterPlatforms.length) count += 1;
     if (filterQuery.trim()) count += 1;
     if (filterOverdue) count += 1;
@@ -332,6 +357,7 @@ export function CalendarView({
     filterType,
     filterStatus,
     filterWorkflow,
+    filterPriority,
     filterPlatforms,
     filterQuery,
     filterOverdue,
@@ -347,6 +373,7 @@ export function CalendarView({
       .filter((entry) =>
         filterWorkflow === 'All' ? true : entry.workflowStatus === filterWorkflow,
       )
+      .filter((entry) => (filterPriority === 'All' ? true : entry.priorityTier === filterPriority))
       .filter((entry) =>
         filterPlatforms.length === 0
           ? true
@@ -361,6 +388,7 @@ export function CalendarView({
     filterType,
     filterStatus,
     filterWorkflow,
+    filterPriority,
     filterPlatforms,
     filterOverdue,
     filterEvergreen,
@@ -402,6 +430,7 @@ export function CalendarView({
     setFilterType('All');
     setFilterStatus('All');
     setFilterWorkflow('All');
+    setFilterPriority('All');
     setFilterPlatforms([]);
     setFilterQuery('');
     setFilterOverdue(false);
@@ -435,7 +464,6 @@ export function CalendarView({
   };
 
   // Week date range label
-  const weekEnd = getWeekEnd(weekCursor);
   const weekLabel = `${weekCursor.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -446,15 +474,35 @@ export function CalendarView({
   })}`;
 
   // Filter entries for week view (use filteredEntries, not monthEntries to avoid month boundary issues)
-  // Use local date formatting to avoid timezone issues with toISOString()
-  const formatLocalISO = (d: Date): string =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const weekStartISO = formatLocalISO(weekCursor);
-  const weekEndISO = formatLocalISO(weekEnd);
   const weekEntries = useMemo(
     () => filteredEntries.filter((entry) => entry.date >= weekStartISO && entry.date <= weekEndISO),
     [filteredEntries, weekStartISO, weekEndISO],
   );
+
+  const exportEntries = useMemo(() => {
+    if (!hasValidExportRange) return [];
+    return filteredEntries.filter(
+      (entry) => entry.date >= exportStartDate && entry.date <= exportEndDate,
+    );
+  }, [filteredEntries, exportStartDate, exportEndDate, hasValidExportRange]);
+
+  const handleToggleCustomExportRange = (enabled: boolean) => {
+    setUseCustomExportRange(enabled);
+    if (enabled) {
+      setCustomExportStartDate(visibleExportStartDate);
+      setCustomExportEndDate(visibleExportEndDate);
+    }
+  };
+
+  const handleExportCalendarCSV = () => {
+    if (!hasValidExportRange) return;
+    exportEntriesForDateRange(filteredEntries, exportStartDate, exportEndDate);
+  };
+
+  const handleExportCalendarICS = () => {
+    if (!hasValidExportRange) return;
+    downloadICS(exportEntries, `pm-calendar-${exportStartDate}-to-${exportEndDate}.ics`);
+  };
 
   return (
     <Card className="shadow-xl">
@@ -520,6 +568,84 @@ export function CalendarView({
             </div>
           </div>
 
+          <div className="rounded-2xl border border-graystone-200 bg-white px-4 py-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div className="text-xs text-graystone-600">
+                <div className="font-semibold text-graystone-700">Export calendar</div>
+                <div>
+                  Default {viewMode} range: {visibleExportStartDate} to {visibleExportEndDate}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-graystone-600">
+                <span className="font-medium text-graystone-700">Custom range</span>
+                <Toggle
+                  checked={useCustomExportRange}
+                  onChange={handleToggleCustomExportRange}
+                  aria-label="Use custom export range"
+                />
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+              <div>
+                <Label className="text-xs text-graystone-600" htmlFor="export-start-date">
+                  From
+                </Label>
+                <Input
+                  id="export-start-date"
+                  type="date"
+                  value={useCustomExportRange ? customExportStartDate : visibleExportStartDate}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                    setCustomExportStartDate(event.target.value)
+                  }
+                  disabled={!useCustomExportRange}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-graystone-600" htmlFor="export-end-date">
+                  To
+                </Label>
+                <Input
+                  id="export-end-date"
+                  type="date"
+                  value={useCustomExportRange ? customExportEndDate : visibleExportEndDate}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                    setCustomExportEndDate(event.target.value)
+                  }
+                  disabled={!useCustomExportRange}
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex items-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportCalendarCSV}
+                  disabled={!hasValidExportRange}
+                >
+                  Export CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportCalendarICS}
+                  disabled={!hasValidExportRange}
+                >
+                  Export ICS
+                </Button>
+              </div>
+            </div>
+            {!hasValidExportRange && (
+              <p className="mt-2 text-xs text-rose-600">
+                Export start date must be on or before end date.
+              </p>
+            )}
+            <p className="mt-2 text-xs text-graystone-500">
+              {exportEntries.length} filtered entr{exportEntries.length === 1 ? 'y' : 'ies'} in
+              range {exportStartDate} to {exportEndDate}.
+            </p>
+          </div>
+
           {/* Bulk Date Shift panel */}
           {onBulkDateShift && (
             <div className="mt-4">
@@ -527,7 +653,7 @@ export function CalendarView({
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
             <div>
               <Label className="text-xs text-graystone-600">Asset type</Label>
               <select
@@ -579,6 +705,23 @@ export function CalendarView({
               <div className="mt-1">
                 <PlatformFilter value={filterPlatforms} onChange={setFilterPlatforms} />
               </div>
+            </div>
+            <div>
+              <Label className="text-xs text-graystone-600">Priority</Label>
+              <select
+                value={filterPriority}
+                onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                  setFilterPriority(event.target.value)
+                }
+                className={cx(selectBaseClasses, 'mt-1 w-full')}
+              >
+                <option value="All">All</option>
+                {PRIORITY_TIERS.map((tier) => (
+                  <option key={tier} value={tier}>
+                    {tier}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

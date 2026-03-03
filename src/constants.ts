@@ -10,6 +10,30 @@ export type IdeaType = (typeof IDEA_TYPES)[number];
 export const KANBAN_STATUSES = ['Draft', 'Ready for Review', 'Approved', 'Published'] as const;
 export type KanbanStatus = (typeof KANBAN_STATUSES)[number];
 
+export const PRIORITY_TIERS = ['Low', 'Medium', 'High', 'Urgent'] as const;
+export type PriorityTier = (typeof PRIORITY_TIERS)[number];
+
+export const PRIORITY_TIER_BADGE_CLASSES: Record<PriorityTier, string> = {
+  Low: 'bg-graystone-100 text-graystone-700',
+  Medium: 'bg-ocean-100 text-ocean-800',
+  High: 'bg-amber-100 text-amber-800',
+  Urgent: 'bg-red-100 text-red-700',
+};
+
+export const PRIORITY_TIER_BORDER_CLASSES: Record<PriorityTier, string> = {
+  Low: 'border-l-graystone-300',
+  Medium: 'border-l-ocean-500',
+  High: 'border-l-amber-500',
+  Urgent: 'border-l-red-500',
+};
+
+export const PRIORITY_TIER_DOT_CLASSES: Record<PriorityTier, string> = {
+  Low: 'bg-graystone-400',
+  Medium: 'bg-ocean-500',
+  High: 'bg-amber-500',
+  Urgent: 'bg-red-500',
+};
+
 // Legacy status mapping for migration
 export const LEGACY_STATUS_MAP: Record<string, KanbanStatus> = {
   Draft: 'Draft',
@@ -418,11 +442,6 @@ export interface QuickAssessmentQuestion {
 }
 
 export const QUICK_ASSESSMENT_QUESTIONS: QuickAssessmentQuestion[] = [
-  {
-    key: 'goldenThread',
-    label: 'Golden Thread',
-    description: 'Would this survive if screenshotted and shared by a hostile account?',
-  },
   {
     key: 'hook',
     label: 'Hook',

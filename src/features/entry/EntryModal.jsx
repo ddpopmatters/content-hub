@@ -31,8 +31,19 @@ import {
   DEFAULT_USERS,
   CHECKLIST_ITEMS,
   KANBAN_STATUSES,
+  PRIORITY_TIERS,
+  PRIORITY_TIER_BADGE_CLASSES,
 } from '../../constants';
-import { Modal, Button, Input, Textarea, Toggle, Separator, FieldRow } from '../../components/ui';
+import {
+  Modal,
+  Button,
+  Input,
+  Textarea,
+  Toggle,
+  Separator,
+  FieldRow,
+  Badge,
+} from '../../components/ui';
 import {
   PlatformIcon,
   MentionSuggestionList,
@@ -277,6 +288,11 @@ export function EntryModal({
           : draft && typeof draft.analyticsUpdatedAt === 'string'
             ? draft.analyticsUpdatedAt
             : '',
+      priorityTier: PRIORITY_TIERS.includes(raw.priorityTier)
+        ? raw.priorityTier
+        : PRIORITY_TIERS.includes(draft.priorityTier)
+          ? draft.priorityTier
+          : 'Medium',
       workflowStatus: KANBAN_STATUSES.includes(raw.workflowStatus)
         ? raw.workflowStatus
         : KANBAN_STATUSES.includes(draft.workflowStatus)
@@ -547,6 +563,9 @@ export function EntryModal({
     draft.platformCaptions,
     effectivePreviewPlatform,
   );
+  const currentPriorityTier = PRIORITY_TIERS.includes(draft.priorityTier)
+    ? draft.priorityTier
+    : 'Medium';
   const analyticsByPlatform = ensureAnalytics(draft.analytics);
   const analyticsPlatforms = Object.keys(analyticsByPlatform);
   const formatMetricValue = (value) => {
@@ -775,6 +794,9 @@ export function EntryModal({
               >
                 View timeline
               </Button>
+              <Badge className={PRIORITY_TIER_BADGE_CLASSES[currentPriorityTier]}>
+                {currentPriorityTier}
+              </Badge>
               <span
                 className={cx(
                   'rounded-full px-3 py-1 text-xs font-semibold text-ocean-900',
@@ -857,6 +879,25 @@ export function EntryModal({
                       </option>
                     ))}
                   </select>
+                </FieldRow>
+
+                <FieldRow label="Priority">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={currentPriorityTier}
+                      onChange={(event) => update('priorityTier', event.target.value)}
+                      className={cx(selectBaseClasses, 'w-full sm:w-auto sm:min-w-[180px]')}
+                    >
+                      {PRIORITY_TIERS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    <Badge className={PRIORITY_TIER_BADGE_CLASSES[currentPriorityTier]}>
+                      {currentPriorityTier}
+                    </Badge>
+                  </div>
                 </FieldRow>
 
                 <FieldRow label="Evergreen content">

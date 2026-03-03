@@ -6,6 +6,8 @@ export { useEngagement } from './useEngagement';
 export { useAuth } from './useAuth';
 export { useNotifications } from './useNotifications';
 export { useIdeas } from './useIdeas';
+export { useOpportunities } from './useOpportunities';
+export { useContentRequests } from './useContentRequests';
 export { useApprovals } from './useApprovals';
 export { useAdmin } from './useAdmin';
 export { useInfluencers } from './useInfluencers';
