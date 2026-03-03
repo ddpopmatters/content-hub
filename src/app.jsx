@@ -1487,7 +1487,8 @@ function ContentDashboard() {
                     return (
                       <CalendarView
                         entries={entries}
-                        ideas={ideas}
+                        monthCursor={monthCursor}
+                        onMonthChange={setMonthCursor}
                         onApprove={toggleApprove}
                         onDelete={softDelete}
                         onOpenEntry={openEntry}

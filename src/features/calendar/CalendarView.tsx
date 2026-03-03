@@ -1,32 +1,17 @@
 import React, { useState, useMemo, useCallback, type ChangeEvent } from 'react';
-import {
-  Card,
-  CardHeader,
-  CardContent,
-  CardTitle,
-  Button,
-  Input,
-  Label,
-  Toggle,
-  MultiSelect,
-} from '../../components/ui';
+import { Card, CardContent, Button, Input, Label, Toggle, MultiSelect } from '../../components/ui';
 import { PlatformIcon, CalendarIcon } from '../../components/common';
 import { downloadICS, exportEntriesForDateRange } from '../../lib/exportUtils';
-import {
-  cx,
-  daysInMonth,
-  monthStartISO,
-  monthEndISO,
-  localMonthKey,
-  isSafeUrl,
-} from '../../lib/utils';
+import { cx, daysInMonth, monthStartISO, monthEndISO } from '../../lib/utils';
 import { selectBaseClasses } from '../../lib/styles';
 import { ALL_PLATFORMS, KANBAN_STATUSES, PRIORITY_TIERS } from '../../constants';
 import MonthGrid from './MonthGrid';
 import WeekGrid from './WeekGrid';
 import UpcomingDeadlines from './UpcomingDeadlines';
 import BulkDateShift from './BulkDateShift';
-import type { Entry, Idea } from '../../types/models';
+import { SavedFilters, loadFilterPresets, saveFilterPresets } from './SavedFilters';
+import type { FilterPreset } from './SavedFilters';
+import type { Entry } from '../../types/models';
 
 type CalendarViewMode = 'month' | 'week';
 
@@ -163,11 +148,11 @@ function AssetRatioCard({
 
   return (
     <Card className="shadow-md">
-      <CardHeader>
-        <CardTitle className="text-base text-ocean-900">Asset ratio</CardTitle>
-        <p className="text-xs text-graystone-500">{monthLabel}</p>
-      </CardHeader>
-      <CardContent>
+      <CardContent className="pt-4">
+        <div className="mb-3">
+          <div className="text-base font-semibold text-ocean-900">Asset ratio</div>
+          <p className="text-xs text-graystone-500">{monthLabel}</p>
+        </div>
         {adjustedTotal === 0 ? (
           <p className="text-sm text-graystone-500">No assets scheduled for this month yet.</p>
         ) : (
@@ -214,8 +199,10 @@ function AssetRatioCard({
 export interface CalendarViewProps {
   /** All calendar entries */
   entries: Entry[];
-  /** Ideas for display in month view */
-  ideas: Idea[];
+  /** Controlled month cursor (shared with Narrative / Glance tabs) */
+  monthCursor: Date;
+  /** Called when the user navigates to a new month */
+  onMonthChange: (date: Date) => void;
   /** Callback when entry is approved */
   onApprove: (id: string) => void;
   /** Callback when entry is deleted */
@@ -240,9 +227,10 @@ export interface CalendarViewProps {
 
 export function CalendarView({
   entries,
-  ideas,
+  monthCursor,
+  onMonthChange,
   onApprove,
-  onDelete,
+  onDelete: _onDelete,
   onOpenEntry,
   onImportPerformance,
   assetGoals,
@@ -252,10 +240,13 @@ export function CalendarView({
   onDailyPostTargetChange,
   onBulkDateShift,
 }: CalendarViewProps): React.ReactElement {
-  // View mode and navigation state
+  // View mode and week navigation (week cursor stays internal)
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
-  const [monthCursor, setMonthCursor] = useState(() => new Date());
   const [weekCursor, setWeekCursor] = useState(() => getWeekStart(new Date()));
+
+  // Panel visibility
+  const [showFilters, setShowFilters] = useState(false);
+  const [showExport, setShowExport] = useState(false);
 
   // Filter state
   const [filterType, setFilterType] = useState('All');
@@ -266,9 +257,14 @@ export function CalendarView({
   const [filterQuery, setFilterQuery] = useState('');
   const [filterOverdue, setFilterOverdue] = useState(false);
   const [filterEvergreen, setFilterEvergreen] = useState(false);
+
+  // Export state
   const [useCustomExportRange, setUseCustomExportRange] = useState(false);
   const [customExportStartDate, setCustomExportStartDate] = useState('');
   const [customExportEndDate, setCustomExportEndDate] = useState('');
+
+  // Saved filter presets
+  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => loadFilterPresets());
 
   // Computed values
   const monthLabel = monthCursor.toLocaleDateString(undefined, {
@@ -409,23 +405,6 @@ export function CalendarView({
     return { counts, total };
   }, [monthEntries]);
 
-  const ideasByMonth = useMemo(() => {
-    const groups = new Map<string, Idea[]>();
-    ideas.forEach((idea) => {
-      const key = idea.targetMonth || '';
-      if (!key) return;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(idea);
-    });
-    return groups;
-  }, [ideas]);
-
-  const currentMonthIdeas = useMemo(() => {
-    const key = localMonthKey(monthCursor);
-    const items = ideasByMonth.get(key) || [];
-    return items.slice().sort((a, b) => (a.targetDate || '').localeCompare(b.targetDate || ''));
-  }, [ideasByMonth, monthCursor]);
-
   const resetFilters = useCallback(() => {
     setFilterType('All');
     setFilterStatus('All');
@@ -437,13 +416,11 @@ export function CalendarView({
     setFilterEvergreen(false);
   }, []);
 
-  const goToPrevMonth = () => {
-    setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1));
-  };
-
-  const goToNextMonth = () => {
-    setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1));
-  };
+  // Month navigation — delegates to parent so all tabs stay in sync
+  const goToPrevMonth = () =>
+    onMonthChange(new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1));
+  const goToNextMonth = () =>
+    onMonthChange(new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1));
 
   const goToPrevWeek = () => {
     const prev = new Date(weekCursor);
@@ -459,7 +436,7 @@ export function CalendarView({
 
   const goToToday = () => {
     const today = new Date();
-    setMonthCursor(new Date(today.getFullYear(), today.getMonth(), 1));
+    onMonthChange(new Date(today.getFullYear(), today.getMonth(), 1));
     setWeekCursor(getWeekStart(today));
   };
 
@@ -473,7 +450,6 @@ export function CalendarView({
     year: 'numeric',
   })}`;
 
-  // Filter entries for week view (use filteredEntries, not monthEntries to avoid month boundary issues)
   const weekEntries = useMemo(
     () => filteredEntries.filter((entry) => entry.date >= weekStartISO && entry.date <= weekEndISO),
     [filteredEntries, weekStartISO, weekEndISO],
@@ -504,156 +480,164 @@ export function CalendarView({
     downloadICS(exportEntries, `pm-calendar-${exportStartDate}-to-${exportEndDate}.ics`);
   };
 
+  const handlePresetsChange = (presets: FilterPreset[]) => {
+    setFilterPresets(presets);
+    saveFilterPresets(presets);
+  };
+
+  const handleApplyPreset = (filters: FilterPreset['filters']) => {
+    if (filters.filterType) setFilterType(filters.filterType);
+    if (filters.filterStatus) setFilterStatus(filters.filterStatus);
+    if (filters.filterWorkflow) setFilterWorkflow(filters.filterWorkflow);
+    if (filters.filterPlatforms) setFilterPlatforms(filters.filterPlatforms);
+    if (filters.filterQuery !== undefined) setFilterQuery(filters.filterQuery);
+    if (filters.filterOverdue !== undefined) setFilterOverdue(filters.filterOverdue);
+    if (filters.filterEvergreen !== undefined) setFilterEvergreen(filters.filterEvergreen);
+    setShowFilters(true);
+  };
+
+  const currentFilters: FilterPreset['filters'] = {
+    filterType,
+    filterStatus,
+    filterWorkflow,
+    filterPlatforms,
+    filterQuery,
+    filterOverdue,
+    filterEvergreen,
+  };
+
   return (
-    <Card className="shadow-xl">
-      <CardHeader>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <CardTitle className="text-xl text-ocean-900">Calendar</CardTitle>
-              {/* View mode toggle */}
-              <div className="inline-flex rounded-lg border border-graystone-200 bg-graystone-50 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('month')}
-                  className={cx(
-                    'rounded-md px-3 py-1 text-xs font-medium transition',
-                    viewMode === 'month'
-                      ? 'bg-white text-ocean-700 shadow-sm'
-                      : 'text-graystone-600 hover:text-graystone-900',
-                  )}
-                >
-                  Month
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('week')}
-                  className={cx(
-                    'rounded-md px-3 py-1 text-xs font-medium transition',
-                    viewMode === 'week'
-                      ? 'bg-white text-ocean-700 shadow-sm'
-                      : 'text-graystone-600 hover:text-graystone-900',
-                  )}
-                >
-                  Week
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={viewMode === 'month' ? goToPrevMonth : goToPrevWeek}
-              >
-                Prev
-              </Button>
-              <button
-                type="button"
-                onClick={goToToday}
-                className="inline-flex items-center gap-2 rounded-md border border-graystone-200 bg-white px-3 py-1 text-sm font-medium text-graystone-700 shadow-sm hover:bg-graystone-50"
-              >
-                <CalendarIcon className="h-4 w-4 text-graystone-500" />
-                {viewMode === 'month' ? monthLabel : weekLabel}
-              </button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={viewMode === 'month' ? goToNextMonth : goToNextWeek}
-              >
-                Next
-              </Button>
-              <Button variant="outline" size="sm" onClick={onImportPerformance}>
-                Import performance
-              </Button>
-            </div>
+    <div className="flex flex-col gap-4">
+      {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Left: view mode + navigation */}
+        <div className="flex items-center gap-2">
+          {/* Month / Week toggle */}
+          <div className="inline-flex rounded-lg border border-graystone-200 bg-graystone-50 p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode('month')}
+              className={cx(
+                'rounded-md px-3 py-1 text-xs font-medium transition',
+                viewMode === 'month'
+                  ? 'bg-white text-ocean-700 shadow-sm'
+                  : 'text-graystone-600 hover:text-graystone-900',
+              )}
+            >
+              Month
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('week')}
+              className={cx(
+                'rounded-md px-3 py-1 text-xs font-medium transition',
+                viewMode === 'week'
+                  ? 'bg-white text-ocean-700 shadow-sm'
+                  : 'text-graystone-600 hover:text-graystone-900',
+              )}
+            >
+              Week
+            </button>
           </div>
 
-          <div className="rounded-2xl border border-graystone-200 bg-white px-4 py-3">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div className="text-xs text-graystone-600">
-                <div className="font-semibold text-graystone-700">Export calendar</div>
-                <div>
-                  Default {viewMode} range: {visibleExportStartDate} to {visibleExportEndDate}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-graystone-600">
-                <span className="font-medium text-graystone-700">Custom range</span>
-                <Toggle
-                  checked={useCustomExportRange}
-                  onChange={handleToggleCustomExportRange}
-                  aria-label="Use custom export range"
-                />
-              </div>
-            </div>
-            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-              <div>
-                <Label className="text-xs text-graystone-600" htmlFor="export-start-date">
-                  From
-                </Label>
-                <Input
-                  id="export-start-date"
-                  type="date"
-                  value={useCustomExportRange ? customExportStartDate : visibleExportStartDate}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    setCustomExportStartDate(event.target.value)
-                  }
-                  disabled={!useCustomExportRange}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-graystone-600" htmlFor="export-end-date">
-                  To
-                </Label>
-                <Input
-                  id="export-end-date"
-                  type="date"
-                  value={useCustomExportRange ? customExportEndDate : visibleExportEndDate}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    setCustomExportEndDate(event.target.value)
-                  }
-                  disabled={!useCustomExportRange}
-                  className="mt-1"
-                />
-              </div>
-              <div className="flex items-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportCalendarCSV}
-                  disabled={!hasValidExportRange}
-                >
-                  Export CSV
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportCalendarICS}
-                  disabled={!hasValidExportRange}
-                >
-                  Export ICS
-                </Button>
-              </div>
-            </div>
-            {!hasValidExportRange && (
-              <p className="mt-2 text-xs text-rose-600">
-                Export start date must be on or before end date.
-              </p>
+          {/* Prev / date label / Next */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={viewMode === 'month' ? goToPrevMonth : goToPrevWeek}
+          >
+            Prev
+          </Button>
+          <button
+            type="button"
+            onClick={goToToday}
+            className="inline-flex items-center gap-2 rounded-md border border-graystone-200 bg-white px-3 py-1 text-sm font-medium text-graystone-700 shadow-sm hover:bg-graystone-50"
+          >
+            <CalendarIcon className="h-4 w-4 text-graystone-500" />
+            {viewMode === 'month' ? monthLabel : weekLabel}
+          </button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={viewMode === 'month' ? goToNextMonth : goToNextWeek}
+          >
+            Next
+          </Button>
+        </div>
+
+        {/* Right: action buttons */}
+        <div className="flex items-center gap-2">
+          {/* Filters toggle */}
+          <button
+            type="button"
+            onClick={() => setShowFilters((v) => !v)}
+            className={cx(
+              'inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-medium transition',
+              showFilters
+                ? 'border-ocean-300 bg-ocean-50 text-ocean-700'
+                : 'border-graystone-200 bg-white text-graystone-600 hover:border-graystone-300 hover:bg-graystone-50',
             )}
-            <p className="mt-2 text-xs text-graystone-500">
-              {exportEntries.length} filtered entr{exportEntries.length === 1 ? 'y' : 'ies'} in
-              range {exportStartDate} to {exportEndDate}.
-            </p>
+          >
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-ocean-500 text-[10px] font-semibold text-white">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+
+          {/* Export toggle */}
+          <button
+            type="button"
+            onClick={() => setShowExport((v) => !v)}
+            className={cx(
+              'inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-medium transition',
+              showExport
+                ? 'border-ocean-300 bg-ocean-50 text-ocean-700'
+                : 'border-graystone-200 bg-white text-graystone-600 hover:border-graystone-300 hover:bg-graystone-50',
+            )}
+          >
+            Export
+          </button>
+
+          <Button variant="outline" size="sm" onClick={onImportPerformance}>
+            Import performance
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Filters panel ───────────────────────────────────────────────────── */}
+      {showFilters && (
+        <div className="rounded-2xl border border-graystone-200 bg-white px-4 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <span className="text-sm font-semibold text-graystone-700">
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="ml-2 text-xs font-normal text-graystone-400">
+                  {activeFilterCount} active · showing {monthEntries.length} of {monthEntryTotal}
+                </span>
+              )}
+            </span>
+            <div className="flex items-center gap-2">
+              <SavedFilters
+                presets={filterPresets}
+                currentFilters={currentFilters}
+                onApplyPreset={handleApplyPreset}
+                onPresetsChange={handlePresetsChange}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetFilters}
+                disabled={!activeFilterCount}
+              >
+                Reset
+              </Button>
+            </div>
           </div>
 
-          {/* Bulk Date Shift panel */}
-          {onBulkDateShift && (
-            <div className="mt-4">
-              <BulkDateShift entries={entries} onShift={onBulkDateShift} />
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+          {/* Five dropdowns */}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-5 mb-4">
             <div>
               <Label className="text-xs text-graystone-600">Asset type</Label>
               <select
@@ -725,7 +709,8 @@ export function CalendarView({
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          {/* Search + toggles */}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
             <div>
               <Label className="text-xs text-graystone-600" htmlFor="plan-search">
                 Search
@@ -740,10 +725,10 @@ export function CalendarView({
                 className="mt-1 w-full rounded-2xl border border-graystone-200 px-3 py-2 text-sm focus:border-ocean-500 focus:ring-2 focus:ring-aqua-200"
               />
             </div>
-            <div className="flex items-end justify-between gap-3 rounded-2xl border border-graystone-200 bg-white px-4 py-3 text-xs text-graystone-600">
+            <div className="flex items-end justify-between gap-3 rounded-2xl border border-graystone-200 px-4 py-3 text-xs text-graystone-600">
               <div>
-                <div className="font-semibold text-graystone-700">Overdue approvals</div>
-                <div>Show items past deadline.</div>
+                <div className="font-semibold text-graystone-700">Overdue</div>
+                <div>Past deadline.</div>
               </div>
               <Toggle
                 checked={filterOverdue}
@@ -751,10 +736,10 @@ export function CalendarView({
                 aria-label="Show overdue approvals only"
               />
             </div>
-            <div className="flex items-end justify-between gap-3 rounded-2xl border border-graystone-200 bg-white px-4 py-3 text-xs text-graystone-600">
+            <div className="flex items-end justify-between gap-3 rounded-2xl border border-graystone-200 px-4 py-3 text-xs text-graystone-600">
               <div>
-                <div className="font-semibold text-graystone-700">Evergreen content</div>
-                <div>Show reusable content only.</div>
+                <div className="font-semibold text-graystone-700">Evergreen</div>
+                <div>Reusable only.</div>
               </div>
               <Toggle
                 checked={filterEvergreen}
@@ -762,10 +747,10 @@ export function CalendarView({
                 aria-label="Show evergreen content only"
               />
             </div>
-            <div className="flex items-end justify-between gap-3 rounded-2xl border border-graystone-200 bg-white px-4 py-3 text-xs text-graystone-600">
+            <div className="flex items-end justify-between gap-3 rounded-2xl border border-graystone-200 px-4 py-3 text-xs text-graystone-600">
               <div>
-                <div className="font-semibold text-graystone-700">Daily post target</div>
-                <div>Flag days with fewer posts (0 = disabled).</div>
+                <div className="font-semibold text-graystone-700">Daily target</div>
+                <div>Flag gaps (0 = off).</div>
               </div>
               <input
                 type="number"
@@ -780,115 +765,135 @@ export function CalendarView({
               />
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-graystone-200 bg-white px-4 py-3 text-xs text-graystone-600">
-            <div>
-              <div className="font-semibold text-graystone-700">
-                Showing {monthEntries.length} of {monthEntryTotal} entries
-              </div>
+      {/* ── Export panel ────────────────────────────────────────────────────── */}
+      {showExport && (
+        <div className="rounded-2xl border border-graystone-200 bg-white px-4 py-4">
+          <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+            <div className="text-xs text-graystone-600">
+              <div className="font-semibold text-graystone-700">Export calendar</div>
               <div>
-                {activeFilterCount
-                  ? `${activeFilterCount} filter${activeFilterCount === 1 ? '' : 's'} active`
-                  : 'No filters applied.'}
+                Default {viewMode} range: {visibleExportStartDate} to {visibleExportEndDate}
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={resetFilters}
-              disabled={!activeFilterCount}
-            >
-              Reset filters
-            </Button>
+            <div className="flex items-center gap-2 text-xs text-graystone-600">
+              <span className="font-medium text-graystone-700">Custom range</span>
+              <Toggle
+                checked={useCustomExportRange}
+                onChange={handleToggleCustomExportRange}
+                aria-label="Use custom export range"
+              />
+            </div>
           </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <div>
+              <Label className="text-xs text-graystone-600" htmlFor="export-start-date">
+                From
+              </Label>
+              <Input
+                id="export-start-date"
+                type="date"
+                value={useCustomExportRange ? customExportStartDate : visibleExportStartDate}
+                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                  setCustomExportStartDate(event.target.value)
+                }
+                disabled={!useCustomExportRange}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-graystone-600" htmlFor="export-end-date">
+                To
+              </Label>
+              <Input
+                id="export-end-date"
+                type="date"
+                value={useCustomExportRange ? customExportEndDate : visibleExportEndDate}
+                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                  setCustomExportEndDate(event.target.value)
+                }
+                disabled={!useCustomExportRange}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex items-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCalendarCSV}
+                disabled={!hasValidExportRange}
+              >
+                Export CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCalendarICS}
+                disabled={!hasValidExportRange}
+              >
+                Export ICS
+              </Button>
+            </div>
+          </div>
+          {!hasValidExportRange && (
+            <p className="mt-2 text-xs text-rose-600">
+              Export start date must be on or before end date.
+            </p>
+          )}
+          <p className="mt-2 text-xs text-graystone-500">
+            {exportEntries.length} filtered entr{exportEntries.length === 1 ? 'y' : 'ies'} in range{' '}
+            {exportStartDate} to {exportEndDate}.
+          </p>
 
-          <div className="grid grid-cols-1">
-            <div className="rounded-2xl border border-aqua-200 bg-aqua-50 px-3 py-3">
-              <div className="text-xs font-semibold uppercase tracking-wide text-ocean-600">
-                Ideas for this month
-              </div>
-              {currentMonthIdeas.length === 0 ? (
-                <p className="mt-2 text-xs text-graystone-500">
-                  No ideas tagged for this month yet.
-                </p>
-              ) : (
-                <div className="mt-2 space-y-2">
-                  {currentMonthIdeas.map((idea) => (
-                    <div
-                      key={idea.id}
-                      className="rounded-xl border border-aqua-200 bg-white px-3 py-2 text-xs text-graystone-700"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="font-semibold text-ocean-700">{idea.title}</span>
-                        {idea.targetDate ? (
-                          <span className="text-graystone-500">
-                            {new Date(idea.targetDate).toLocaleDateString()}
-                          </span>
-                        ) : null}
-                      </div>
-                      {idea.notes && (
-                        <div className="mt-1 line-clamp-2 text-graystone-600">{idea.notes}</div>
-                      )}
-                      <div className="mt-1 flex items-center gap-2 text-[11px] uppercase tracking-wide text-graystone-400">
-                        {idea.type}
-                        {idea.links && idea.links.length > 0 && isSafeUrl(idea.links[0]) && (
-                          <a
-                            href={idea.links[0]}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-ocean-600 hover:underline"
-                          >
-                            View link
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+          {/* Bulk date shift lives here — it's an edit action, not a filter */}
+          {onBulkDateShift && (
+            <div className="mt-4 border-t border-graystone-100 pt-4">
+              <BulkDateShift entries={entries} onShift={onBulkDateShift} />
             </div>
-          </div>
+          )}
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(240px,0.8fr)]">
-          <div>
-            {viewMode === 'month' ? (
-              <MonthGrid
-                days={days}
-                month={monthCursor.getMonth()}
-                year={monthCursor.getFullYear()}
-                entries={monthEntries}
-                onApprove={onApprove}
-                onDelete={onDelete}
-                onOpen={onOpenEntry}
-                onDateChange={onEntryDateChange}
-                dailyPostTarget={dailyPostTarget}
-              />
-            ) : (
-              <WeekGrid
-                weekStart={weekCursor}
-                entries={weekEntries}
-                onApprove={onApprove}
-                onDelete={onDelete}
-                onOpen={onOpenEntry}
-                onDateChange={onEntryDateChange}
-                dailyPostTarget={dailyPostTarget}
-              />
-            )}
-          </div>
-          <div className="space-y-4">
-            <UpcomingDeadlines entries={entries} onOpenEntry={onOpenEntry} />
-            <AssetRatioCard
-              summary={assetTypeSummary}
-              monthLabel={monthLabel}
-              goals={assetGoals}
-              onGoalsChange={onGoalsChange}
+      )}
+
+      {/* ── Calendar grid + sidebar ──────────────────────────────────────────── */}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(240px,0.8fr)]">
+        <div>
+          {viewMode === 'month' ? (
+            <MonthGrid
+              days={days}
+              month={monthCursor.getMonth()}
+              year={monthCursor.getFullYear()}
+              entries={monthEntries}
+              onApprove={onApprove}
+              onDelete={_onDelete}
+              onOpen={onOpenEntry}
+              onDateChange={onEntryDateChange}
+              dailyPostTarget={dailyPostTarget}
             />
-          </div>
+          ) : (
+            <WeekGrid
+              weekStart={weekCursor}
+              entries={weekEntries}
+              onApprove={onApprove}
+              onDelete={_onDelete}
+              onOpen={onOpenEntry}
+              onDateChange={onEntryDateChange}
+              dailyPostTarget={dailyPostTarget}
+            />
+          )}
         </div>
-      </CardContent>
-    </Card>
+        <div className="space-y-4">
+          <UpcomingDeadlines entries={entries} onOpenEntry={onOpenEntry} />
+          <AssetRatioCard
+            summary={assetTypeSummary}
+            monthLabel={monthLabel}
+            goals={assetGoals}
+            onGoalsChange={onGoalsChange}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
