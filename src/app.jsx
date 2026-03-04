@@ -19,7 +19,7 @@ import {
 } from './constants';
 import { SUPABASE_API } from './lib/supabase';
 import { buildManagersFromProfiles } from './lib/managers';
-import { cx, uuid, daysInMonth, monthStartISO, monthEndISO, storageAvailable } from './lib/utils';
+import { cx, uuid, monthStartISO, monthEndISO, storageAvailable } from './lib/utils';
 import { createEmptyChecklist, sanitizeEntry, computeStatusDetail } from './lib/sanitizers';
 import {
   Button,
@@ -219,7 +219,7 @@ function ContentDashboard() {
     runSyncTask: sync.runSyncTask,
     pushSyncToast: sync.pushSyncToast,
   });
-  const { ideas, setIdeas, addIdea, deleteIdea, refreshIdeas, ideasByMonth } = ideasHook;
+  const { ideas, setIdeas, addIdea, deleteIdea, refreshIdeas } = ideasHook;
 
   const opportunitiesHook = useOpportunities({
     currentUser,
