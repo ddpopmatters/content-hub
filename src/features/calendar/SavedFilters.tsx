@@ -7,7 +7,6 @@ export interface FilterPreset {
   name: string;
   filters: {
     filterType?: string;
-    filterStatus?: string;
     filterWorkflow?: string;
     filterPlatforms?: string[];
     filterQuery?: string;
@@ -76,7 +75,6 @@ export function saveFilterPresets(presets: FilterPreset[]): boolean {
 function hasActiveFilters(filters: FilterPreset['filters']): boolean {
   return !!(
     (filters.filterType && filters.filterType !== 'All') ||
-    (filters.filterStatus && filters.filterStatus !== 'All') ||
     (filters.filterWorkflow && filters.filterWorkflow !== 'All') ||
     (filters.filterPlatforms && filters.filterPlatforms.length > 0) ||
     filters.filterQuery?.trim() ||

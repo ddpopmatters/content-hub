@@ -251,7 +251,6 @@ export function CalendarView({
 
   // Filter state
   const [filterType, setFilterType] = useState('All');
-  const [filterStatus, setFilterStatus] = useState('All');
   const [filterWorkflow, setFilterWorkflow] = useState('All');
   const [filterPriority, setFilterPriority] = useState('All');
   const [filterPlatforms, setFilterPlatforms] = useState<string[]>([]);
@@ -308,7 +307,6 @@ export function CalendarView({
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (filterType !== 'All') count += 1;
-    if (filterStatus !== 'All') count += 1;
     if (filterWorkflow !== 'All') count += 1;
     if (filterPriority !== 'All') count += 1;
     if (filterPlatforms.length) count += 1;
@@ -318,7 +316,6 @@ export function CalendarView({
     return count;
   }, [
     filterType,
-    filterStatus,
     filterWorkflow,
     filterPriority,
     filterPlatforms,
@@ -332,7 +329,6 @@ export function CalendarView({
     return entries
       .filter((entry) => !entry.deletedAt)
       .filter((entry) => (filterType === 'All' ? true : entry.assetType === filterType))
-      .filter((entry) => (filterStatus === 'All' ? true : entry.status === filterStatus))
       .filter((entry) =>
         filterWorkflow === 'All' ? true : entry.workflowStatus === filterWorkflow,
       )
@@ -349,7 +345,6 @@ export function CalendarView({
   }, [
     entries,
     filterType,
-    filterStatus,
     filterWorkflow,
     filterPriority,
     filterPlatforms,
@@ -374,7 +369,6 @@ export function CalendarView({
 
   const resetFilters = useCallback(() => {
     setFilterType('All');
-    setFilterStatus('All');
     setFilterWorkflow('All');
     setFilterPriority('All');
     setFilterPlatforms([]);
@@ -454,7 +448,6 @@ export function CalendarView({
 
   const handleApplyPreset = (filters: FilterPreset['filters']) => {
     if (filters.filterType) setFilterType(filters.filterType);
-    if (filters.filterStatus) setFilterStatus(filters.filterStatus);
     if (filters.filterWorkflow) setFilterWorkflow(filters.filterWorkflow);
     if (filters.filterPlatforms) setFilterPlatforms(filters.filterPlatforms);
     if (filters.filterQuery !== undefined) setFilterQuery(filters.filterQuery);
@@ -465,7 +458,6 @@ export function CalendarView({
 
   const currentFilters: FilterPreset['filters'] = {
     filterType,
-    filterStatus,
     filterWorkflow,
     filterPlatforms,
     filterQuery,
@@ -618,20 +610,6 @@ export function CalendarView({
                 <option value="Video">Video</option>
                 <option value="Design">Design</option>
                 <option value="Carousel">Carousel</option>
-              </select>
-            </div>
-            <div>
-              <Label className="text-xs text-graystone-600">Status</Label>
-              <select
-                value={filterStatus}
-                onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                  setFilterStatus(event.target.value)
-                }
-                className={cx(selectBaseClasses, 'mt-1 w-full')}
-              >
-                <option value="All">All</option>
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
               </select>
             </div>
             <div>

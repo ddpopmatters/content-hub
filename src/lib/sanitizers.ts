@@ -118,10 +118,6 @@ export const sanitizeEntry = (entry: unknown): Entry | null => {
     typeof raw.assetType === 'string' && isInArray(ASSET_TYPES, raw.assetType)
       ? raw.assetType
       : 'Design';
-  const status =
-    typeof raw.status === 'string' && raw.status.toLowerCase() === 'approved'
-      ? 'Approved'
-      : 'Pending';
   const priorityTier =
     typeof raw.priorityTier === 'string' && isInArray(PRIORITY_TIERS, raw.priorityTier)
       ? raw.priorityTier
@@ -137,6 +133,18 @@ export const sanitizeEntry = (entry: unknown): Entry | null => {
   const caption = typeof raw.caption === 'string' ? raw.caption : '';
   const url = typeof raw.url === 'string' ? raw.url.trim() : raw.url ? String(raw.url).trim() : '';
   const firstComment = typeof raw.firstComment === 'string' ? raw.firstComment : '';
+
+  const workflowStatus = (() => {
+    const rawWf = typeof raw.workflowStatus === 'string' ? raw.workflowStatus : '';
+    if (isInArray(KANBAN_STATUSES, rawWf)) return rawWf;
+    if (rawWf && LEGACY_STATUS_MAP[rawWf]) return LEGACY_STATUS_MAP[rawWf];
+    // Legacy fallback: derive from raw.status field
+    if (typeof raw.status === 'string' && raw.status.toLowerCase() === 'approved')
+      return 'Approved';
+    return 'Draft';
+  })();
+  // status is always derived from workflowStatus — never set independently
+  const status = workflowStatus === 'Approved' ? 'Approved' : 'Pending';
 
   const base: Entry = {
     ...(raw as Partial<Entry>),
@@ -178,16 +186,7 @@ export const sanitizeEntry = (entry: unknown): Entry | null => {
     previewUrl: raw.previewUrl ? String(raw.previewUrl) : '',
     createdAt,
     updatedAt,
-    workflowStatus: (() => {
-      const rawStatus = typeof raw.workflowStatus === 'string' ? raw.workflowStatus : '';
-      // If it's already a valid new status, use it
-      if (isInArray(KANBAN_STATUSES, rawStatus)) return rawStatus;
-      // Migrate legacy statuses
-      if (rawStatus && LEGACY_STATUS_MAP[rawStatus]) return LEGACY_STATUS_MAP[rawStatus];
-      // Fall back to deriving from status
-      if (status === 'Approved') return 'Approved';
-      return 'Draft';
-    })(),
+    workflowStatus,
     statusDetail: typeof raw.statusDetail === 'string' ? raw.statusDetail : '',
     aiFlags: Array.isArray(raw.aiFlags) ? (raw.aiFlags as string[]) : [],
     aiScore:
@@ -318,7 +317,6 @@ export const entrySignature = (entry: Partial<Entry> | null | undefined): string
       entry.id,
       entry.updatedAt,
       entry.status,
-      entry.statusDetail,
       entry.priorityTier,
       entry.campaign,
       entry.contentPillar,
