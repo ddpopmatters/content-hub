@@ -9,7 +9,7 @@ export default [
   js.configs.recommended,
   prettier,
   {
-    ignores: ['node_modules/', 'dist/', 'build/', 'public/js/', '*.html'],
+    ignores: ['node_modules/', 'dist/', 'build/', 'public/js/', '*.html', 'supabase/functions/**'],
   },
   {
     files: ['**/*.{js,jsx,mjs}'],
@@ -135,6 +135,8 @@ export default [
         Window: 'readonly',
         Document: 'readonly',
         Event: 'readonly',
+        MessageEvent: 'readonly',
+        alert: 'readonly',
         WindowEventMap: 'readonly',
         DocumentEventMap: 'readonly',
         HTMLElementEventMap: 'readonly',

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Connected</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        background: #f0f9ff;
+      }
+      .box {
+        text-align: center;
+        padding: 2rem;
+        background: white;
+        border-radius: 1rem;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+      }
+      h1 {
+        color: #0c4a6e;
+        font-size: 1.25rem;
+        margin-bottom: 0.5rem;
+      }
+      p {
+        color: #6b7280;
+        font-size: 0.875rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="box">
+      <h1>✓ Connected</h1>
+      <p id="msg">Account connected successfully. This window will close.</p>
+    </div>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const platform = params.get('oauth_success') || '';
+      const name = params.get('account_name') || '';
+      if (platform) {
+        document.getElementById('msg').textContent =
+          `${platform}${name ? ' (' + name + ')' : ''} connected successfully. This window will close.`;
+      }
+      // Notify opener and close
+      if (window.opener) {
+        window.opener.postMessage({ type: 'oauth_success', platform, accountName: name }, '*');
+      }
+      setTimeout(() => window.close(), 1500);
+    </script>
+  </body>
+</html>

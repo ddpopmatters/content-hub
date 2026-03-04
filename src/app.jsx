@@ -8,7 +8,7 @@ import { KanbanView } from './features/kanban';
 import { AnalyticsView } from './features/analytics/AnalyticsView';
 import { DashboardView } from './features/dashboard';
 import { EngagementView } from './features/engagement/EngagementView';
-import { PublishSettingsPanel } from './features/publishing';
+import { PublishSettingsPanel, PlatformConnectionsView } from './features/publishing';
 import { useApi } from './hooks/useApi';
 import { KANBAN_STATUSES, PLAN_TAB_FEATURES, PLAN_TAB_ORDER, DEFAULT_MANAGERS } from './constants';
 import { SUPABASE_API } from './lib/supabase';
@@ -1753,6 +1753,9 @@ function ContentDashboard() {
 
               {/* Publishing Settings */}
               <PublishSettingsPanel settings={publishSettings} onUpdate={setPublishSettings} />
+
+              {/* Platform Connections */}
+              <PlatformConnectionsView currentUser={currentUser} />
             </div>
           )}
           <EntryPreviewModal
