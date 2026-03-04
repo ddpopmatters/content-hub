@@ -39,7 +39,7 @@ import { IdeasBoard, IdeaForm } from './features/ideas';
 import { OpportunitiesView } from './features/opportunities';
 import { ContentRequestsView } from './features/requests';
 import { MiniCalendar, NarrativeView, MonthlyGlance } from './features/calendar';
-import { AddUserForm } from './features/admin';
+import { AddUserForm, AccessModal } from './features/admin';
 import { EntryForm, EntryModal, EntryPreviewModal } from './features/entry';
 import { normalizeGuidelines, saveGuidelines } from './lib/guidelines';
 import { appendAudit } from './lib/audit';

@@ -22,7 +22,7 @@ interface AccessModalProps {
 /**
  * AccessModal - Modal for managing user feature access
  */
-function AccessModal({
+export function AccessModal({
   open,
   onClose,
   user,
