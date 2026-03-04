@@ -6,17 +6,27 @@ import React, {
   useEffect,
   type KeyboardEvent,
 } from 'react';
-import { Card, CardHeader, CardContent, CardTitle, Badge, Button } from '../../components/ui';
-import { PlatformIcon, LoaderIcon, TrashIcon } from '../../components/common';
+import { PlatformIcon, LoaderIcon } from '../../components/common';
 import { cx, isoFromParts } from '../../lib/utils';
-import { ensureChecklist, isImageMedia } from '../../lib/sanitizers';
+import { ensureChecklist } from '../../lib/sanitizers';
 import {
   getChecklistItemsForEntry,
-  WORKFLOW_STAGES,
   PRIORITY_TIERS,
-  PRIORITY_TIER_BADGE_CLASSES,
+  PRIORITY_TIER_BORDER_CLASSES,
 } from '../../constants';
 import type { Entry } from '../../types/models';
+
+const THEMES_KEY = 'content-hub-calendar-themes';
+
+function loadThemes(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(THEMES_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 export interface MonthGridProps {
   /** Array of day numbers in the month */
@@ -45,7 +55,7 @@ export function MonthGrid({
   year,
   entries,
   onApprove,
-  onDelete,
+  onDelete: _onDelete,
   onOpen,
   onDateChange,
   dailyPostTarget = 0,
@@ -54,8 +64,26 @@ export function MonthGrid({
   const [focusedEntryIndex, setFocusedEntryIndex] = useState(-1);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [themes, setThemes] = useState<Record<string, string>>(loadThemes);
   const dayRefs = useRef<(HTMLDivElement | null)[]>([]);
   const entryRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const today = new Date();
+  const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const monthThemeKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+  const handleThemeChange = useCallback((key: string, value: string) => {
+    setThemes((prev) => {
+      const next = { ...prev };
+      if (value.trim()) next[key] = value;
+      else delete next[key];
+      return next;
+    });
+    const stored = loadThemes();
+    if (value.trim()) stored[key] = value;
+    else delete stored[key];
+    localStorage.setItem(THEMES_KEY, JSON.stringify(stored));
+  }, []);
 
   // Drag-and-drop handlers
   const handleDragStart = useCallback((e: React.DragEvent, entryId: string) => {
@@ -85,7 +113,6 @@ export function MonthGrid({
     [onDateChange],
   );
 
-  // Reset focus and clear refs when days change
   useEffect(() => {
     setFocusedDayIndex(0);
     setFocusedEntryIndex(-1);
@@ -96,7 +123,7 @@ export function MonthGrid({
 
   const handleDayKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>, dayIndex: number, dayEntries: Entry[]) => {
-      const columnsPerRow = window.innerWidth >= 1280 ? 3 : window.innerWidth >= 768 ? 2 : 1;
+      const columnsPerRow = 7;
 
       switch (e.key) {
         case 'ArrowRight':
@@ -118,12 +145,10 @@ export function MonthGrid({
         case 'ArrowDown':
           e.preventDefault();
           if (focusedEntryIndex === -1 && dayEntries.length > 0) {
-            // Move into first entry in the day
             setFocusedEntryIndex(0);
             const iso = isoFromParts(year, month, days[dayIndex]);
             entryRefs.current[`${iso}-0`]?.focus();
           } else {
-            // Move to next row of days
             const nextRowIndex = dayIndex + columnsPerRow;
             if (nextRowIndex < days.length) {
               setFocusedDayIndex(nextRowIndex);
@@ -182,7 +207,6 @@ export function MonthGrid({
             setFocusedEntryIndex(entryIndex - 1);
             entryRefs.current[`${iso}-${entryIndex - 1}`]?.focus();
           } else {
-            // Move back to day card
             setFocusedEntryIndex(-1);
             dayRefs.current[dayIndex]?.focus();
           }
@@ -232,215 +256,225 @@ export function MonthGrid({
     return map;
   }, [days, month, year, entries]);
 
+  // Split days into week rows, padding leading slots for first day of month
+  const weeks = useMemo(() => {
+    const firstDayOfMonth = new Date(year, month, 1).getDay();
+    const result: { weekKey: string; slots: (number | null)[] }[] = [];
+    let currentSlots: (number | null)[] = Array(firstDayOfMonth).fill(null);
+
+    for (const day of days) {
+      currentSlots.push(day);
+      if (currentSlots.length === 7) {
+        const firstActual = currentSlots.find((d) => d !== null) as number;
+        result.push({ weekKey: isoFromParts(year, month, firstActual), slots: currentSlots });
+        currentSlots = [];
+      }
+    }
+
+    if (currentSlots.length > 0) {
+      while (currentSlots.length < 7) currentSlots.push(null);
+      const firstActual = currentSlots.find((d) => d !== null) as number;
+      result.push({ weekKey: isoFromParts(year, month, firstActual), slots: currentSlots });
+    }
+
+    return result;
+  }, [days, month, year]);
+
   return (
-    <div
-      className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-      role="grid"
-      aria-label="Calendar month view"
-    >
-      {days.map((day, dayIndex) => {
-        const iso = isoFromParts(year, month, day);
-        const dayEntries = byDate.get(iso) || [];
-        const label = new Date(year, month, day).toLocaleDateString(undefined, {
-          weekday: 'short',
-          day: '2-digit',
-        });
-        const isSelected = selectedDay === dayIndex;
-        const isFocusedDay = focusedDayIndex === dayIndex;
-        const isDragOver = dragOverDate === iso;
-        return (
-          <Card
-            key={iso}
-            ref={(el) => {
-              dayRefs.current[dayIndex] = el;
-            }}
-            tabIndex={isFocusedDay ? 0 : -1}
-            role="gridcell"
-            aria-selected={isSelected}
-            aria-label={`${label}, ${dayEntries.length} ${dayEntries.length === 1 ? 'item' : 'items'}`}
-            onKeyDown={(e) => handleDayKeyDown(e, dayIndex, dayEntries)}
-            onDragOver={(e) => handleDragOver(e, iso)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, iso)}
-            className={cx(
-              'flex h-64 flex-col bg-white outline-none transition-colors',
-              'focus:ring-2 focus:ring-aqua-500 focus:ring-offset-2',
-              isSelected && 'ring-2 ring-ocean-500 ring-offset-2',
-              isDragOver && 'bg-aqua-100 ring-2 ring-aqua-400',
-            )}
+    <div role="grid" aria-label="Calendar month view">
+      {/* Month theme */}
+      <input
+        type="text"
+        value={themes[monthThemeKey] ?? ''}
+        onChange={(e) => handleThemeChange(monthThemeKey, e.target.value)}
+        placeholder={`Add a theme for ${new Date(year, month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}…`}
+        className="mb-3 w-full rounded-xl border border-ocean-200 bg-ocean-50 px-3 py-1.5 text-sm font-medium text-ocean-800 placeholder-graystone-400 focus:outline-none focus:ring-2 focus:ring-ocean-300"
+      />
+
+      {/* Day-of-week headers */}
+      <div className="mb-1 grid grid-cols-7 gap-1">
+        {DAY_LABELS.map((label) => (
+          <div
+            key={label}
+            className="py-1 text-center text-[11px] font-semibold uppercase tracking-wide text-graystone-500"
           >
-            <CardHeader className="border-b border-graystone-200 py-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-ocean-900">{label}</CardTitle>
-                <div className="flex items-center gap-1">
-                  {dailyPostTarget > 0 && dayEntries.length < dailyPostTarget && (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                      Gap
-                    </span>
-                  )}
-                  <Badge variant={dayEntries.length ? 'default' : 'secondary'}>
-                    {dayEntries.length} {dayEntries.length === 1 ? 'item' : 'items'}
-                  </Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1 space-y-3 overflow-y-auto">
-              {dayEntries.length === 0 && dailyPostTarget > 0 && (
-                <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-700">
-                  <span className="font-medium">Content gap</span>
-                  <span>Need {dailyPostTarget - dayEntries.length} more</span>
-                </div>
-              )}
-              {dayEntries.length === 0 && dailyPostTarget === 0 && (
-                <p className="text-sm text-graystone-500">No items planned.</p>
-              )}
-              {dayEntries.map((entry, entryIndex) => {
-                const checklist = ensureChecklist(entry.checklist);
-                const relevantItems = getChecklistItemsForEntry(entry.platforms, entry.assetType);
-                const completed = relevantItems.filter(({ key }) => checklist[key]).length;
-                const total = relevantItems.length;
-                const hasPreviewImage = isImageMedia(entry.previewUrl);
-                const hasPerformance = entry.analytics && Object.keys(entry.analytics).length > 0;
-                const isFocusedEntry = isFocusedDay && focusedEntryIndex === entryIndex;
-                const priorityTier = PRIORITY_TIERS.includes(entry.priorityTier)
-                  ? entry.priorityTier
-                  : 'Medium';
+            {label}
+          </div>
+        ))}
+      </div>
+
+      {/* Week rows */}
+      <div className="space-y-3">
+        {weeks.map((week) => (
+          <div key={week.weekKey}>
+            {/* Week theme */}
+            <input
+              type="text"
+              value={themes[week.weekKey] ?? ''}
+              onChange={(e) => handleThemeChange(week.weekKey, e.target.value)}
+              placeholder="Week theme…"
+              className="mb-1 w-full rounded border-0 border-b border-graystone-100 bg-transparent px-1 py-0.5 text-xs font-medium text-graystone-600 placeholder-graystone-300 focus:border-ocean-300 focus:bg-aqua-50 focus:outline-none"
+            />
+
+            {/* 7-column day grid */}
+            <div className="grid grid-cols-7 gap-1">
+              {week.slots.map((day, slotIndex) => {
+                if (day === null) {
+                  return (
+                    <div
+                      key={`empty-${slotIndex}`}
+                      className="min-h-20 rounded-lg bg-graystone-50 opacity-30"
+                    />
+                  );
+                }
+
+                const dayIndex = day - 1;
+                const iso = isoFromParts(year, month, day);
+                const dayEntries = byDate.get(iso) || [];
+                const isSelected = selectedDay === dayIndex;
+                const isFocusedDay = focusedDayIndex === dayIndex;
+                const isDragOver = dragOverDate === iso;
+                const isToday = iso === todayISO;
+
                 return (
                   <div
-                    key={entry.id}
+                    key={iso}
                     ref={(el) => {
-                      entryRefs.current[`${iso}-${entryIndex}`] = el;
+                      dayRefs.current[dayIndex] = el;
                     }}
-                    tabIndex={isFocusedEntry ? 0 : -1}
-                    role="button"
-                    aria-label={`${entry.assetType}: ${entry.caption || 'Untitled'}, ${entry.status}`}
-                    draggable={!!onDateChange}
-                    onDragStart={(e) => handleDragStart(e, entry.id)}
-                    onClick={() => onOpen(entry.id)}
-                    onKeyDown={(e) =>
-                      handleEntryKeyDown(e, dayIndex, entryIndex, dayEntries, entry.id)
-                    }
+                    tabIndex={isFocusedDay ? 0 : -1}
+                    role="gridcell"
+                    aria-selected={isSelected}
+                    aria-label={`${day}, ${dayEntries.length} ${dayEntries.length === 1 ? 'item' : 'items'}`}
+                    onKeyDown={(e) => handleDayKeyDown(e, dayIndex, dayEntries)}
+                    onDragOver={(e) => handleDragOver(e, iso)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, iso)}
                     className={cx(
-                      'cursor-pointer rounded-xl border border-graystone-200 bg-white p-3 outline-none transition',
-                      'hover:border-aqua-400 hover:bg-aqua-50',
+                      'flex min-h-20 flex-col overflow-hidden rounded-lg border bg-white outline-none transition-colors',
                       'focus:ring-2 focus:ring-aqua-500 focus:ring-offset-1',
-                      onDateChange && 'cursor-grab active:cursor-grabbing',
+                      isToday ? 'border-ocean-400' : 'border-graystone-200',
+                      isSelected && 'ring-2 ring-ocean-500 ring-offset-1',
+                      isDragOver && 'bg-aqua-100 ring-2 ring-aqua-400',
                     )}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-2">
-                        {hasPreviewImage && (
-                          <div className="overflow-hidden rounded-lg border border-graystone-200">
-                            <img
-                              src={entry.previewUrl}
-                              alt={`${entry.assetType} preview`}
-                              className="h-24 w-full object-cover"
-                            />
-                          </div>
+                    {/* Day header */}
+                    <div
+                      className={cx(
+                        'flex items-center justify-between border-b px-1.5 py-1',
+                        isToday ? 'border-ocean-200 bg-ocean-50' : 'border-graystone-100',
+                      )}
+                    >
+                      <span
+                        className={cx(
+                          'text-xs font-semibold',
+                          isToday ? 'text-ocean-700' : 'text-graystone-700',
                         )}
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="outline">{entry.assetType}</Badge>
-                          <Badge className={PRIORITY_TIER_BADGE_CLASSES[priorityTier]}>
-                            {priorityTier}
-                          </Badge>
-                          <span className="inline-flex items-center rounded-full bg-aqua-100 px-2 py-1 text-xs font-medium text-ocean-700">
-                            {entry.statusDetail || WORKFLOW_STAGES[0]}
+                      >
+                        {day}
+                      </span>
+                      <div className="flex items-center gap-0.5">
+                        {dailyPostTarget > 0 && dayEntries.length < dailyPostTarget && (
+                          <span className="text-[9px] font-bold text-amber-500" title="Content gap">
+                            !
                           </span>
-                          {hasPerformance ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-ocean-500/10 px-2 py-0.5 text-xs font-medium text-ocean-700">
-                              Performance
-                            </span>
-                          ) : null}
-                          <div className="flex flex-wrap gap-1">
-                            {entry.platforms.map((platform) => (
-                              <span
-                                key={platform}
-                                className="inline-flex items-center gap-1 rounded-full bg-graystone-100 px-2 py-1 text-xs text-graystone-600"
-                              >
-                                <PlatformIcon platform={platform} />
-                                {platform}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        {entry.caption && (
-                          <p className="line-clamp-3 text-sm text-graystone-700">{entry.caption}</p>
                         )}
-                        {(entry.campaign || entry.contentPillar || entry.testingFrameworkName) && (
-                          <div className="flex flex-wrap items-center gap-1 text-[11px] text-graystone-500">
-                            {entry.campaign ? (
-                              <span className="rounded-full bg-aqua-100 px-2 py-0.5 text-ocean-700">
-                                {entry.campaign}
-                              </span>
-                            ) : null}
-                            {entry.contentPillar ? (
-                              <span className="rounded-full bg-graystone-100 px-2 py-0.5 text-graystone-700">
-                                {entry.contentPillar}
-                              </span>
-                            ) : null}
-                            {entry.testingFrameworkName ? (
-                              <span className="rounded-full bg-ocean-500/10 px-2 py-0.5 text-ocean-700">
-                                Test: {entry.testingFrameworkName}
-                              </span>
-                            ) : null}
-                          </div>
+                        {dayEntries.length > 0 && (
+                          <span className="text-[9px] text-graystone-400">{dayEntries.length}</span>
                         )}
-                        <div className="text-xs text-graystone-500">
-                          Checklist {completed}/{total}
-                        </div>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <span
-                          className={cx(
-                            'rounded-full px-2 py-1 text-xs font-semibold',
-                            entry.status === 'Approved' && 'bg-emerald-100 text-emerald-700',
-                            entry.status === 'Pending' && 'bg-amber-100 text-amber-700',
-                          )}
-                        >
-                          {entry.status}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          {entry.status !== 'Approved' ? (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onApprove(entry.id);
-                              }}
-                              title="Approve entry"
-                            >
-                              <LoaderIcon className="h-5 w-5 text-amber-600" />
-                            </Button>
-                          ) : (
-                            <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
-                              Approved
-                            </span>
-                          )}
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              const confirmDelete = window.confirm(
-                                'Move this item to the trash? You can restore it within 30 days.',
-                              );
-                              if (confirmDelete) onDelete(entry.id);
+                    </div>
+
+                    {/* Entries */}
+                    <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-1">
+                      {dayEntries.map((entry, entryIndex) => {
+                        const checklist = ensureChecklist(entry.checklist);
+                        const relevantItems = getChecklistItemsForEntry(
+                          entry.platforms,
+                          entry.assetType,
+                        );
+                        const completed = relevantItems.filter(({ key }) => checklist[key]).length;
+                        const total = relevantItems.length;
+                        const isFocusedEntry = isFocusedDay && focusedEntryIndex === entryIndex;
+                        const priorityTier = PRIORITY_TIERS.includes(entry.priorityTier)
+                          ? entry.priorityTier
+                          : 'Medium';
+                        const borderClass = PRIORITY_TIER_BORDER_CLASSES[priorityTier];
+
+                        return (
+                          <div
+                            key={entry.id}
+                            ref={(el) => {
+                              entryRefs.current[`${iso}-${entryIndex}`] = el;
                             }}
-                            title="Move to trash"
+                            tabIndex={isFocusedEntry ? 0 : -1}
+                            role="button"
+                            aria-label={`${entry.assetType}: ${entry.caption || 'Untitled'}, ${entry.status}`}
+                            draggable={!!onDateChange}
+                            onDragStart={(e) => handleDragStart(e, entry.id)}
+                            onClick={() => onOpen(entry.id)}
+                            onKeyDown={(e) =>
+                              handleEntryKeyDown(e, dayIndex, entryIndex, dayEntries, entry.id)
+                            }
+                            className={cx(
+                              'group cursor-pointer rounded border-l-2 bg-graystone-50 px-1 py-0.5 outline-none transition',
+                              'hover:bg-aqua-50 focus:ring-1 focus:ring-aqua-400',
+                              onDateChange && 'cursor-grab active:cursor-grabbing',
+                              borderClass,
+                            )}
                           >
-                            <TrashIcon className="h-5 w-5 text-graystone-500" />
-                          </Button>
-                        </div>
-                      </div>
+                            {/* Platform icons */}
+                            <div className="flex min-w-0 items-center gap-0.5">
+                              {entry.platforms.slice(0, 2).map((p) => (
+                                <PlatformIcon key={p} platform={p} />
+                              ))}
+                              {entry.platforms.length > 2 && (
+                                <span className="text-[9px] text-graystone-400">
+                                  +{entry.platforms.length - 2}
+                                </span>
+                              )}
+                            </div>
+                            {/* Caption */}
+                            <p className="truncate text-[10px] leading-tight text-graystone-700">
+                              {entry.caption || entry.assetType}
+                            </p>
+                            {/* Checklist + approve */}
+                            <div className="flex items-center justify-between">
+                              {total > 0 && (
+                                <span
+                                  className={cx(
+                                    'text-[9px]',
+                                    completed === total ? 'text-emerald-600' : 'text-graystone-400',
+                                  )}
+                                >
+                                  {completed}/{total}
+                                </span>
+                              )}
+                              {entry.status !== 'Approved' && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onApprove(entry.id);
+                                  }}
+                                  className="hidden items-center text-[9px] text-amber-600 hover:text-amber-700 group-hover:flex"
+                                  title="Approve"
+                                >
+                                  <LoaderIcon className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
               })}
-            </CardContent>
-          </Card>
-        );
-      })}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
