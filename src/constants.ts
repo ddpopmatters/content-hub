@@ -141,9 +141,20 @@ export const PLAN_TAB_FEATURES: Record<string, string> = {
   trash: 'calendar',
   kanban: 'kanban',
   ideas: 'ideas',
+  narrative: 'calendar',
+  glance: 'calendar',
+  approvals: 'approvals',
 };
 
-export const PLAN_TAB_ORDER = ['plan', 'kanban', 'ideas', 'trash'] as const;
+export const PLAN_TAB_ORDER = [
+  'plan',
+  'kanban',
+  'approvals',
+  'narrative',
+  'glance',
+  'ideas',
+  'trash',
+] as const;
 
 export const WORKFLOW_STAGES = [
   'Briefing',

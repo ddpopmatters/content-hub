@@ -319,17 +319,8 @@ function ContentDashboard() {
   }, []);
   const [performanceImportOpen, setPerformanceImportOpen] = useState(false);
   const [approvalsModalOpen, setApprovalsModalOpen] = useState(false);
-  const [_menuMotionActive, setMenuMotionActive] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
-  const [_pendingAssetType, setPendingAssetType] = useState(null);
   const canUseInfluencers = true; // Show to everyone
-  const _menuHasContent =
-    canUseCalendar ||
-    canUseKanban ||
-    canUseApprovals ||
-    canUseIdeas ||
-    canUseInfluencers ||
-    currentUserIsAdmin;
   const approverOptions = useMemo(() => {
     const derived = userList
       .filter((user) => user.isApprover && user.status !== 'disabled')
@@ -509,10 +500,6 @@ function ContentDashboard() {
     return () => window.removeEventListener('pm-api-ready', onReady);
   }, [authStatus, canUseIdeas, currentUserIsAdmin, retryAllSync, syncQueue.length]);
 
-  useEffect(() => {
-    setMenuMotionActive(true);
-  }, []);
-
   // Fallback navigation via URL hash so CTAs work even if React handler is blocked.
   useEffect(() => {
     const syncFromHash = () => {
@@ -530,7 +517,6 @@ function ContentDashboard() {
 
   useEffect(() => {
     if (currentView !== 'form') {
-      setPendingAssetType(null);
       setEntryFormPrefill(null);
     }
   }, [currentView]);
@@ -595,24 +581,9 @@ function ContentDashboard() {
     year: 'numeric',
   });
 
-  const _days = useMemo(
-    () =>
-      Array.from(
-        { length: daysInMonth(monthCursor.getFullYear(), monthCursor.getMonth()) },
-        (_, index) => index + 1,
-      ),
-    [monthCursor],
-  );
-
   const startISO = monthStartISO(monthCursor);
   const endISO = monthEndISO(monthCursor);
   const normalizedFilterQuery = filterQuery.trim().toLowerCase();
-  const _monthEntryTotal = useMemo(
-    () =>
-      entries.filter((entry) => !entry.deletedAt && entry.date >= startISO && entry.date <= endISO)
-        .length,
-    [entries, startISO, endISO],
-  );
   const isApprovalOverdue = (entry) => {
     if (!entry?.approvalDeadline) return false;
     const parsed = new Date(entry.approvalDeadline);
@@ -674,84 +645,7 @@ function ContentDashboard() {
     normalizedFilterQuery,
   ]);
 
-  const _assetTypeSummary = useMemo(() => {
-    const counts = monthEntries.reduce((acc, entry) => {
-      acc[entry.assetType] = (acc[entry.assetType] || 0) + 1;
-      return acc;
-    }, {});
-    const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
-    return { counts, total };
-  }, [monthEntries]);
-
-  const _currentMonthIdeas = useMemo(() => {
-    const key = monthCursor.toISOString().slice(0, 7);
-    const items = ideasByMonth.get(key) || [];
-    return items.slice().sort((a, b) => (a.targetDate || '').localeCompare(b.targetDate || ''));
-  }, [ideasByMonth, monthCursor]);
-
   const outstandingCount = outstandingApprovals.length;
-  const _ideaCount = ideas.length;
-
-  const _featureTiles = [
-    {
-      id: 'create',
-      title: 'Create Content',
-      description:
-        'Capture briefs, assign approvers, and log the assets your team needs to produce next.',
-      cta: 'Open form',
-      onClick: () => {
-        setCurrentView('form');
-        setPlanTab('plan');
-        closeEntry();
-      },
-    },
-    {
-      id: 'calendar',
-      title: 'Calendar',
-      description:
-        'Review what is booked each day, approve content, and tidy up anything sitting in trash.',
-      cta: 'View calendar',
-      onClick: () => {
-        setCurrentView('plan');
-        setPlanTab('plan');
-        closeEntry();
-      },
-    },
-    {
-      id: 'kanban',
-      title: 'Production Kanban',
-      description: 'Move work from draft to scheduled with status-based swimlanes.',
-      cta: 'View board',
-      onClick: () => {
-        setCurrentView('plan');
-        setPlanTab('kanban');
-        closeEntry();
-      },
-    },
-    {
-      id: 'approvals',
-      title: 'Your Approvals',
-      description: 'Track what still needs your sign-off and clear the queue in one pass.',
-      cta: 'View queue',
-      onClick: () => {
-        setCurrentView('plan');
-        setPlanTab('approvals');
-        closeEntry();
-      },
-    },
-    {
-      id: 'ideas',
-      title: 'Ideas Log',
-      description:
-        'Capture topics, themes, and series concepts—complete with notes, links, and assets.',
-      cta: 'View ideas',
-      onClick: () => {
-        setCurrentView('plan');
-        setPlanTab('ideas');
-        closeEntry();
-      },
-    },
-  ];
 
   const createEntryFromIdea = (idea) => {
     if (!idea) return;
@@ -1036,7 +930,7 @@ function ContentDashboard() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#cfebf8' }}>
+    <div className="flex h-screen overflow-hidden bg-aqua-100">
       {/* Sidebar */}
       <Sidebar
         currentView={currentView}
@@ -1058,7 +952,7 @@ function ContentDashboard() {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto ml-64" style={{ backgroundColor: '#cfebf8' }}>
+      <div className="flex-1 overflow-y-auto ml-64 bg-aqua-100">
         <div className="container mx-auto p-8 max-w-7xl">
           {/* Sync Queue Toast */}
           {syncQueue.length ? (
@@ -1193,7 +1087,7 @@ function ContentDashboard() {
           )}
 
           {/* Dashboard View */}
-          {(currentView === 'menu' || currentView === 'dashboard') && (
+          {currentView === 'dashboard' && (
             <DashboardView
               entries={entries}
               currentUser={currentUser}
@@ -1288,7 +1182,6 @@ function ContentDashboard() {
                   <EntryForm
                     onSubmit={handleEntryFormSubmit}
                     existingEntries={entries.filter((entry) => !entry.deletedAt)}
-                    onPreviewAssetType={setPendingAssetType}
                     guidelines={guidelines}
                     currentUser={currentUser}
                     currentUserEmail={currentUserEmail}
@@ -2041,7 +1934,6 @@ function ContentDashboard() {
               onApprove={toggleApprove}
               onDelete={softDelete}
               onClone={cloneEntry}
-              onSave={upsert}
               onUpdate={upsert}
               onNotifyMentions={handleMentionNotifications}
               onCommentAdded={handleCommentActivity}

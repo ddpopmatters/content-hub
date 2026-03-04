@@ -39,10 +39,6 @@ export function useFilters() {
     filterEvergreen,
   ]);
 
-  const reset = useCallback(() => {
-    resetFilters();
-  }, [resetFilters]);
-
   return {
     filterType,
     setFilterType,
@@ -60,6 +56,5 @@ export function useFilters() {
     setFilterEvergreen,
     resetFilters,
     activeFilterCount,
-    reset,
   };
 }
