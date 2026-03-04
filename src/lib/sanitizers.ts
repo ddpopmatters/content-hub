@@ -5,7 +5,8 @@ import {
   ASSET_TYPES,
   CAMPAIGNS,
   CONTENT_PILLARS,
-  CHECKLIST_ITEMS,
+  ALL_CHECKLIST_ITEMS,
+  getChecklistItemsForEntry,
   KANBAN_STATUSES,
   LEGACY_STATUS_MAP,
   IDEA_TYPES,
@@ -35,7 +36,7 @@ export type PlatformCaptions = Record<string, string>;
 // Checklist helpers
 export const createEmptyChecklist = (): Checklist => {
   const checklist: Checklist = {};
-  CHECKLIST_ITEMS.forEach(({ key }) => {
+  ALL_CHECKLIST_ITEMS.forEach(({ key }) => {
     checklist[key] = false;
   });
   return checklist;
@@ -273,8 +274,9 @@ export const sanitizeIdea = (raw: unknown): Idea | null => {
 export const computeStatusDetail = (entry: Partial<Entry> | null | undefined): string => {
   if (!entry) return WORKFLOW_STAGES[0];
   const checklist = ensureChecklist(entry.checklist);
-  const total = CHECKLIST_ITEMS.length || 1;
-  const completed = Object.values(checklist).filter(Boolean).length;
+  const relevantItems = getChecklistItemsForEntry(entry.platforms ?? [], entry.assetType ?? '');
+  const total = relevantItems.length || 1;
+  const completed = relevantItems.filter(({ key }) => checklist[key]).length;
 
   if (entry.status === 'Approved') {
     return completed === total ? 'Internals approved' : 'Ready for review';

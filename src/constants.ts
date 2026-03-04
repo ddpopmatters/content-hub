@@ -171,14 +171,75 @@ export interface ChecklistItem {
   label: string;
 }
 
-export const CHECKLIST_ITEMS: ChecklistItem[] = [
+export const UNIVERSAL_CHECKLIST_ITEMS: ChecklistItem[] = [
   { key: 'goldenThreadPassed', label: 'Golden Thread passed' },
   { key: 'terminologyChecked', label: 'Terminology checked' },
-  { key: 'platformFormatCorrect', label: 'Platform format correct' },
-  { key: 'altTextWritten', label: 'Alt text prepared' },
-  { key: 'linksChecked', label: 'Links checked' },
   { key: 'copyProofed', label: 'Copy proofed' },
+  { key: 'linksChecked', label: 'Links checked' },
 ];
+
+export const ASSET_CHECKLIST_ITEMS: Partial<Record<AssetType, ChecklistItem[]>> = {
+  Video: [
+    { key: 'subtitlesAdded', label: 'Subtitles/captions added' },
+    { key: 'thumbnailSet', label: 'Thumbnail set' },
+  ],
+  Design: [
+    { key: 'altTextWritten', label: 'Alt text prepared' },
+    { key: 'imageOptimised', label: 'Image optimised for platform' },
+  ],
+  Carousel: [
+    { key: 'altTextWritten', label: 'Alt text prepared' },
+    { key: 'slidesReadableOnMobile', label: 'All slides readable on mobile' },
+  ],
+};
+
+export const PLATFORM_CHECKLIST_ITEMS: Partial<Record<Platform, ChecklistItem[]>> = {
+  Instagram: [
+    { key: 'hashtagsAdded', label: 'Hashtags added (3–5)' },
+    { key: 'altTextWritten', label: 'Alt text prepared' },
+  ],
+  LinkedIn: [{ key: 'linksInFirstComment', label: 'External links in first comment' }],
+  YouTube: [
+    { key: 'subtitlesAdded', label: 'Subtitles/captions uploaded' },
+    { key: 'descriptionOptimised', label: 'Description optimised for search' },
+  ],
+};
+
+export const getChecklistItemsForEntry = (
+  platforms: string[] = [],
+  assetType: string = '',
+): ChecklistItem[] => {
+  const seen = new Set<string>();
+  const items: ChecklistItem[] = [];
+  const add = (item: ChecklistItem) => {
+    if (!seen.has(item.key)) {
+      seen.add(item.key);
+      items.push(item);
+    }
+  };
+  UNIVERSAL_CHECKLIST_ITEMS.forEach(add);
+  ASSET_CHECKLIST_ITEMS[assetType as AssetType]?.forEach(add);
+  platforms.forEach((p) => PLATFORM_CHECKLIST_ITEMS[p as Platform]?.forEach(add));
+  return items;
+};
+
+export const ALL_CHECKLIST_ITEMS: ChecklistItem[] = (() => {
+  const seen = new Set<string>();
+  const items: ChecklistItem[] = [];
+  const add = (item: ChecklistItem) => {
+    if (!seen.has(item.key)) {
+      seen.add(item.key);
+      items.push(item);
+    }
+  };
+  UNIVERSAL_CHECKLIST_ITEMS.forEach(add);
+  Object.values(ASSET_CHECKLIST_ITEMS).forEach((group) => group?.forEach(add));
+  Object.values(PLATFORM_CHECKLIST_ITEMS).forEach((group) => group?.forEach(add));
+  return items;
+})();
+
+/** @deprecated Use ALL_CHECKLIST_ITEMS or getChecklistItemsForEntry() */
+export const CHECKLIST_ITEMS = ALL_CHECKLIST_ITEMS;
 
 export const PLATFORM_IMAGES: Record<Platform, string> = {
   Instagram: 'https://cdn.simpleicons.org/instagram/E4405F',

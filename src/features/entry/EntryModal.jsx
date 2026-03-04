@@ -29,7 +29,7 @@ import {
   CONTENT_PILLARS,
   DEFAULT_APPROVERS,
   DEFAULT_USERS,
-  CHECKLIST_ITEMS,
+  getChecklistItemsForEntry,
   KANBAN_STATUSES,
   PRIORITY_TIERS,
   PRIORITY_TIER_BADGE_CLASSES,
@@ -574,8 +574,11 @@ export function EntryModal({
     return String(value);
   };
 
-  const checklistCompleted = Object.values(ensureChecklist(draft.checklist)).filter(Boolean).length;
-  const checklistTotal = CHECKLIST_ITEMS.length;
+  const entryChecklistItems = getChecklistItemsForEntry(draft.platforms, draft.assetType);
+  const checklistCompleted = entryChecklistItems.filter(
+    ({ key }) => ensureChecklist(draft.checklist)[key],
+  ).length;
+  const checklistTotal = entryChecklistItems.length;
   const formatFriendlyDate = (value) => {
     if (!value) return 'Not set';
     const parsed = new Date(value);
@@ -1216,7 +1219,7 @@ export function EntryModal({
 
                 <FieldRow label={`Checklist (${checklistCompleted}/${checklistTotal})`}>
                   <div className="flex flex-wrap gap-2">
-                    {CHECKLIST_ITEMS.map((item) => (
+                    {entryChecklistItems.map((item) => (
                       <label
                         key={item.key}
                         className="heading-font inline-flex items-center gap-3 rounded-full border border-black bg-white px-4 py-2 text-xs font-semibold text-black shadow-[0_0_20px_rgba(15,157,222,0.2)] transition hover:bg-black hover:text-white"

@@ -11,7 +11,7 @@ import { PlatformIcon, LoaderIcon, TrashIcon } from '../../components/common';
 import { cx, isoFromParts } from '../../lib/utils';
 import { ensureChecklist, isImageMedia } from '../../lib/sanitizers';
 import {
-  CHECKLIST_ITEMS,
+  getChecklistItemsForEntry,
   WORKFLOW_STAGES,
   PRIORITY_TIERS,
   PRIORITY_TIER_BADGE_CLASSES,
@@ -296,8 +296,9 @@ export function MonthGrid({
               )}
               {dayEntries.map((entry, entryIndex) => {
                 const checklist = ensureChecklist(entry.checklist);
-                const completed = Object.values(checklist).filter(Boolean).length;
-                const total = CHECKLIST_ITEMS.length;
+                const relevantItems = getChecklistItemsForEntry(entry.platforms, entry.assetType);
+                const completed = relevantItems.filter(({ key }) => checklist[key]).length;
+                const total = relevantItems.length;
                 const hasPreviewImage = isImageMedia(entry.previewUrl);
                 const hasPerformance = entry.analytics && Object.keys(entry.analytics).length > 0;
                 const isFocusedEntry = isFocusedDay && focusedEntryIndex === entryIndex;

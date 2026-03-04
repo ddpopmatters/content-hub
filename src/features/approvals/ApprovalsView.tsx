@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardHeader, CardContent, CardTitle, Badge, Button } from '../../components/ui';
 import { CheckCircleIcon, LoaderIcon, PlusIcon } from '../../components/common';
 import { cx } from '../../lib/utils';
-import { CHECKLIST_ITEMS } from '../../constants';
+import { getChecklistItemsForEntry } from '../../constants';
 import type { Entry } from '../../types/models';
 
 interface ApprovalEntryCardProps {
@@ -63,9 +63,8 @@ const ApprovalEntryCard: React.FC<ApprovalEntryCardProps> = ({ entry, onApprove,
           )}
           {entry.checklist && (
             <div className="flex flex-wrap gap-2 text-xs text-graystone-500">
-              {Object.entries(entry.checklist).map(([key, value]) => {
-                const itemDef = CHECKLIST_ITEMS.find((item) => item.key === key);
-                if (!itemDef) return null;
+              {getChecklistItemsForEntry(entry.platforms, entry.assetType).map(({ key, label }) => {
+                const value = (entry.checklist as Record<string, boolean>)[key];
                 return (
                   <span
                     key={key}
@@ -81,7 +80,7 @@ const ApprovalEntryCard: React.FC<ApprovalEntryCardProps> = ({ entry, onApprove,
                     ) : (
                       <LoaderIcon className="h-3 w-3 animate-none text-graystone-400" />
                     )}
-                    {itemDef.label}
+                    {label}
                   </span>
                 );
               })}
