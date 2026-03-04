@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { Sidebar } from './components/layout';
 import { CalendarView } from './features/calendar/CalendarView';
-import { ApprovalsView, ApprovalsModal } from './features/approvals';
+import { ApprovalsView } from './features/approvals';
 import { KanbanView } from './features/kanban';
 import { AnalyticsView } from './features/analytics/AnalyticsView';
 import { DashboardView } from './features/dashboard';
@@ -318,7 +318,6 @@ function ContentDashboard() {
       .catch(() => {});
   }, []);
   const [performanceImportOpen, setPerformanceImportOpen] = useState(false);
-  const [approvalsModalOpen, setApprovalsModalOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const canUseInfluencers = true; // Show to everyone
   const approverOptions = useMemo(() => {
@@ -526,12 +525,6 @@ function ContentDashboard() {
       setAccessModalUser(null);
     }
   }, [currentUserIsAdmin]);
-
-  useEffect(() => {
-    if (!canUseApprovals) {
-      setApprovalsModalOpen(false);
-    }
-  }, [canUseApprovals]);
 
   const importPerformanceDataset = (dataset) => {
     let summary = {
@@ -1103,7 +1096,11 @@ function ContentDashboard() {
                 closeEntry();
               }}
               onOpenGuidelines={() => setGuidelinesOpen(true)}
-              onOpenApprovals={() => setApprovalsModalOpen(true)}
+              onOpenApprovals={() => {
+                setCurrentView('plan');
+                setPlanTab('approvals');
+                closeEntry();
+              }}
               onOpenOpportunities={() => {
                 setCurrentView('opportunities');
                 setPlanTab('plan');
@@ -1944,18 +1941,6 @@ function ContentDashboard() {
               users={mentionUsers}
             />
           ) : null}
-          {canUseApprovals && (
-            <ApprovalsModal
-              open={approvalsModalOpen}
-              onClose={() => setApprovalsModalOpen(false)}
-              approvals={outstandingApprovals}
-              onOpenEntry={(id) => {
-                setApprovalsModalOpen(false);
-                openEntry(id);
-              }}
-              onApprove={(id) => toggleApprove(id)}
-            />
-          )}
           {currentUserIsAdmin && (
             <AccessModal
               open={Boolean(accessModalUser)}
