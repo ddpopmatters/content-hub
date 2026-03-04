@@ -134,8 +134,8 @@ export function EntryForm({
     setPriorityTier(initialValues.priorityTier || 'Medium');
     setInfluencerId(initialValues.influencerId || '');
     setAudienceSegments(ensureArray(initialValues.audienceSegments));
-    setQuickAssessment({});
-    setGoldenThread({});
+    setQuickAssessment(initialValues.assessmentScores?.quick ?? {});
+    setGoldenThread(initialValues.assessmentScores?.goldenThread ?? {});
     setEntryFormErrors([]);
     const hasAdvancedValues = !!(
       initialValues.campaign ||
@@ -176,14 +176,23 @@ export function EntryForm({
   }, [slidesCount]);
 
   const conflicts = useMemo(
-    () => (existingEntries || []).filter((entry) => !entry.deletedAt && entry.date === date),
-    [existingEntries, date],
+    () =>
+      (existingEntries || []).filter(
+        (entry) =>
+          !entry.deletedAt &&
+          entry.date === date &&
+          entry.id !== initialValues?.id &&
+          platforms.length > 0 &&
+          ensureArray(entry.platforms).some((p) => platforms.includes(p)),
+      ),
+    [existingEntries, date, platforms, initialValues],
   );
   const hasConflict = conflicts.length > 0;
 
   useEffect(() => {
     setOverrideConflict(false);
-  }, [date]);
+    setEntryFormErrors((prev) => prev.filter((e) => !e.startsWith('Scheduling conflict')));
+  }, [date, platforms]);
 
   useEffect(() => {
     setActiveCaptionTab((prevTab) =>
@@ -297,6 +306,9 @@ export function EntryForm({
       return;
     }
     if (hasConflict && !overrideConflict) {
+      setEntryFormErrors([
+        'Scheduling conflict on this date — use "Submit anyway" in the warning below, or pick a different date.',
+      ]);
       document
         .getElementById('conflict-warning')
         ?.scrollIntoView({ behavior: 'smooth', block: 'center' });

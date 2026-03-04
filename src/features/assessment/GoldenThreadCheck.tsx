@@ -54,8 +54,8 @@ export function GoldenThreadCheck({
         <div>
           <h3 className="text-sm font-semibold text-ocean-700">Golden Thread Check</h3>
           <p className="text-xs text-graystone-500">
-            All four must be answered &ldquo;No&rdquo; to pass. Content does not publish if any
-            check fails.
+            Flag anything that applies. Failures show reframing guidance — content can still be
+            submitted.
           </p>
         </div>
         {onClose && (

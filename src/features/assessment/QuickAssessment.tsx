@@ -3,7 +3,6 @@ import { cx } from '../../lib/utils';
 import { QUICK_ASSESSMENT_QUESTIONS } from '../../constants';
 
 export interface QuickAssessmentValues {
-  goldenThread?: boolean;
   hook?: boolean;
   platformFit?: boolean;
   shareWorthy?: boolean;
