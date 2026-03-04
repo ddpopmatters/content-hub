@@ -426,7 +426,9 @@ export function MonthGrid({
                             {/* Platform icons */}
                             <div className="flex min-w-0 items-center gap-0.5">
                               {entry.platforms.slice(0, 2).map((p) => (
-                                <PlatformIcon key={p} platform={p} />
+                                <React.Fragment key={p}>
+                                  <PlatformIcon platform={p} />
+                                </React.Fragment>
                               ))}
                               {entry.platforms.length > 2 && (
                                 <span className="text-[9px] text-graystone-400">
