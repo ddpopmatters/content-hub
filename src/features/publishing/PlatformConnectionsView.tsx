@@ -55,7 +55,7 @@ function buildOAuthUrl(platform: Platform, currentUser: string): string {
         platform === 'Instagram'
           ? 'instagram_basic,instagram_content_publish'
           : 'pages_manage_posts,pages_read_engagement';
-      return `https://www.facebook.com/v19.0/dialogue/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}&response_type=code`;
+      return `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}&response_type=code`;
     }
     case 'LinkedIn': {
       const clientId = import.meta.env.LINKEDIN_CLIENT_ID ?? '';

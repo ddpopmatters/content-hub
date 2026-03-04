@@ -44,6 +44,7 @@ const config = {
   define: {
     'import.meta.env.SUPABASE_URL': JSON.stringify(env.SUPABASE_URL || ''),
     'import.meta.env.SUPABASE_ANON_KEY': JSON.stringify(env.SUPABASE_ANON_KEY || ''),
+    'import.meta.env.META_APP_ID': JSON.stringify(env.META_APP_ID || ''),
   },
 };
 
