@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { normalizeEmail } from '../../lib/utils';
-import { ensureFeaturesList, DEFAULT_FEATURES } from '../../lib/users';
+import { ensureFeaturesList } from '../../lib/users';
 
 interface UseAdminDeps {
   currentUserIsAdmin: boolean;
@@ -17,11 +17,6 @@ export function useAdmin({
 }: UseAdminDeps) {
   const [userList, setUserList] = useState<Record<string, unknown>[]>(() => []);
   const [adminAudits, setAdminAudits] = useState<Record<string, unknown>[]>([]);
-  const [newUserFirst, setNewUserFirst] = useState('');
-  const [newUserLast, setNewUserLast] = useState('');
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserFeatures, setNewUserFeatures] = useState<string[]>(() => [...DEFAULT_FEATURES]);
-  const [newUserIsApprover, setNewUserIsApprover] = useState(false);
   const [accessModalUser, setAccessModalUser] = useState<Record<string, unknown> | null>(null);
   const [userAdminError, setUserAdminError] = useState('');
   const [userAdminSuccess, setUserAdminSuccess] = useState('');
@@ -47,61 +42,56 @@ export function useAdmin({
       .catch(() => pushSyncToast('Unable to refresh user roster.', 'warning'));
   }, [pushSyncToast]);
 
-  const addUser = useCallback(async () => {
-    setUserAdminError('');
-    setUserAdminSuccess('');
-    if (!currentUserIsAdmin) {
-      setUserAdminError('You do not have permission to manage users.');
-      return;
-    }
-    const first = newUserFirst.trim();
-    const last = newUserLast.trim();
-    const email = newUserEmail.trim();
-    if (!first || !last || !email) return;
-    const fullname = `${first} ${last}`;
-    normalizeEmail(email);
-    const selectedFeatures = ensureFeaturesList(newUserFeatures);
-    if (!window.api || typeof (window.api as Record<string, unknown>).createUser !== 'function') {
-      setUserAdminError('Server is offline. Try again when connected.');
-      return;
-    }
-    try {
-      const created = (await (
-        window.api as Record<string, (...args: unknown[]) => Promise<unknown>>
-      ).createUser({
-        name: fullname,
-        email,
-        features: selectedFeatures,
-        isApprover: newUserIsApprover,
-      })) as Record<string, unknown>;
-      if (created) {
-        setUserList((prev) => {
-          const without = prev.filter((user) => user.id !== created.id);
-          return [created, ...without];
-        });
-        setUserAdminSuccess(`Invitation sent to ${email}.`);
-        refreshApprovers();
-        refreshUsers();
+  const addUser = useCallback(
+    async (formData: {
+      first: string;
+      last: string;
+      email: string;
+      features: string[];
+      isApprover: boolean;
+    }) => {
+      setUserAdminError('');
+      setUserAdminSuccess('');
+      if (!currentUserIsAdmin) {
+        setUserAdminError('You do not have permission to manage users.');
+        return;
       }
-    } catch (error) {
-      console.error(error);
-      setUserAdminError('Unable to create user. Please try again.');
-    }
-    setNewUserFirst('');
-    setNewUserLast('');
-    setNewUserEmail('');
-    setNewUserFeatures([...DEFAULT_FEATURES]);
-    setNewUserIsApprover(false);
-  }, [
-    currentUserIsAdmin,
-    newUserFirst,
-    newUserLast,
-    newUserEmail,
-    newUserFeatures,
-    newUserIsApprover,
-    refreshApprovers,
-    refreshUsers,
-  ]);
+      const first = formData.first.trim();
+      const last = formData.last.trim();
+      const email = formData.email.trim();
+      if (!first || !last || !email) return;
+      const fullname = `${first} ${last}`;
+      normalizeEmail(email);
+      const selectedFeatures = ensureFeaturesList(formData.features);
+      if (!window.api || typeof (window.api as Record<string, unknown>).createUser !== 'function') {
+        setUserAdminError('Server is offline. Try again when connected.');
+        return;
+      }
+      try {
+        const created = (await (
+          window.api as Record<string, (...args: unknown[]) => Promise<unknown>>
+        ).createUser({
+          name: fullname,
+          email,
+          features: selectedFeatures,
+          isApprover: formData.isApprover,
+        })) as Record<string, unknown>;
+        if (created) {
+          setUserList((prev) => {
+            const without = prev.filter((user) => user.id !== created.id);
+            return [created, ...without];
+          });
+          setUserAdminSuccess(`Invitation sent to ${email}.`);
+          refreshApprovers();
+          refreshUsers();
+        }
+      } catch (error) {
+        console.error(error);
+        setUserAdminError('Unable to create user. Please try again.');
+      }
+    },
+    [currentUserIsAdmin, refreshApprovers, refreshUsers],
+  );
 
   const removeUser = useCallback(
     async (user: Record<string, unknown>) => {
@@ -131,12 +121,6 @@ export function useAdmin({
     },
     [currentUserIsAdmin, refreshApprovers, refreshUsers],
   );
-
-  const toggleNewUserFeature = useCallback((feature: string) => {
-    setNewUserFeatures((prev) =>
-      prev.includes(feature) ? prev.filter((item) => item !== feature) : [...prev, feature],
-    );
-  }, []);
 
   const toggleApproverRole = useCallback(
     async (user: Record<string, unknown>) => {
@@ -211,11 +195,6 @@ export function useAdmin({
   const reset = useCallback(() => {
     setUserList([]);
     setAdminAudits([]);
-    setNewUserFirst('');
-    setNewUserLast('');
-    setNewUserEmail('');
-    setNewUserFeatures([...DEFAULT_FEATURES]);
-    setNewUserIsApprover(false);
     setAccessModalUser(null);
     setUserAdminError('');
     setUserAdminSuccess('');
@@ -226,16 +205,6 @@ export function useAdmin({
     setUserList,
     adminAudits,
     setAdminAudits,
-    newUserFirst,
-    setNewUserFirst,
-    newUserLast,
-    setNewUserLast,
-    newUserEmail,
-    setNewUserEmail,
-    newUserFeatures,
-    setNewUserFeatures,
-    newUserIsApprover,
-    setNewUserIsApprover,
     accessModalUser,
     setAccessModalUser,
     userAdminError,
@@ -243,7 +212,6 @@ export function useAdmin({
     refreshUsers,
     addUser,
     removeUser,
-    toggleNewUserFeature,
     toggleApproverRole,
     handleAccessSave,
     reset,

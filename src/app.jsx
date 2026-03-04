@@ -10,13 +10,7 @@ import { DashboardView } from './features/dashboard';
 import { EngagementView } from './features/engagement/EngagementView';
 import { PublishSettingsPanel } from './features/publishing';
 import { useApi } from './hooks/useApi';
-import {
-  FEATURE_OPTIONS,
-  KANBAN_STATUSES,
-  PLAN_TAB_FEATURES,
-  PLAN_TAB_ORDER,
-  DEFAULT_MANAGERS,
-} from './constants';
+import { KANBAN_STATUSES, PLAN_TAB_FEATURES, PLAN_TAB_ORDER, DEFAULT_MANAGERS } from './constants';
 import { SUPABASE_API } from './lib/supabase';
 import { buildManagersFromProfiles } from './lib/managers';
 import { cx, uuid, monthStartISO, monthEndISO, storageAvailable } from './lib/utils';
@@ -45,6 +39,7 @@ import { IdeasBoard, IdeaForm } from './features/ideas';
 import { OpportunitiesView } from './features/opportunities';
 import { ContentRequestsView } from './features/requests';
 import { MiniCalendar, NarrativeView, MonthlyGlance } from './features/calendar';
+import { AddUserForm } from './features/admin';
 import { EntryForm, EntryModal, EntryPreviewModal } from './features/entry';
 import { normalizeGuidelines, saveGuidelines } from './lib/guidelines';
 import { appendAudit } from './lib/audit';
@@ -251,22 +246,12 @@ function ContentDashboard() {
     setUserList,
     adminAudits,
     setAdminAudits,
-    newUserFirst,
-    setNewUserFirst,
-    newUserLast,
-    setNewUserLast,
-    newUserEmail,
-    setNewUserEmail,
-    newUserFeatures,
-    newUserIsApprover,
-    setNewUserIsApprover,
     accessModalUser,
     setAccessModalUser,
     userAdminError,
     userAdminSuccess,
     addUser,
     removeUser,
-    toggleNewUserFeature,
     toggleApproverRole,
     handleAccessSave,
   } = admin;
@@ -1683,16 +1668,6 @@ function ContentDashboard() {
                   </p>
                 </CardHeader>
                 <CardContent>
-                  {userAdminError ? (
-                    <div className="mb-3 rounded-2xl bg-rose-50 px-4 py-2 text-xs text-rose-700">
-                      {userAdminError}
-                    </div>
-                  ) : null}
-                  {userAdminSuccess ? (
-                    <div className="mb-3 rounded-2xl bg-emerald-50 px-4 py-2 text-xs text-emerald-700">
-                      {userAdminSuccess}
-                    </div>
-                  ) : null}
                   <div className="space-y-2">
                     {userList.length ? (
                       userList.map((user) => (
@@ -1764,76 +1739,12 @@ function ContentDashboard() {
                       <p className="text-xs text-graystone-500">No users configured yet.</p>
                     )}
                   </div>
-                  <div className="mt-4 grid gap-2 md:grid-cols-3">
-                    <Input
-                      placeholder="First name"
-                      value={newUserFirst}
-                      onChange={(event) => setNewUserFirst(event.target.value)}
-                      className="px-3 py-2"
-                    />
-                    <Input
-                      placeholder="Last name"
-                      value={newUserLast}
-                      onChange={(event) => setNewUserLast(event.target.value)}
-                      className="px-3 py-2"
-                    />
-                    <Input
-                      placeholder="Email"
-                      type="email"
-                      value={newUserEmail}
-                      onChange={(event) => setNewUserEmail(event.target.value)}
-                      className="px-3 py-2"
-                    />
-                  </div>
-                  <div className="mt-3">
-                    <div className="text-xs font-semibold text-graystone-600">Grant access to</div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {FEATURE_OPTIONS.map((option) => {
-                        const enabled = newUserFeatures.includes(option.key);
-                        return (
-                          <label
-                            key={option.key}
-                            className={cx(
-                              'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold transition',
-                              enabled
-                                ? 'border-aqua-200 bg-aqua-100 text-ocean-700'
-                                : 'border-graystone-200 bg-white text-graystone-600 hover:border-graystone-400',
-                            )}
-                          >
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 rounded border-graystone-300 text-aqua-500 focus:ring-aqua-300"
-                              checked={enabled}
-                              onChange={() => toggleNewUserFeature(option.key)}
-                            />
-                            <span>{option.label}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <label className="inline-flex items-center gap-2 text-xs font-semibold text-graystone-600">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-graystone-300 text-aqua-500 focus:ring-aqua-300"
-                        checked={newUserIsApprover}
-                        onChange={(event) => setNewUserIsApprover(event.target.checked)}
-                      />
-                      Approver
-                    </label>
-                    <span className="text-[11px] text-graystone-500">
-                      Approvers appear in the approvals picker and receive notifications.
-                    </span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <Button
-                      onClick={addUser}
-                      disabled={!newUserFirst.trim() || !newUserLast.trim() || !newUserEmail.trim()}
-                    >
-                      Add user
-                    </Button>
-                  </div>
+                  <AddUserForm
+                    defaultFeatures={DEFAULT_FEATURES}
+                    onSubmit={addUser}
+                    error={userAdminError}
+                    success={userAdminSuccess}
+                  />
                 </CardContent>
               </Card>
 

@@ -1,16 +1,9 @@
-import React, { useState, useEffect, useCallback, type ChangeEvent } from 'react';
-import {
-  Card,
-  CardHeader,
-  CardContent,
-  CardTitle,
-  Button,
-  Input,
-  Modal,
-} from '../../components/ui';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, CardHeader, CardContent, CardTitle, Button, Modal } from '../../components/ui';
 import { cx } from '../../lib/utils';
 import { FEATURE_OPTIONS } from '../../constants';
 import type { User, AuditEntry } from '../../types/models';
+import { AddUserForm, type AddUserFormData } from './AddUserForm';
 
 /** Props for AccessModal component */
 interface AccessModalProps {
@@ -116,16 +109,6 @@ export interface AdminPanelProps {
   userAdminError: string;
   /** Success message string */
   userAdminSuccess: string;
-  /** First name input value */
-  newUserFirst: string;
-  /** Last name input value */
-  newUserLast: string;
-  /** Email input value */
-  newUserEmail: string;
-  /** Array of selected feature keys for new user */
-  newUserFeatures: string[];
-  /** Boolean for approver checkbox */
-  newUserIsApprover: boolean;
   /** User object for access modal (or null) */
   accessModalUser: User | null;
   /** Array of default feature keys */
@@ -142,18 +125,8 @@ export interface AdminPanelProps {
   onRemoveUser: (user: User) => void;
   /** Callback to set user for access modal */
   onSetAccessModalUser: (user: User | null) => void;
-  /** Callback for first name input change */
-  onNewUserFirstChange: (value: string) => void;
-  /** Callback for last name input change */
-  onNewUserLastChange: (value: string) => void;
-  /** Callback for email input change */
-  onNewUserEmailChange: (value: string) => void;
-  /** Callback when toggling new user feature (receives feature key) */
-  onToggleNewUserFeature: (key: string) => void;
-  /** Callback for approver checkbox change */
-  onNewUserIsApproverChange: (checked: boolean) => void;
-  /** Callback when adding a new user */
-  onAddUser: () => void;
+  /** Callback when adding a new user (receives form data) */
+  onAddUser: (data: AddUserFormData) => void;
   /** Callback when saving access modal (receives features array) */
   onAccessSave: (features: string[]) => void;
 }
@@ -167,11 +140,6 @@ export function AdminPanel({
   approverOptions = [],
   userAdminError = '',
   userAdminSuccess = '',
-  newUserFirst = '',
-  newUserLast = '',
-  newUserEmail = '',
-  newUserFeatures = [],
-  newUserIsApprover = false,
   accessModalUser = null,
   defaultFeatures = [],
   onBackToMenu,
@@ -180,11 +148,6 @@ export function AdminPanel({
   onToggleApproverRole,
   onRemoveUser,
   onSetAccessModalUser,
-  onNewUserFirstChange,
-  onNewUserLastChange,
-  onNewUserEmailChange,
-  onToggleNewUserFeature,
-  onNewUserIsApproverChange,
   onAddUser,
   onAccessSave,
 }: AdminPanelProps): React.ReactElement {
@@ -279,16 +242,6 @@ export function AdminPanel({
             </p>
           </CardHeader>
           <CardContent>
-            {userAdminError ? (
-              <div className="mb-3 rounded-2xl bg-rose-50 px-4 py-2 text-xs text-rose-700">
-                {userAdminError}
-              </div>
-            ) : null}
-            {userAdminSuccess ? (
-              <div className="mb-3 rounded-2xl bg-emerald-50 px-4 py-2 text-xs text-emerald-700">
-                {userAdminSuccess}
-              </div>
-            ) : null}
             <div className="space-y-2">
               {userList.length ? (
                 userList.map((user) => (
@@ -346,84 +299,12 @@ export function AdminPanel({
                 <p className="text-xs text-graystone-500">No users configured yet.</p>
               )}
             </div>
-            <div className="mt-4 grid gap-2 md:grid-cols-3">
-              <Input
-                placeholder="First name"
-                value={newUserFirst}
-                onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                  onNewUserFirstChange(event.target.value)
-                }
-                className="px-3 py-2"
-              />
-              <Input
-                placeholder="Last name"
-                value={newUserLast}
-                onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                  onNewUserLastChange(event.target.value)
-                }
-                className="px-3 py-2"
-              />
-              <Input
-                placeholder="Email"
-                type="email"
-                value={newUserEmail}
-                onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                  onNewUserEmailChange(event.target.value)
-                }
-                className="px-3 py-2"
-              />
-            </div>
-            <div className="mt-3">
-              <div className="text-xs font-semibold text-graystone-600">Grant access to</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {FEATURE_OPTIONS.map((option) => {
-                  const enabled = newUserFeatures.includes(option.key);
-                  return (
-                    <label
-                      key={option.key}
-                      className={cx(
-                        'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold transition',
-                        enabled
-                          ? 'border-aqua-200 bg-aqua-100 text-ocean-700'
-                          : 'border-graystone-200 bg-white text-graystone-600 hover:border-graystone-400',
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-graystone-300 text-aqua-500 focus:ring-aqua-300"
-                        checked={enabled}
-                        onChange={() => onToggleNewUserFeature(option.key)}
-                      />
-                      <span>{option.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="mt-3 flex items-center gap-2">
-              <label className="inline-flex items-center gap-2 text-xs font-semibold text-graystone-600">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-graystone-300 text-aqua-500 focus:ring-aqua-300"
-                  checked={newUserIsApprover}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    onNewUserIsApproverChange(event.target.checked)
-                  }
-                />
-                Approver
-              </label>
-              <span className="text-[11px] text-graystone-500">
-                Approvers appear in the approvals picker and receive notifications.
-              </span>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Button
-                onClick={onAddUser}
-                disabled={!newUserFirst.trim() || !newUserLast.trim() || !newUserEmail.trim()}
-              >
-                Add user
-              </Button>
-            </div>
+            <AddUserForm
+              defaultFeatures={defaultFeatures}
+              onSubmit={onAddUser}
+              error={userAdminError}
+              success={userAdminSuccess}
+            />
           </CardContent>
         </Card>
       </div>
