@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, type ChangeEvent } from 'react';
 import { Card, CardContent, Button, Input, Label, Toggle, MultiSelect } from '../../components/ui';
 import { PlatformIcon, CalendarIcon } from '../../components/common';
 import { downloadICS, exportEntriesForDateRange } from '../../lib/exportUtils';
+import { isApprovalOverdue, matchesSearch } from '../../lib/filters';
 import { cx, daysInMonth, monthStartISO, monthEndISO } from '../../lib/utils';
 import { selectBaseClasses } from '../../lib/styles';
 import { ALL_PLATFORMS, KANBAN_STATUSES, PRIORITY_TIERS } from '../../constants';
@@ -297,46 +298,12 @@ export function CalendarView({
   const hasValidExportRange = Boolean(
     exportStartDate && exportEndDate && exportStartDate <= exportEndDate,
   );
-  const normalizedFilterQuery = filterQuery.trim().toLowerCase();
-
   const monthEntryTotal = useMemo(
     () =>
       entries.filter((entry) => !entry.deletedAt && entry.date >= startISO && entry.date <= endISO)
         .length,
     [entries, startISO, endISO],
   );
-
-  const isApprovalOverdue = (entry: Entry): boolean => {
-    if (!entry?.approvalDeadline) return false;
-    const parsed = new Date(entry.approvalDeadline);
-    if (Number.isNaN(parsed.getTime())) return false;
-    return parsed.getTime() < Date.now() && entry.status !== 'Approved';
-  };
-
-  const matchesSearch = (entry: Entry): boolean => {
-    if (!normalizedFilterQuery) return true;
-    const caption = entry.caption || '';
-    const platformCaptions =
-      entry.platformCaptions && typeof entry.platformCaptions === 'object'
-        ? Object.values(entry.platformCaptions).join(' ')
-        : '';
-    const platforms = Array.isArray(entry.platforms) ? entry.platforms.join(' ') : '';
-    const extra = [
-      entry.author,
-      entry.campaign,
-      entry.contentPillar,
-      entry.statusDetail,
-      entry.workflowStatus,
-      entry.status,
-      entry.assetType,
-      entry.previewUrl,
-      entry.firstComment,
-    ]
-      .filter(Boolean)
-      .join(' ');
-    const haystack = `${caption} ${platformCaptions} ${platforms} ${extra}`.toLowerCase();
-    return haystack.includes(normalizedFilterQuery);
-  };
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -377,7 +344,7 @@ export function CalendarView({
       )
       .filter((entry) => (!filterOverdue ? true : isApprovalOverdue(entry)))
       .filter((entry) => (!filterEvergreen ? true : entry.evergreen))
-      .filter((entry) => matchesSearch(entry))
+      .filter((entry) => matchesSearch(entry, filterQuery))
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [
     entries,
@@ -388,7 +355,7 @@ export function CalendarView({
     filterPlatforms,
     filterOverdue,
     filterEvergreen,
-    normalizedFilterQuery,
+    filterQuery,
   ]);
 
   // Month-specific filtered entries

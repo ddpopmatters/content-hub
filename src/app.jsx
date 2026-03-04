@@ -54,7 +54,6 @@ import { DEFAULT_USER_RECORDS, DEFAULT_FEATURES } from './lib/users';
 import { mergePerformanceData } from './lib/performance';
 import {
   useSyncQueue,
-  useFilters as useDomainFilters,
   usePublishing,
   useGuidelines,
   useEngagement,
@@ -141,16 +140,6 @@ function ContentDashboard() {
   } = notifs;
 
   const { syncQueue, syncToast, pushSyncToast, runSyncTask, retryAllSync } = sync;
-  const filters = useDomainFilters();
-  const {
-    filterType,
-    filterStatus,
-    filterPlatforms,
-    filterWorkflow,
-    filterQuery,
-    filterOverdue,
-    filterEvergreen,
-  } = filters;
   const publishing = usePublishing();
   const {
     publishSettings,
@@ -576,67 +565,13 @@ function ContentDashboard() {
 
   const startISO = monthStartISO(monthCursor);
   const endISO = monthEndISO(monthCursor);
-  const normalizedFilterQuery = filterQuery.trim().toLowerCase();
-  const isApprovalOverdue = (entry) => {
-    if (!entry?.approvalDeadline) return false;
-    const parsed = new Date(entry.approvalDeadline);
-    if (Number.isNaN(parsed.getTime())) return false;
-    return parsed.getTime() < Date.now() && entry.status !== 'Approved';
-  };
-  const matchesSearch = (entry) => {
-    if (!normalizedFilterQuery) return true;
-    const caption = entry.caption || '';
-    const platformCaptions =
-      entry.platformCaptions && typeof entry.platformCaptions === 'object'
-        ? Object.values(entry.platformCaptions).join(' ')
-        : '';
-    const platforms = Array.isArray(entry.platforms) ? entry.platforms.join(' ') : '';
-    const extra = [
-      entry.author,
-      entry.campaign,
-      entry.contentPillar,
-      entry.statusDetail,
-      entry.workflowStatus,
-      entry.status,
-      entry.assetType,
-      entry.previewUrl,
-      entry.firstComment,
-    ]
-      .filter(Boolean)
-      .join(' ');
-    const haystack = `${caption} ${platformCaptions} ${platforms} ${extra}`.toLowerCase();
-    return haystack.includes(normalizedFilterQuery);
-  };
-
-  const monthEntries = useMemo(() => {
-    return entries
-      .filter((entry) => !entry.deletedAt && entry.date >= startISO && entry.date <= endISO)
-      .filter((entry) => (filterType === 'All' ? true : entry.assetType === filterType))
-      .filter((entry) => (filterStatus === 'All' ? true : entry.status === filterStatus))
-      .filter((entry) =>
-        filterWorkflow === 'All' ? true : entry.workflowStatus === filterWorkflow,
-      )
-      .filter((entry) =>
-        filterPlatforms.length === 0
-          ? true
-          : filterPlatforms.some((platform) => entry.platforms.includes(platform)),
-      )
-      .filter((entry) => (!filterOverdue ? true : isApprovalOverdue(entry)))
-      .filter((entry) => (!filterEvergreen ? true : entry.evergreen))
-      .filter((entry) => matchesSearch(entry))
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [
-    entries,
-    startISO,
-    endISO,
-    filterType,
-    filterStatus,
-    filterWorkflow,
-    filterPlatforms,
-    filterOverdue,
-    filterEvergreen,
-    normalizedFilterQuery,
-  ]);
+  const monthEntries = useMemo(
+    () =>
+      entries
+        .filter((entry) => !entry.deletedAt && entry.date >= startISO && entry.date <= endISO)
+        .sort((a, b) => a.date.localeCompare(b.date)),
+    [entries, startISO, endISO],
+  );
 
   const outstandingCount = outstandingApprovals.length;
 
