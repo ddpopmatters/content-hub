@@ -4,6 +4,7 @@ import { cx } from '../../lib/utils';
 import { selectBaseClasses } from '../../lib/styles';
 import { ALL_PLATFORMS } from '../../constants';
 import type { Entry } from '../../types/models';
+import { AnalyticsInputWizard } from './AnalyticsInputWizard';
 
 // Time period options
 const TIME_PERIODS = [
@@ -18,6 +19,7 @@ type TimePeriod = (typeof TIME_PERIODS)[number]['value'];
 
 interface AnalyticsViewProps {
   entries: Entry[];
+  onUpdateEntry?: (id: string, updates: Partial<Entry>) => void;
 }
 
 // Helper to get date range for a time period
@@ -196,12 +198,13 @@ const TopPerformerCard: React.FC<{
   </div>
 );
 
-export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ entries }) => {
+export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ entries, onUpdateEntry }) => {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('this-month');
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [comparisonMetric, setComparisonMetric] = useState<'engagements' | 'reach' | 'posts'>(
     'engagements',
   );
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   // Filter entries by time period
   const filteredEntries = useMemo(() => {
@@ -276,6 +279,15 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ entries }) => {
             <p className="text-ocean-100">Track your content performance across platforms.</p>
           </div>
           <div className="flex items-center gap-3">
+            {onUpdateEntry && (
+              <Button
+                onClick={() => setWizardOpen(true)}
+                className="bg-white/20 text-white hover:bg-white/30 border-white/30"
+                variant="outline"
+              >
+                Log metrics
+              </Button>
+            )}
             <Label className="text-white text-sm">Period</Label>
             <select
               value={timePeriod}
@@ -435,6 +447,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ entries }) => {
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {wizardOpen && onUpdateEntry && (
+        <AnalyticsInputWizard
+          entries={entries}
+          onSave={(entryId, analytics) =>
+            onUpdateEntry(entryId, { analytics, analyticsUpdatedAt: new Date().toISOString() })
+          }
+          onClose={() => setWizardOpen(false)}
+        />
       )}
     </div>
   );

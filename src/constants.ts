@@ -88,6 +88,52 @@ export const PLATFORM_TIERS: Record<Platform, 1 | 2 | 3> = {
   BlueSky: 3,
 };
 
+export interface PlatformMetricField {
+  key: string;
+  label: string;
+  hint?: string;
+}
+
+export const PLATFORM_METRICS: Record<Platform, PlatformMetricField[]> = {
+  Instagram: [
+    { key: 'impressions', label: 'Impressions', hint: 'Total times the post was displayed' },
+    { key: 'reach', label: 'Reach', hint: 'Unique accounts that saw the post' },
+    { key: 'likes', label: 'Likes' },
+    { key: 'comments', label: 'Comments' },
+    { key: 'shares', label: 'Shares' },
+    { key: 'saves', label: 'Saves' },
+  ],
+  LinkedIn: [
+    { key: 'impressions', label: 'Impressions' },
+    { key: 'clicks', label: 'Clicks (link)' },
+    { key: 'likes', label: 'Likes' },
+    { key: 'comments', label: 'Comments' },
+    { key: 'shares', label: 'Reposts / Shares' },
+  ],
+  YouTube: [
+    { key: 'views', label: 'Views' },
+    { key: 'watchTime', label: 'Watch time (mins)' },
+    { key: 'likes', label: 'Likes' },
+    { key: 'comments', label: 'Comments' },
+    { key: 'shares', label: 'Shares' },
+    { key: 'subscribersGained', label: 'Subscribers gained' },
+  ],
+  Facebook: [
+    { key: 'impressions', label: 'Impressions' },
+    { key: 'reach', label: 'Reach' },
+    { key: 'likes', label: 'Likes / Reactions' },
+    { key: 'comments', label: 'Comments' },
+    { key: 'shares', label: 'Shares' },
+    { key: 'clicks', label: 'Link clicks' },
+  ],
+  BlueSky: [
+    { key: 'impressions', label: 'Impressions' },
+    { key: 'likes', label: 'Likes' },
+    { key: 'shares', label: 'Reposts' },
+    { key: 'comments', label: 'Replies' },
+  ],
+};
+
 export const DEFAULT_APPROVERS = [
   'Jameen Kaur',
   'Emma Lewendon-Strutt',

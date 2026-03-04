@@ -1466,7 +1466,10 @@ function ContentDashboard() {
 
           {currentView === 'analytics' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <AnalyticsView entries={entries} />
+              <AnalyticsView
+                entries={entries}
+                onUpdateEntry={(id, updates) => upsert({ id, ...updates })}
+              />
             </div>
           )}
 
