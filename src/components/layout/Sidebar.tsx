@@ -204,16 +204,16 @@ export function Sidebar({
   return (
     <div className="w-64 bg-ocean-800 flex flex-col h-screen fixed left-0 top-0 z-40">
       {/* Logo/Header */}
-      <div className="p-6 border-b border-ocean-700">
+      <div className="p-6 bg-white border-b border-ocean-100">
         <div className="flex items-center gap-3">
           <img
             src="https://www.wikicorporates.org/mediawiki/images/thumb/d/db/Population-Matters-2020.png/250px-Population-Matters-2020.png"
             alt="Population Matters"
-            className="h-10 w-10 object-contain brightness-0 invert"
+            className="h-10 w-10 object-contain"
           />
           <div>
-            <h1 className="heading-font text-lg text-white">Content Hub</h1>
-            <p className="text-xs text-ocean-300">Dashboard</p>
+            <h1 className="heading-font text-lg text-ocean-900">Content Hub</h1>
+            <p className="text-xs text-ocean-500">Dashboard</p>
           </div>
         </div>
       </div>
