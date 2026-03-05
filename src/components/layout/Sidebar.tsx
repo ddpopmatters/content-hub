@@ -202,18 +202,18 @@ export function Sidebar({
   ].filter((item) => item.enabled);
 
   return (
-    <div className="w-64 bg-white flex flex-col h-screen fixed left-0 top-0 z-40 border-r border-ocean-100 shadow-sm">
+    <div className="w-64 bg-ocean-800 flex flex-col h-screen fixed left-0 top-0 z-40">
       {/* Logo/Header */}
-      <div className="p-6 border-b border-ocean-100">
+      <div className="p-6 border-b border-ocean-700">
         <div className="flex items-center gap-3">
           <img
             src="https://www.wikicorporates.org/mediawiki/images/thumb/d/db/Population-Matters-2020.png/250px-Population-Matters-2020.png"
             alt="Population Matters"
-            className="h-10 w-10 object-contain"
+            className="h-10 w-10 object-contain brightness-0 invert"
           />
           <div>
-            <h1 className="heading-font text-lg text-ocean-900">Content Hub</h1>
-            <p className="text-xs text-ocean-600">Dashboard</p>
+            <h1 className="heading-font text-lg text-white">Content Hub</h1>
+            <p className="text-xs text-ocean-300">Dashboard</p>
           </div>
         </div>
       </div>
@@ -227,14 +227,14 @@ export function Sidebar({
             className={cx(
               'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors',
               activeItem === item.id
-                ? 'bg-ocean-50 text-ocean-700 font-medium'
-                : 'text-graystone-600 hover:bg-graystone-50 hover:text-graystone-900',
+                ? 'bg-ocean-600 text-white font-medium'
+                : 'text-ocean-200 hover:bg-ocean-700 hover:text-white',
             )}
           >
             <span className="shrink-0">{iconMap[item.icon]}</span>
             <span className="text-sm">{item.label}</span>
             {item.badge && item.badge > 0 && (
-              <span className="ml-auto text-xs font-semibold bg-ocean-100 text-ocean-700 rounded-full px-2 py-0.5">
+              <span className="ml-auto text-xs font-semibold bg-ocean-500 text-white rounded-full px-2 py-0.5">
                 {item.badge}
               </span>
             )}
@@ -244,14 +244,14 @@ export function Sidebar({
 
       {/* Add New Item - Special Button */}
       {canUseCalendar && (
-        <div className="p-4 border-t border-ocean-100">
+        <div className="p-4 border-t border-ocean-700">
           <button
             onClick={() => onNavigate('form')}
             className={cx(
               'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-left transition-all font-semibold',
               currentView === 'form'
-                ? 'bg-ocean-600 text-white shadow-lg'
-                : 'bg-ocean-500 text-white hover:bg-ocean-600 shadow-md',
+                ? 'bg-white text-ocean-800 shadow-lg'
+                : 'bg-ocean-500 text-white hover:bg-ocean-400 shadow-md',
             )}
           >
             {iconMap.plus}
@@ -261,10 +261,10 @@ export function Sidebar({
       )}
 
       {/* User Profile Section */}
-      <div className="p-4 border-t border-ocean-100">
+      <div className="p-4 border-t border-ocean-700">
         <button
           onClick={onProfileClick}
-          className="w-full flex items-center gap-3 p-3 rounded-xl bg-ocean-50 hover:bg-ocean-100 transition-colors text-left"
+          className="w-full flex items-center gap-3 p-3 rounded-xl bg-ocean-700 hover:bg-ocean-600 transition-colors text-left"
         >
           {currentUserAvatar ? (
             <img
@@ -278,15 +278,15 @@ export function Sidebar({
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <div className="font-medium text-sm text-ocean-900 truncate">
+            <div className="font-medium text-sm text-white truncate">
               {currentUser || currentUserEmail}
             </div>
-            <div className="text-xs text-ocean-600">View profile</div>
+            <div className="text-xs text-ocean-300">View profile</div>
           </div>
         </button>
         <button
           onClick={onSignOut}
-          className="w-full mt-2 text-xs text-graystone-500 hover:text-ocean-700 transition-colors"
+          className="w-full mt-2 text-xs text-ocean-400 hover:text-white transition-colors"
         >
           Sign out
         </button>
