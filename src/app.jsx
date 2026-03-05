@@ -843,7 +843,7 @@ function ContentDashboard() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-aqua-100">
+    <div className="flex h-screen overflow-hidden bg-white">
       {/* Sidebar */}
       <Sidebar
         currentView={currentView}
