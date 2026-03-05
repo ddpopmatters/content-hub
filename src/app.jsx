@@ -738,12 +738,8 @@ function ContentDashboard() {
       // Map sidebar items to view/tab combinations
       const viewMap = {
         dashboard: { view: 'dashboard', tab: 'plan' },
-        analytics: { view: 'analytics', tab: 'plan' },
-        engagement: { view: 'engagement', tab: 'plan' },
-        opportunities: { view: 'opportunities', tab: 'plan' },
-        requests: { view: 'requests', tab: 'plan' },
+        insights: { view: 'insights', tab: 'analytics' },
         content: { view: 'plan', tab: 'plan' },
-        ideas: { view: 'plan', tab: 'ideas' },
         influencers: { view: 'influencers', tab: 'plan' },
         admin: { view: 'admin', tab: 'plan' },
         form: { view: 'form', tab: 'plan' },
@@ -1022,8 +1018,8 @@ function ContentDashboard() {
                 closeEntry();
               }}
               onOpenOpportunities={() => {
-                setCurrentView('opportunities');
-                setPlanTab('plan');
+                setCurrentView('plan');
+                setPlanTab('opportunities');
                 closeEntry();
               }}
             />
@@ -1056,8 +1052,8 @@ function ContentDashboard() {
                     <Button
                       variant="outline"
                       onClick={() => {
-                        setCurrentView('requests');
-                        setPlanTab('plan');
+                        setCurrentView('plan');
+                        setPlanTab('requests');
                         closeEntry();
                       }}
                     >
@@ -1169,7 +1165,7 @@ function ContentDashboard() {
                   >
                     Dashboard
                   </Button>
-                  <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-aqua-200 bg-aqua-50 p-1 text-ocean-600">
+                  <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-ocean-200 bg-ocean-50 p-1 text-ocean-600">
                     {canUseCalendar && (
                       <>
                         <Button
@@ -1179,7 +1175,7 @@ function ContentDashboard() {
                             'rounded-2xl px-4 py-2 text-sm transition',
                             planTab === 'plan'
                               ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                              : 'text-ocean-600 hover:bg-aqua-100',
+                              : 'text-ocean-600 hover:bg-ocean-100',
                           )}
                         >
                           Calendar
@@ -1191,7 +1187,7 @@ function ContentDashboard() {
                             'rounded-2xl px-4 py-2 text-sm transition',
                             planTab === 'trash'
                               ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                              : 'text-ocean-600 hover:bg-aqua-100',
+                              : 'text-ocean-600 hover:bg-ocean-100',
                           )}
                         >
                           Trash
@@ -1206,7 +1202,7 @@ function ContentDashboard() {
                           'rounded-2xl px-4 py-2 text-sm transition',
                           planTab === 'kanban'
                             ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                            : 'text-ocean-600 hover:bg-aqua-100',
+                            : 'text-ocean-600 hover:bg-ocean-100',
                         )}
                       >
                         Board
@@ -1220,7 +1216,7 @@ function ContentDashboard() {
                           'rounded-2xl px-4 py-2 text-sm transition',
                           planTab === 'approvals'
                             ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                            : 'text-ocean-600 hover:bg-aqua-100',
+                            : 'text-ocean-600 hover:bg-ocean-100',
                         )}
                       >
                         Approvals
@@ -1234,7 +1230,7 @@ function ContentDashboard() {
                           'rounded-2xl px-4 py-2 text-sm transition',
                           planTab === 'ideas'
                             ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                            : 'text-ocean-600 hover:bg-aqua-100',
+                            : 'text-ocean-600 hover:bg-ocean-100',
                         )}
                       >
                         Ideas
@@ -1248,7 +1244,7 @@ function ContentDashboard() {
                           'rounded-2xl px-4 py-2 text-sm transition',
                           planTab === 'narrative'
                             ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                            : 'text-ocean-600 hover:bg-aqua-100',
+                            : 'text-ocean-600 hover:bg-ocean-100',
                         )}
                       >
                         Narrative
@@ -1262,12 +1258,36 @@ function ContentDashboard() {
                           'rounded-2xl px-4 py-2 text-sm transition',
                           planTab === 'glance'
                             ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                            : 'text-ocean-600 hover:bg-aqua-100',
+                            : 'text-ocean-600 hover:bg-ocean-100',
                         )}
                       >
                         Glance
                       </Button>
                     )}
+                    <Button
+                      variant="ghost"
+                      onClick={() => setPlanTab('opportunities')}
+                      className={cx(
+                        'rounded-2xl px-4 py-2 text-sm transition',
+                        planTab === 'opportunities'
+                          ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                          : 'text-ocean-600 hover:bg-ocean-100',
+                      )}
+                    >
+                      Opportunities
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setPlanTab('requests')}
+                      className={cx(
+                        'rounded-2xl px-4 py-2 text-sm transition',
+                        planTab === 'requests'
+                          ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                          : 'text-ocean-600 hover:bg-ocean-100',
+                      )}
+                    >
+                      Requests
+                    </Button>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1457,6 +1477,33 @@ function ContentDashboard() {
                         onUpdate={upsert}
                       />
                     );
+                  case 'opportunities':
+                    return (
+                      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <OpportunitiesView
+                          opportunities={openOpportunities}
+                          entries={entries}
+                          currentUser={currentUser}
+                          onAddOpportunity={addOpportunity}
+                          onMarkActed={markOpportunityAsActed}
+                          onDismiss={dismissOpportunity}
+                          onOpenEntry={openEntry}
+                        />
+                      </div>
+                    );
+                  case 'requests':
+                    return (
+                      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <ContentRequestsView
+                          contentRequests={contentRequests}
+                          currentUser={currentUser}
+                          approverOptions={approverOptions}
+                          onAddContentRequest={addContentRequest}
+                          onUpdateStatus={updateContentRequestStatus}
+                          onConvertToEntry={handleConvertRequestToEntry}
+                        />
+                      </div>
+                    );
                   default:
                     return null;
                 }
@@ -1464,80 +1511,80 @@ function ContentDashboard() {
             </div>
           )}
 
-          {currentView === 'analytics' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <AnalyticsView
-                entries={entries}
-                onUpdateEntry={(id, updates) => upsert({ id, ...updates })}
-              />
-            </div>
-          )}
-
-          {currentView === 'engagement' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <EngagementView
-                activities={engagementActivities}
-                accounts={engagementAccounts}
-                goals={engagementGoals}
-                currentUser={currentUser}
-                onAddActivity={(activity) => {
-                  const newActivity = {
-                    ...activity,
-                    id: uuid(),
-                    createdAt: new Date().toISOString(),
-                    createdBy: currentUser,
-                  };
-                  setEngagementActivities((prev) => [newActivity, ...prev]);
-                }}
-                onDeleteActivity={(id) => {
-                  setEngagementActivities((prev) => prev.filter((a) => a.id !== id));
-                }}
-                onAddAccount={(account) => {
-                  const newAccount = {
-                    ...account,
-                    id: uuid(),
-                    createdAt: new Date().toISOString(),
-                    createdBy: currentUser,
-                  };
-                  setEngagementAccounts((prev) => [newAccount, ...prev]);
-                }}
-                onDeleteAccount={(id) => {
-                  setEngagementAccounts((prev) => prev.filter((a) => a.id !== id));
-                }}
-                onUpdateAccount={(id, updates) => {
-                  setEngagementAccounts((prev) =>
-                    prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
-                  );
-                }}
-                onUpdateGoals={(goals) => setEngagementGoals(goals)}
-              />
-            </div>
-          )}
-
-          {currentView === 'opportunities' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <OpportunitiesView
-                opportunities={openOpportunities}
-                entries={entries}
-                currentUser={currentUser}
-                onAddOpportunity={addOpportunity}
-                onMarkActed={markOpportunityAsActed}
-                onDismiss={dismissOpportunity}
-                onOpenEntry={openEntry}
-              />
-            </div>
-          )}
-
-          {currentView === 'requests' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <ContentRequestsView
-                contentRequests={contentRequests}
-                currentUser={currentUser}
-                approverOptions={approverOptions}
-                onAddContentRequest={addContentRequest}
-                onUpdateStatus={updateContentRequestStatus}
-                onConvertToEntry={handleConvertRequestToEntry}
-              />
+          {currentView === 'insights' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 rounded-3xl border border-ocean-200 bg-ocean-50 p-1 text-ocean-600">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setPlanTab('analytics')}
+                    className={cx(
+                      'rounded-2xl px-4 py-2 text-sm transition',
+                      planTab === 'analytics'
+                        ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                        : 'text-ocean-600 hover:bg-ocean-100',
+                    )}
+                  >
+                    Analytics
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setPlanTab('engagement')}
+                    className={cx(
+                      'rounded-2xl px-4 py-2 text-sm transition',
+                      planTab === 'engagement'
+                        ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                        : 'text-ocean-600 hover:bg-ocean-100',
+                    )}
+                  >
+                    Engagement
+                  </Button>
+                </div>
+              </div>
+              {planTab === 'analytics' && (
+                <AnalyticsView
+                  entries={entries}
+                  onUpdateEntry={(id, updates) => upsert({ id, ...updates })}
+                />
+              )}
+              {planTab === 'engagement' && (
+                <EngagementView
+                  activities={engagementActivities}
+                  accounts={engagementAccounts}
+                  goals={engagementGoals}
+                  currentUser={currentUser}
+                  onAddActivity={(activity) => {
+                    const newActivity = {
+                      ...activity,
+                      id: uuid(),
+                      createdAt: new Date().toISOString(),
+                      createdBy: currentUser,
+                    };
+                    setEngagementActivities((prev) => [newActivity, ...prev]);
+                  }}
+                  onDeleteActivity={(id) => {
+                    setEngagementActivities((prev) => prev.filter((a) => a.id !== id));
+                  }}
+                  onAddAccount={(account) => {
+                    const newAccount = {
+                      ...account,
+                      id: uuid(),
+                      createdAt: new Date().toISOString(),
+                      createdBy: currentUser,
+                    };
+                    setEngagementAccounts((prev) => [newAccount, ...prev]);
+                  }}
+                  onDeleteAccount={(id) => {
+                    setEngagementAccounts((prev) => prev.filter((a) => a.id !== id));
+                  }}
+                  onUpdateAccount={(id, updates) => {
+                    setEngagementAccounts((prev) =>
+                      prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+                    );
+                  }}
+                  onUpdateGoals={(goals) => setEngagementGoals(goals)}
+                />
+              )}
             </div>
           )}
 

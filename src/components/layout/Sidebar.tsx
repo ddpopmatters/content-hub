@@ -166,18 +166,11 @@ export function Sidebar({
   // Determine which sidebar item is active based on currentView and planTab
   const getActiveItem = () => {
     if (currentView === 'dashboard' || currentView === 'menu') return 'dashboard';
-    if (currentView === 'analytics') return 'analytics';
-    if (currentView === 'engagement') return 'engagement';
-    if (currentView === 'opportunities') return 'opportunities';
-    if (currentView === 'requests') return 'requests';
+    if (currentView === 'insights') return 'insights';
     if (currentView === 'admin') return 'admin';
     if (currentView === 'influencers') return 'influencers';
     if (currentView === 'form') return 'content';
-    // Plan view tabs: calendar, board, approvals, ideas, trash
-    if (currentView === 'plan') {
-      if (planTab === 'ideas') return 'ideas';
-      return 'content';
-    }
+    if (currentView === 'plan') return 'content';
     return 'dashboard';
   };
 
@@ -185,10 +178,6 @@ export function Sidebar({
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard', enabled: true },
-    { id: 'analytics', label: 'Analytics', icon: 'bar-chart', enabled: true },
-    { id: 'engagement', label: 'Engagement', icon: 'users', enabled: true },
-    { id: 'opportunities', label: 'Opportunities', icon: 'radar', enabled: true },
-    { id: 'requests', label: 'Requests', icon: 'clipboard', enabled: true },
     {
       id: 'content',
       label: 'Content',
@@ -196,7 +185,7 @@ export function Sidebar({
       enabled: canUseCalendar,
       badge: outstandingCount,
     },
-    { id: 'ideas', label: 'Ideas', icon: 'lightbulb', enabled: canUseIdeas },
+    { id: 'insights', label: 'Insights', icon: 'bar-chart', enabled: true },
     { id: 'influencers', label: 'Influencers', icon: 'megaphone', enabled: canUseInfluencers },
     { id: 'admin', label: 'Admin', icon: 'settings', enabled: currentUserIsAdmin },
   ].filter((item) => item.enabled);
