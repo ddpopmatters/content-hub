@@ -30,8 +30,8 @@ const WIDGET_DEFS = [
 
 type WidgetId = (typeof WIDGET_DEFS)[number]['id'];
 
-const ALL_ON: Record<WidgetId, boolean> = Object.fromEntries(
-  WIDGET_DEFS.map((w) => [w.id, true]),
+const ALL_OFF: Record<WidgetId, boolean> = Object.fromEntries(
+  WIDGET_DEFS.map((w) => [w.id, false]),
 ) as Record<WidgetId, boolean>;
 
 function storageKey(user: string) {
@@ -41,10 +41,11 @@ function storageKey(user: string) {
 function loadPrefs(user: string): Record<WidgetId, boolean> {
   try {
     const raw = localStorage.getItem(storageKey(user));
-    if (!raw) return { ...ALL_ON };
-    return { ...ALL_ON, ...JSON.parse(raw) };
+    if (!raw) return { ...ALL_OFF };
+    // Merge: new widgets added to WIDGET_DEFS default to false
+    return { ...ALL_OFF, ...JSON.parse(raw) };
   } catch {
-    return { ...ALL_ON };
+    return { ...ALL_OFF };
   }
 }
 
@@ -94,6 +95,7 @@ export function DashboardView({
   }, []);
 
   const show = (id: WidgetId) => visible[id];
+  const noneVisible = WIDGET_DEFS.every((w) => !visible[w.id]);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -142,6 +144,32 @@ export function DashboardView({
             Your layout is saved automatically and private to you.
           </p>
         </div>
+      )}
+
+      {/* Empty state */}
+      {noneVisible && !customising && (
+        <button
+          onClick={() => setCustomising(true)}
+          className="w-full rounded-2xl border-2 border-dashed border-graystone-200 bg-graystone-50 p-12 text-center transition-colors hover:border-ocean-300 hover:bg-ocean-50 group"
+        >
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-graystone-100 group-hover:bg-ocean-100 transition-colors">
+            <svg
+              className="w-6 h-6 text-graystone-400 group-hover:text-ocean-600 transition-colors"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" strokeWidth="2" strokeLinecap="round" />
+              <line x1="5" y1="12" x2="19" y2="12" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
+          <p className="text-sm font-semibold text-graystone-500 group-hover:text-ocean-700 transition-colors">
+            Add your first widget
+          </p>
+          <p className="mt-1 text-xs text-graystone-400">
+            Choose what you want to see on your dashboard
+          </p>
+        </button>
       )}
 
       {/* Quick Actions - Full width */}
