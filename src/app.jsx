@@ -865,7 +865,7 @@ function ContentDashboard() {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto ml-64 bg-aqua-100">
+      <div className="flex-1 overflow-y-auto ml-64 bg-white">
         <div className="container mx-auto p-8 max-w-7xl">
           {/* Sync Queue Toast */}
           {syncQueue.length ? (
