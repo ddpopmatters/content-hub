@@ -98,7 +98,7 @@ export const InfluencerModal: React.FC<InfluencerModalProps> = ({
   useEffect(() => {
     if (open) {
       if (influencer) {
-        const { id, createdAt, createdBy, ...rest } = influencer;
+        const { id: _id, createdAt: _createdAt, createdBy: _createdBy, ...rest } = influencer;
         // Migrate old single platform fields to platformProfiles if needed
         if (!rest.platformProfiles || rest.platformProfiles.length === 0) {
           rest.platformProfiles = [

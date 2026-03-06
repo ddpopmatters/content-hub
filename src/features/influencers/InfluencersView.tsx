@@ -27,10 +27,10 @@ export interface InfluencersViewProps {
 export const InfluencersView: React.FC<InfluencersViewProps> = ({
   influencers,
   entries,
-  currentUser,
-  onAdd,
-  onUpdate,
-  onDelete,
+  currentUser: _currentUser,
+  onAdd: _onAdd,
+  onUpdate: _onUpdate,
+  onDelete: _onDelete,
   onOpenDetail,
 }) => {
   const [filterStatus, setFilterStatus] = useState<string>('All');

@@ -9,7 +9,6 @@ import {
   Label,
   Toggle,
 } from '../../components/ui';
-import { cx } from '../../lib/utils';
 import type { PublishSettings } from '../../types/models';
 
 export const DEFAULT_PUBLISH_SETTINGS: PublishSettings = {

@@ -42,7 +42,7 @@ export const SocialPreview: React.FC<SocialPreviewProps> = ({
   platform,
   caption,
   mediaUrl,
-  isImage,
+  isImage: _isImage,
   isVideo,
 }) => {
   const resolvedPlatform = (() => {
@@ -256,33 +256,6 @@ export const SocialPreview: React.FC<SocialPreviewProps> = ({
           <span>💬 Comment</span>
           <span>↗️ Share</span>
         </div>
-      </div>
-    </div>
-  );
-
-  const renderTikTok = () => (
-    <div className="overflow-hidden rounded-2xl border border-graystone-200 bg-[#111] text-white shadow-sm">
-      {renderHeader({
-        wrapperClassName: 'border-b border-[#222] bg-[#111]',
-        nameClassName: 'text-white',
-        handleClassName: 'text-gray-400',
-        rightContent: (
-          <button
-            type="button"
-            className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-black"
-          >
-            Follow
-          </button>
-        ),
-      })}
-      <div className="space-y-3 px-4 py-3 text-sm">
-        {renderMedia({ borderClass: 'border-[#222]', placeholderHeight: 'h-72' })}
-        <p className="whitespace-pre-wrap">{prettyCaption}</p>
-      </div>
-      <div className="flex items-center gap-6 border-t border-[#222] px-4 py-2 text-xs text-gray-300">
-        <span>❤ 4.5K</span>
-        <span>💬 320</span>
-        <span>↗️ Share</span>
       </div>
     </div>
   );

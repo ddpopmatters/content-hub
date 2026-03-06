@@ -212,7 +212,7 @@ function BrandTab({
   isAdmin,
   webhookDraft,
   setWebhookDraft,
-  teamsWebhookUrlProp,
+  teamsWebhookUrlProp: _teamsWebhookUrlProp,
 }: {
   draft: GuidelinesDraft;
   setDraft: React.Dispatch<React.SetStateAction<GuidelinesDraft>>;
