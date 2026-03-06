@@ -1,178 +1,163 @@
-import React, { useState, useMemo } from 'react';
-import { Card, CardHeader, CardContent, CardTitle, Button, Label } from '../../components/ui';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  MultiSelect,
+} from '../../components/ui';
 import { cx } from '../../lib/utils';
 import { selectBaseClasses } from '../../lib/styles';
-import { ALL_PLATFORMS } from '../../constants';
 import type { Entry } from '../../types/models';
 import { AnalyticsInputWizard } from './AnalyticsInputWizard';
-
-// Time period options
-const TIME_PERIODS = [
-  { value: 'this-week', label: 'This Week' },
-  { value: 'this-month', label: 'This Month' },
-  { value: 'last-month', label: 'Last Month' },
-  { value: 'this-quarter', label: 'This Quarter' },
-  { value: 'all-time', label: 'All Time' },
-] as const;
-
-type TimePeriod = (typeof TIME_PERIODS)[number]['value'];
+import {
+  buildInsightsSnapshot,
+  createDefaultInsightFilters,
+  formatMetricValue,
+  getInsightFilterOptions,
+  metricLabel,
+  TIME_PERIODS,
+  type InsightBreakdownRow,
+  type InsightFilters,
+  type TopPerformer,
+  type TimePeriod,
+} from './analyticsUtils';
 
 interface AnalyticsViewProps {
   entries: Entry[];
   onUpdateEntry?: (id: string, updates: Partial<Entry>) => void;
+  onOpenImport?: () => void;
 }
 
-// Helper to get date range for a time period
-const getDateRange = (period: TimePeriod): { start: Date; end: Date } => {
-  const now = new Date();
-  const end = new Date(now);
-  end.setHours(23, 59, 59, 999);
-
-  let start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-
-  switch (period) {
-    case 'this-week': {
-      const day = start.getDay();
-      start.setDate(start.getDate() - day);
-      break;
-    }
-    case 'this-month': {
-      start.setDate(1);
-      break;
-    }
-    case 'last-month': {
-      start.setMonth(start.getMonth() - 1);
-      start.setDate(1);
-      end.setDate(0); // Last day of previous month
-      break;
-    }
-    case 'this-quarter': {
-      const quarter = Math.floor(start.getMonth() / 3);
-      start.setMonth(quarter * 3);
-      start.setDate(1);
-      break;
-    }
-    case 'all-time': {
-      start = new Date(0);
-      break;
-    }
-  }
-
-  return { start, end };
-};
-
-// Helper to calculate metrics from entries
-const calculateMetrics = (entries: Entry[], platform?: string) => {
-  const filtered = platform ? entries.filter((e) => e.platforms?.includes(platform)) : entries;
-
-  const totalPosts = filtered.length;
-
-  // Calculate totals from analytics
-  let totalEngagements = 0;
-  let totalReach = 0;
-  let totalImpressions = 0;
-  let postsWithAnalytics = 0;
-
-  filtered.forEach((entry) => {
-    if (!entry.analytics) return;
-
-    const platforms = platform ? [platform] : entry.platforms || [];
-    platforms.forEach((p) => {
-      const stats = entry.analytics?.[p];
-      if (stats && typeof stats === 'object') {
-        const s = stats as Record<string, number>;
-        const likes = s.likes || 0;
-        const comments = s.comments || 0;
-        const shares = s.shares || 0;
-        const reach = s.reach || 0;
-        const impressions = s.impressions || 0;
-
-        if (likes || comments || shares || reach || impressions) {
-          postsWithAnalytics++;
-          totalEngagements += likes + comments + shares;
-          totalReach += reach;
-          totalImpressions += impressions;
-        }
-      }
-    });
-  });
-
-  const avgEngagementRate =
-    postsWithAnalytics > 0 && totalReach > 0
-      ? ((totalEngagements / totalReach) * 100).toFixed(2)
-      : '0.00';
-
-  return {
-    totalPosts,
-    totalEngagements,
-    totalReach,
-    totalImpressions,
-    avgEngagementRate,
-    postsWithAnalytics,
-  };
-};
-
-// Summary Card Component
 const SummaryCard: React.FC<{
   title: string;
-  value: string | number;
-  subtitle?: string;
-  trend?: 'up' | 'down' | 'neutral';
+  value: string;
+  subtitle: string;
 }> = ({ title, value, subtitle }) => (
   <Card className="shadow-md">
     <CardContent className="p-6">
-      <div className="text-sm font-medium text-graystone-500 uppercase tracking-wide">{title}</div>
+      <div className="text-sm font-medium uppercase tracking-wide text-graystone-500">{title}</div>
       <div className="mt-2 text-3xl font-bold text-ocean-900">{value}</div>
-      {subtitle && <div className="mt-1 text-xs text-graystone-500">{subtitle}</div>}
+      <div className="mt-1 text-xs text-graystone-500">{subtitle}</div>
     </CardContent>
   </Card>
 );
 
-// Platform Bar Component for comparison chart
-const PlatformBar: React.FC<{
-  platform: string;
-  value: number;
-  maxValue: number;
-  label: string;
-  onClick: () => void;
-  isSelected: boolean;
-}> = ({ platform, value, maxValue, label, onClick, isSelected }) => {
-  const percentage = maxValue > 0 ? (value / maxValue) * 100 : 0;
+const BreakdownCard: React.FC<{
+  title: string;
+  rows: InsightBreakdownRow[];
+  metric: string;
+  emptyLabel: string;
+}> = ({ title, rows, metric, emptyLabel }) => {
+  const maxValue = rows.reduce((max, row) => Math.max(max, row.value), 0);
 
   return (
-    <button
-      onClick={onClick}
-      className={cx(
-        'w-full text-left p-3 rounded-xl transition-all',
-        isSelected ? 'bg-ocean-100 ring-2 ring-ocean-500' : 'hover:bg-graystone-50',
-      )}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-semibold text-ocean-900">{platform}</span>
-        <span className="text-sm text-graystone-600">{label}</span>
-      </div>
-      <div className="h-3 bg-graystone-200 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-ocean-500 rounded-full transition-all duration-500"
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-    </button>
+    <Card className="shadow-lg">
+      <CardHeader>
+        <CardTitle className="text-lg text-ocean-900">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {!rows.length ? (
+          <div className="rounded-2xl border border-dashed border-graystone-200 px-4 py-6 text-sm text-graystone-500">
+            {emptyLabel}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {rows.slice(0, 6).map((row) => {
+              const width = maxValue > 0 ? (row.value / maxValue) * 100 : 0;
+              return (
+                <div key={row.label} className="space-y-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-ocean-900">
+                        {row.label}
+                      </div>
+                      <div className="text-xs text-graystone-500">
+                        {row.posts} posts · {row.postsWithMetric} with{' '}
+                        {metricLabel(metric).toLowerCase()}
+                      </div>
+                    </div>
+                    <div className="text-right text-sm font-semibold text-ocean-700">
+                      {formatMetricValue(metric, row.value)}
+                    </div>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-graystone-100">
+                    <div
+                      className="h-full rounded-full bg-ocean-500 transition-all"
+                      style={{ width: `${width}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
-// Top Performer Card
-const TopPerformerCard: React.FC<{
-  entry: Entry;
+const TrendCard: React.FC<{
   metric: string;
-  value: number;
+  trend: { key: string; label: string; value: number; posts: number }[];
+}> = ({ metric, trend }) => {
+  const maxValue = trend.reduce((max, point) => Math.max(max, point.value), 0);
+
+  return (
+    <Card className="shadow-xl">
+      <CardHeader>
+        <CardTitle className="text-xl text-ocean-900">Trend over time</CardTitle>
+        <p className="text-sm text-graystone-500">
+          {metricLabel(metric)} across the active timeframe and filters.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {!trend.length ? (
+          <div className="rounded-2xl border border-dashed border-graystone-200 px-4 py-8 text-sm text-graystone-500">
+            No data points available for this combination of filters yet.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {trend.map((point) => {
+              const width = maxValue > 0 ? (point.value / maxValue) * 100 : 0;
+              return (
+                <div
+                  key={point.key}
+                  className="grid gap-2 md:grid-cols-[160px_1fr_96px] md:items-center"
+                >
+                  <div className="text-sm font-medium text-ocean-900">{point.label}</div>
+                  <div className="h-3 overflow-hidden rounded-full bg-graystone-100">
+                    <div
+                      className="h-full rounded-full bg-aqua-400 transition-all"
+                      style={{ width: `${width}%` }}
+                    />
+                  </div>
+                  <div className="text-right text-sm font-semibold text-ocean-700">
+                    {formatMetricValue(metric, point.value)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+const TopPerformerCard: React.FC<{
+  performer: TopPerformer;
   rank: number;
-}> = ({ entry, metric, value, rank }) => (
-  <div className="flex items-start gap-3 p-3 rounded-xl bg-white border border-graystone-200">
+  metric: string;
+}> = ({ performer, rank, metric }) => (
+  <div className="flex items-start gap-3 rounded-2xl border border-graystone-200 bg-white p-3">
     <div
       className={cx(
-        'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold',
+        'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold',
         rank === 1
           ? 'bg-amber-100 text-amber-700'
           : rank === 2
@@ -182,268 +167,458 @@ const TopPerformerCard: React.FC<{
     >
       {rank}
     </div>
-    <div className="flex-1 min-w-0">
-      <div className="text-sm font-medium text-ocean-900 truncate">
-        {entry.caption?.slice(0, 50) || 'Untitled'}
-        {(entry.caption?.length || 0) > 50 ? '...' : ''}
+    <div className="min-w-0 flex-1">
+      <div className="truncate text-sm font-semibold text-ocean-900">
+        {performer.entry.caption?.slice(0, 72) || 'Untitled'}
       </div>
-      <div className="text-xs text-graystone-500 mt-1">
-        {entry.platforms?.join(', ')} · {new Date(entry.date).toLocaleDateString()}
+      <div className="mt-1 text-xs text-graystone-500">
+        {performer.entry.platforms.join(', ') || 'No platform'} ·{' '}
+        {new Date(performer.entry.date).toLocaleDateString()}
+      </div>
+      <div className="mt-1 text-xs text-graystone-500">
+        {performer.entry.contentPillar || 'No pillar'} · {performer.entry.assetType || 'No asset'}
       </div>
     </div>
     <div className="text-right">
-      <div className="text-lg font-bold text-ocean-600">{value.toLocaleString()}</div>
-      <div className="text-xs text-graystone-500">{metric}</div>
+      <div className="text-lg font-bold text-ocean-700">
+        {formatMetricValue(metric, performer.value)}
+      </div>
+      <div className="text-xs text-graystone-500">{metricLabel(metric)}</div>
     </div>
   </div>
 );
 
-export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ entries, onUpdateEntry }) => {
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('this-month');
-  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
-  const [comparisonMetric, setComparisonMetric] = useState<'engagements' | 'reach' | 'posts'>(
-    'engagements',
+export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
+  entries,
+  onUpdateEntry,
+  onOpenImport,
+}) => {
+  const filterOptions = useMemo(() => getInsightFilterOptions(entries), [entries]);
+  const [filters, setFilters] = useState<InsightFilters>(() =>
+    createDefaultInsightFilters(entries),
   );
   const [wizardOpen, setWizardOpen] = useState(false);
 
-  // Filter entries by time period
-  const filteredEntries = useMemo(() => {
-    const { start, end } = getDateRange(timePeriod);
-    return entries.filter((entry) => {
-      if (!entry.date) return false;
-      const entryDate = new Date(entry.date);
-      return entryDate >= start && entryDate <= end && entry.status === 'Approved';
+  useEffect(() => {
+    setFilters((current) => {
+      const nextMetric =
+        filterOptions.metrics.find((option) => option.value === current.metric)?.value ||
+        filterOptions.metrics.find((option) => option.value === 'engagements')?.value ||
+        filterOptions.metrics[0]?.value ||
+        'posts';
+
+      return {
+        ...current,
+        metric: nextMetric,
+        platforms: current.platforms.filter((platform) =>
+          filterOptions.platforms.includes(platform),
+        ),
+        campaigns: current.campaigns.filter((campaign) =>
+          filterOptions.campaigns.includes(campaign),
+        ),
+        contentPillars: current.contentPillars.filter((pillar) =>
+          filterOptions.contentPillars.includes(pillar),
+        ),
+        assetTypes: current.assetTypes.filter((assetType) =>
+          filterOptions.assetTypes.includes(assetType),
+        ),
+        statuses: current.statuses.filter((status) => filterOptions.statuses.includes(status)),
+        authors: current.authors.filter((author) => filterOptions.authors.includes(author)),
+        audienceSegments: current.audienceSegments.filter((segment) =>
+          filterOptions.audienceSegments.includes(segment),
+        ),
+      };
     });
-  }, [entries, timePeriod]);
+  }, [filterOptions]);
 
-  // Calculate overall metrics
-  const metrics = useMemo(
-    () => calculateMetrics(filteredEntries, selectedPlatform || undefined),
-    [filteredEntries, selectedPlatform],
-  );
+  const insights = useMemo(() => buildInsightsSnapshot(entries, filters), [entries, filters]);
 
-  // Calculate per-platform metrics for comparison
-  const platformMetrics = useMemo(() => {
-    const results: Record<string, ReturnType<typeof calculateMetrics>> = {};
-    ALL_PLATFORMS.forEach((platform) => {
-      results[platform] = calculateMetrics(filteredEntries, platform);
-    });
-    return results;
-  }, [filteredEntries]);
+  const activeFilterCount = [
+    filters.platforms.length,
+    filters.campaigns.length,
+    filters.contentPillars.length,
+    filters.assetTypes.length,
+    filters.authors.length,
+    filters.audienceSegments.length,
+    filters.statuses.length < filterOptions.statuses.length ? 1 : 0,
+    filters.timePeriod === 'custom' && (filters.customStartDate || filters.customEndDate) ? 1 : 0,
+  ].reduce((sum, value) => sum + value, 0);
 
-  // Get max value for bar chart scaling
-  const maxPlatformValue = useMemo(() => {
-    let max = 0;
-    (Object.values(platformMetrics) as ReturnType<typeof calculateMetrics>[]).forEach((m) => {
-      const value =
-        comparisonMetric === 'engagements'
-          ? m.totalEngagements
-          : comparisonMetric === 'reach'
-            ? m.totalReach
-            : m.totalPosts;
-      if (value > max) max = value;
-    });
-    return max;
-  }, [platformMetrics, comparisonMetric]);
+  const updateFilter = <K extends keyof InsightFilters>(key: K, value: InsightFilters[K]) => {
+    setFilters((current) => ({ ...current, [key]: value }));
+  };
 
-  // Get top performers
-  const topPerformers = useMemo(() => {
-    const withEngagements = filteredEntries
-      .map((entry) => {
-        let totalEngagements = 0;
-        if (entry.analytics) {
-          (entry.platforms || []).forEach((p) => {
-            const stats = entry.analytics?.[p];
-            if (stats && typeof stats === 'object') {
-              const s = stats as Record<string, number>;
-              totalEngagements += (s.likes || 0) + (s.comments || 0) + (s.shares || 0);
-            }
-          });
-        }
-        return { entry, totalEngagements };
-      })
-      .filter((item) => item.totalEngagements > 0)
-      .sort((a, b) => b.totalEngagements - a.totalEngagements)
-      .slice(0, 5);
+  const resetFilters = () => {
+    setFilters(createDefaultInsightFilters(entries));
+  };
 
-    return withEngagements;
-  }, [filteredEntries]);
+  const statusOptions = filterOptions.statuses.map((status) => ({ value: status, label: status }));
+  const metricOptions = filterOptions.metrics.map((metric) => ({
+    value: metric.value,
+    label: metric.label,
+  }));
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="gradient-header rounded-2xl p-8 text-white shadow-xl">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="heading-font text-3xl font-bold mb-2">Analytics</h1>
-            <p className="text-ocean-100">Track your content performance across platforms.</p>
+          <div className="max-w-3xl">
+            <h1 className="heading-font mb-2 text-3xl font-bold">Insights</h1>
+            <p className="text-ocean-100">
+              Assess performance across platform, metric, timeframe, content pillar, campaign, asset
+              type, author, audience segment, and status from one workspace.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge className="bg-white/15 text-white">{insights.rangeLabel}</Badge>
+              <Badge className="bg-white/15 text-white">
+                {metricLabel(filters.metric)} in focus
+              </Badge>
+              {activeFilterCount > 0 ? (
+                <Badge className="bg-white/15 text-white">{activeFilterCount} active filters</Badge>
+              ) : null}
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            {onUpdateEntry && (
+          <div className="flex flex-wrap items-center gap-3">
+            {onOpenImport ? (
+              <Button
+                onClick={onOpenImport}
+                variant="outline"
+                className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+              >
+                Import CSV
+              </Button>
+            ) : null}
+            {onUpdateEntry ? (
               <Button
                 onClick={() => setWizardOpen(true)}
-                className="bg-white/20 text-white hover:bg-white/30 border-white/30"
-                variant="outline"
+                className="bg-white text-ocean-700 hover:bg-ocean-50"
               >
                 Log metrics
               </Button>
-            )}
-            <Label className="text-white text-sm">Period</Label>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      <Card className="shadow-xl">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-xl text-ocean-900">Filters</CardTitle>
+              <p className="mt-1 text-sm text-graystone-500">
+                Slice performance by the variables that matter most to the question you are asking.
+              </p>
+            </div>
+            <Button variant="ghost" onClick={resetFilters} className="text-sm text-ocean-700">
+              Clear filters
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="space-y-2">
+            <Label htmlFor="insights-time-period">Timeframe</Label>
             <select
-              value={timePeriod}
-              onChange={(e) => setTimePeriod(e.target.value as TimePeriod)}
-              className={cx(
-                selectBaseClasses,
-                'px-4 py-2 text-sm bg-white/10 text-white border-white/20',
-              )}
+              id="insights-time-period"
+              value={filters.timePeriod}
+              onChange={(event) => updateFilter('timePeriod', event.target.value as TimePeriod)}
+              className={cx(selectBaseClasses, 'w-full px-4 py-2 text-sm')}
             >
               {TIME_PERIODS.map((period) => (
-                <option key={period.value} value={period.value} className="text-ocean-900">
+                <option key={period.value} value={period.value}>
                   {period.label}
                 </option>
               ))}
             </select>
           </div>
-        </div>
-      </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryCard
-          title="Total Posts"
-          value={metrics.totalPosts}
-          subtitle={selectedPlatform ? `on ${selectedPlatform}` : 'across all platforms'}
-        />
-        <SummaryCard
-          title="Total Engagements"
-          value={metrics.totalEngagements.toLocaleString()}
-          subtitle="likes, comments, shares"
-        />
-        <SummaryCard
-          title="Total Reach"
-          value={metrics.totalReach.toLocaleString()}
-          subtitle="unique accounts reached"
-        />
-        <SummaryCard
-          title="Avg Engagement Rate"
-          value={`${metrics.avgEngagementRate}%`}
-          subtitle={`from ${metrics.postsWithAnalytics} posts with data`}
-        />
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="insights-metric">Metric</Label>
+            <select
+              id="insights-metric"
+              value={filters.metric}
+              onChange={(event) => updateFilter('metric', event.target.value)}
+              className={cx(selectBaseClasses, 'w-full px-4 py-2 text-sm')}
+            >
+              {metricOptions.map((metric) => (
+                <option key={metric.value} value={metric.value}>
+                  {metric.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      {/* Platform Comparison & Top Performers */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Platform Comparison */}
-        <Card className="shadow-xl">
-          <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <CardTitle className="text-xl text-ocean-900">Platform Comparison</CardTitle>
-              <div className="flex gap-2">
-                {(['engagements', 'reach', 'posts'] as const).map((metric) => (
-                  <Button
-                    key={metric}
-                    variant={comparisonMetric === metric ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setComparisonMetric(metric)}
-                    className="text-xs capitalize"
-                  >
-                    {metric}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {selectedPlatform && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedPlatform(null)}
-                className="text-xs text-ocean-600 mb-2"
-              >
-                Clear filter: {selectedPlatform}
-              </Button>
-            )}
-            {ALL_PLATFORMS.map((platform) => {
-              const m = platformMetrics[platform];
-              const value =
-                comparisonMetric === 'engagements'
-                  ? m.totalEngagements
-                  : comparisonMetric === 'reach'
-                    ? m.totalReach
-                    : m.totalPosts;
-              return (
-                <PlatformBar
-                  key={platform}
-                  platform={platform}
-                  value={value}
-                  maxValue={maxPlatformValue}
-                  label={value.toLocaleString()}
-                  onClick={() =>
-                    setSelectedPlatform(selectedPlatform === platform ? null : platform)
-                  }
-                  isSelected={selectedPlatform === platform}
+          <div className="space-y-2">
+            <Label>Platforms</Label>
+            <MultiSelect
+              placeholder="All platforms"
+              value={filters.platforms}
+              onChange={(value) => updateFilter('platforms', value)}
+              options={filterOptions.platforms.map((platform) => ({
+                value: platform,
+                label: platform,
+              }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <MultiSelect
+              placeholder="All statuses"
+              value={filters.statuses}
+              onChange={(value) => updateFilter('statuses', value)}
+              options={statusOptions}
+            />
+          </div>
+
+          {filters.timePeriod === 'custom' && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="insights-start-date">Start date</Label>
+                <Input
+                  id="insights-start-date"
+                  type="date"
+                  value={filters.customStartDate}
+                  onChange={(event) => updateFilter('customStartDate', event.target.value)}
                 />
-              );
-            })}
-          </CardContent>
-        </Card>
+              </div>
 
-        {/* Top Performers */}
+              <div className="space-y-2">
+                <Label htmlFor="insights-end-date">End date</Label>
+                <Input
+                  id="insights-end-date"
+                  type="date"
+                  value={filters.customEndDate}
+                  onChange={(event) => updateFilter('customEndDate', event.target.value)}
+                />
+              </div>
+            </>
+          )}
+
+          <div className="space-y-2">
+            <Label>Content pillars</Label>
+            <MultiSelect
+              placeholder="All pillars"
+              value={filters.contentPillars}
+              onChange={(value) => updateFilter('contentPillars', value)}
+              options={filterOptions.contentPillars.map((pillar) => ({
+                value: pillar,
+                label: pillar,
+              }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Campaigns</Label>
+            <MultiSelect
+              placeholder="All campaigns"
+              value={filters.campaigns}
+              onChange={(value) => updateFilter('campaigns', value)}
+              options={filterOptions.campaigns.map((campaign) => ({
+                value: campaign,
+                label: campaign,
+              }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Asset types</Label>
+            <MultiSelect
+              placeholder="All asset types"
+              value={filters.assetTypes}
+              onChange={(value) => updateFilter('assetTypes', value)}
+              options={filterOptions.assetTypes.map((assetType) => ({
+                value: assetType,
+                label: assetType,
+              }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Authors</Label>
+            <MultiSelect
+              placeholder="All authors"
+              value={filters.authors}
+              onChange={(value) => updateFilter('authors', value)}
+              options={filterOptions.authors.map((author) => ({
+                value: author,
+                label: author,
+              }))}
+            />
+          </div>
+
+          <div className="space-y-2 md:col-span-2 xl:col-span-4">
+            <Label>Audience segments</Label>
+            <MultiSelect
+              placeholder="All segments"
+              value={filters.audienceSegments}
+              onChange={(value) => updateFilter('audienceSegments', value)}
+              options={filterOptions.audienceSegments.map((segment) => ({
+                value: segment,
+                label: segment,
+              }))}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <SummaryCard
+          title="Posts in scope"
+          value={insights.totalPosts.toLocaleString()}
+          subtitle="Entries matching the current filters"
+        />
+        <SummaryCard
+          title={metricLabel(filters.metric)}
+          value={formatMetricValue(filters.metric, insights.totalMetricValue)}
+          subtitle="Total across the current scope"
+        />
+        <SummaryCard
+          title={filters.metric === 'engagementRate' ? 'Weighted average rate' : 'Average per post'}
+          value={formatMetricValue(filters.metric, insights.averageMetricValue)}
+          subtitle="Average contribution per post in scope"
+        />
+        <SummaryCard
+          title="Metric coverage"
+          value={`${insights.coverageRate.toFixed(0)}%`}
+          subtitle={`${insights.postsWithSelectedMetric}/${insights.totalPosts || 0} posts include ${metricLabel(filters.metric).toLowerCase()} data`}
+        />
+        <SummaryCard
+          title="Analytics coverage"
+          value={`${insights.analyticsCoverageRate.toFixed(0)}%`}
+          subtitle={`${insights.postsWithAnyAnalytics}/${insights.totalPosts || 0} posts have any analytics`}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
+        <TrendCard metric={filters.metric} trend={insights.trend} />
+
         <Card className="shadow-xl">
           <CardHeader>
-            <CardTitle className="text-xl text-ocean-900">Top Performers</CardTitle>
+            <CardTitle className="text-xl text-ocean-900">Data readiness</CardTitle>
             <p className="text-sm text-graystone-500">
-              Highest engagement posts in selected period
+              Spot where missing analytics are suppressing the picture.
             </p>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {topPerformers.length === 0 ? (
-              <div className="text-center py-8 text-graystone-500">
-                <p className="text-sm">No posts with engagement data in this period.</p>
-                <p className="text-xs mt-2">
-                  Import analytics data or manually add metrics to see top performers.
-                </p>
+          <CardContent className="space-y-4">
+            <div className="rounded-2xl bg-ocean-50 p-4">
+              <div className="text-sm font-semibold text-ocean-900">
+                {insights.postsWithSelectedMetric} of {insights.totalPosts} posts have{' '}
+                {metricLabel(filters.metric).toLowerCase()} data.
               </div>
-            ) : (
-              topPerformers.map((item, index) => (
-                <TopPerformerCard
-                  key={item.entry.id}
-                  entry={item.entry}
-                  metric="engagements"
-                  value={item.totalEngagements}
-                  rank={index + 1}
-                />
-              ))
-            )}
+              <div className="mt-1 text-xs text-graystone-600">
+                Use manual logging for one-off updates or CSV import for bulk platform exports.
+              </div>
+            </div>
+
+            <div className="space-y-2 text-sm text-graystone-600">
+              <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
+                <span>Selected metric coverage</span>
+                <span className="font-semibold text-ocean-700">
+                  {insights.coverageRate.toFixed(0)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
+                <span>Any analytics coverage</span>
+                <span className="font-semibold text-ocean-700">
+                  {insights.analyticsCoverageRate.toFixed(0)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
+                <span>Posts without analytics</span>
+                <span className="font-semibold text-ocean-700">
+                  {(insights.totalPosts - insights.postsWithAnyAnalytics).toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {onOpenImport ? (
+                <Button onClick={onOpenImport} variant="outline">
+                  Import CSV
+                </Button>
+              ) : null}
+              {onUpdateEntry ? (
+                <Button onClick={() => setWizardOpen(true)}>Log metrics</Button>
+              ) : null}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Empty State */}
-      {filteredEntries.length === 0 && (
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <BreakdownCard
+          title="Platform breakdown"
+          rows={insights.breakdowns.platforms}
+          metric={filters.metric}
+          emptyLabel="No platform performance is available for this filter set."
+        />
+        <BreakdownCard
+          title="Content pillar breakdown"
+          rows={insights.breakdowns.contentPillars}
+          metric={filters.metric}
+          emptyLabel="No content pillars match the current filters."
+        />
+        <BreakdownCard
+          title="Campaign breakdown"
+          rows={insights.breakdowns.campaigns}
+          metric={filters.metric}
+          emptyLabel="No campaigns match the current filters."
+        />
+        <BreakdownCard
+          title="Asset type breakdown"
+          rows={insights.breakdowns.assetTypes}
+          metric={filters.metric}
+          emptyLabel="No asset types match the current filters."
+        />
+        <BreakdownCard
+          title="Author breakdown"
+          rows={insights.breakdowns.authors}
+          metric={filters.metric}
+          emptyLabel="No author data matches the current filters."
+        />
+        <BreakdownCard
+          title="Audience segment breakdown"
+          rows={insights.breakdowns.audienceSegments}
+          metric={filters.metric}
+          emptyLabel="No audience segment data matches the current filters."
+        />
+      </div>
+
+      <Card className="shadow-xl">
+        <CardHeader>
+          <CardTitle className="text-xl text-ocean-900">Top performers</CardTitle>
+          <p className="text-sm text-graystone-500">
+            Highest-performing posts using the active metric and filters.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {!insights.topPerformers.length ? (
+            <div className="rounded-2xl border border-dashed border-graystone-200 px-4 py-8 text-center text-sm text-graystone-500">
+              No posts have {metricLabel(filters.metric).toLowerCase()} data in this filtered scope
+              yet.
+            </div>
+          ) : (
+            insights.topPerformers.map((performer, index) => (
+              <TopPerformerCard
+                key={performer.entry.id}
+                performer={performer}
+                rank={index + 1}
+                metric={filters.metric === 'posts' ? 'engagements' : filters.metric}
+              />
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      {!insights.filteredEntries.length && (
         <Card className="shadow-xl">
           <CardContent className="py-12 text-center">
-            <div className="text-graystone-400 mb-4">
-              <svg
-                className="w-16 h-16 mx-auto"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-ocean-900 mb-2">No approved posts found</h3>
+            <h3 className="mb-2 text-lg font-semibold text-ocean-900">
+              No posts match these filters
+            </h3>
             <p className="text-sm text-graystone-600">
-              There are no approved posts in the selected time period.
-              <br />
-              Try selecting a different period or create some content!
+              Try widening the timeframe, clearing some filters, or logging/importing analytics for
+              more entries.
             </p>
           </CardContent>
         </Card>

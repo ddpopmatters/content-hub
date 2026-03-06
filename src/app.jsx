@@ -1306,6 +1306,7 @@ function ContentDashboard() {
                 <AnalyticsView
                   entries={entries}
                   onUpdateEntry={(id, updates) => upsert({ id, ...updates })}
+                  onOpenImport={() => setPerformanceImportOpen(true)}
                 />
               )}
               {planTab === 'engagement' && (
