@@ -26,6 +26,8 @@ function BookIcon({ className }: IconProps): React.ReactElement {
 interface QuickActionsWidgetProps {
   onCreateContent: () => void;
   onViewCalendar: () => void;
+  onViewRequests: () => void;
+  onViewReporting: () => void;
   onViewApprovals: () => void;
   onOpenGuidelines: () => void;
   pendingCount?: number;
@@ -34,6 +36,8 @@ interface QuickActionsWidgetProps {
 export function QuickActionsWidget({
   onCreateContent,
   onViewCalendar,
+  onViewRequests,
+  onViewReporting,
   onViewApprovals,
   onOpenGuidelines,
   pendingCount = 0,
@@ -57,6 +61,32 @@ export function QuickActionsWidget({
           >
             <CalendarIcon className="h-4 w-4" />
             Calendar
+          </Button>
+          <Button
+            variant="outline"
+            className="flex items-center justify-center gap-2"
+            onClick={onViewRequests}
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <rect x="5" y="4" width="14" height="18" rx="2" strokeWidth="2" />
+              <path d="M9 4.5h6v3H9z" strokeWidth="2" />
+              <line x1="8" y1="12" x2="16" y2="12" strokeWidth="2" />
+              <line x1="8" y1="16" x2="16" y2="16" strokeWidth="2" />
+            </svg>
+            Requests
+          </Button>
+          <Button
+            variant="outline"
+            className="flex items-center justify-center gap-2"
+            onClick={onViewReporting}
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" />
+              <line x1="8" y1="9" x2="16" y2="9" strokeWidth="2" />
+              <line x1="8" y1="13" x2="16" y2="13" strokeWidth="2" />
+              <line x1="8" y1="17" x2="12" y2="17" strokeWidth="2" />
+            </svg>
+            Reporting
           </Button>
           <Button
             variant="outline"

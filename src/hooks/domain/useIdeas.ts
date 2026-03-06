@@ -67,6 +67,37 @@ export function useIdeas({ currentUser, runSyncTask, pushSyncToast }: UseIdeasDe
     [currentUser, runSyncTask, refreshIdeas],
   );
 
+  const markIdeaConverted = useCallback(
+    (id: string, convertedEntryId?: string) => {
+      const convertedAt = new Date().toISOString();
+      setIdeas((prev) =>
+        prev.map((idea) =>
+          idea.id === id
+            ? {
+                ...idea,
+                convertedToEntryId: convertedEntryId || undefined,
+                convertedAt,
+              }
+            : idea,
+        ),
+      );
+      runSyncTask(`Update idea conversion (${id})`, () =>
+        (window.api as Record<string, (...args: unknown[]) => Promise<unknown>>).updateIdea(id, {
+          convertedToEntryId: convertedEntryId || undefined,
+          convertedAt,
+        }),
+      ).then((ok) => {
+        if (ok) refreshIdeas();
+      });
+      appendAudit({
+        user: currentUser,
+        action: 'idea-converted',
+        meta: { id, convertedEntryId: convertedEntryId || null },
+      });
+    },
+    [currentUser, runSyncTask, refreshIdeas],
+  );
+
   const ideasByMonth = useMemo(() => {
     const groups = new Map<string, Record<string, unknown>[]>();
     ideas.forEach((idea) => {
@@ -87,6 +118,7 @@ export function useIdeas({ currentUser, runSyncTask, pushSyncToast }: UseIdeasDe
     setIdeas,
     addIdea,
     deleteIdea,
+    markIdeaConverted,
     refreshIdeas,
     ideasByMonth,
     reset,

@@ -3,10 +3,18 @@
  */
 import { STORAGE_KEYS, storageAvailable, isOlderThanDays } from './utils';
 import { sanitizeEntry, sanitizeIdea, computeStatusDetail } from './sanitizers';
-import type { Entry, Idea, Influencer, InfluencerStatus, PlatformProfile } from '../types/models';
+import type {
+  Entry,
+  Idea,
+  Influencer,
+  InfluencerStatus,
+  PlatformProfile,
+  ReportingPeriod,
+} from '../types/models';
 
 const ENTRIES_STORAGE_KEY = STORAGE_KEYS.ENTRIES;
 const IDEAS_STORAGE_KEY = STORAGE_KEYS.IDEAS;
+const REPORTING_STORAGE_KEY = STORAGE_KEYS.REPORTING;
 const INFLUENCERS_STORAGE_KEY = STORAGE_KEYS.INFLUENCERS;
 
 const VALID_INFLUENCER_STATUSES: InfluencerStatus[] = [
@@ -154,6 +162,36 @@ export const saveIdeas = (ideas: Idea[]): void => {
     window.localStorage.setItem(IDEAS_STORAGE_KEY, JSON.stringify(ideas));
   } catch (error) {
     console.warn('Failed to persist ideas', error);
+  }
+};
+
+/**
+ * Loads reporting periods from localStorage
+ */
+export const loadReportingPeriods = (): ReportingPeriod[] => {
+  if (!storageAvailable) return [];
+  try {
+    const raw = window.localStorage.getItem(REPORTING_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? (parsed as ReportingPeriod[]).sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''))
+      : [];
+  } catch (error) {
+    console.warn('Failed to load reporting periods', error);
+    return [];
+  }
+};
+
+/**
+ * Saves reporting periods to localStorage
+ */
+export const saveReportingPeriods = (periods: ReportingPeriod[]): void => {
+  if (!storageAvailable) return;
+  try {
+    window.localStorage.setItem(REPORTING_STORAGE_KEY, JSON.stringify(periods));
+  } catch (error) {
+    console.warn('Failed to persist reporting periods', error);
   }
 };
 

@@ -113,8 +113,8 @@ export function useSyncQueue() {
     [pushSyncToast],
   );
 
-  const retryAllSync = useCallback(() => {
-    syncQueue.forEach((item) => retrySyncItem(item));
+  const retryAllSync = useCallback(async () => {
+    await Promise.all(syncQueue.map((item) => retrySyncItem(item)));
   }, [syncQueue, retrySyncItem]);
 
   const dismissSyncItem = useCallback((id: string) => {

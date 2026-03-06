@@ -210,6 +210,85 @@ export interface ContentRequest {
   updatedAt: string;
 }
 
+export type ReportCadence = 'Weekly' | 'Monthly' | 'Quarterly' | 'Annual';
+export type ReportStatus = 'Draft' | 'Ready' | 'Published';
+export type ReportMetricSource = 'auto-filled' | 'manual' | 'imported' | 'aggregated';
+
+export interface ReportMetricValue {
+  value: number | string | null;
+  unit: string;
+  source: ReportMetricSource;
+  notes?: string;
+  updatedAt?: string;
+}
+
+export interface ReportPerformanceSnapshot {
+  entryId: string;
+  caption: string;
+  date: string;
+  platforms: string[];
+  metric: string;
+  value: number;
+}
+
+export interface ReportNarrative {
+  executiveSummary: string;
+  notableMoments: string;
+  wins: string;
+  risks: string;
+  nextActions: string;
+  audienceQualityNotes: string;
+  sentimentSummary: string;
+  platformHealthCommentary: string;
+  annualReflection: string;
+}
+
+export interface ReportQualitative {
+  topContentNotes: string;
+  bottomContentNotes: string;
+  contentPillarNotes: string;
+  audienceSegmentNotes: string;
+  quarterlyAuditNotes: string;
+  advocacyCommentary: string;
+  reportFootnote: string;
+  topPerformers: ReportPerformanceSnapshot[];
+  bottomPerformers: ReportPerformanceSnapshot[];
+}
+
+export interface ReportCompleteness {
+  complete: boolean;
+  completionRatio: number;
+  missingMetricIds: string[];
+  missingNarrativeIds: string[];
+  missingQualitativeIds: string[];
+  lastCheckedAt: string;
+}
+
+export interface ReportingPeriod {
+  id: string;
+  cadence: ReportCadence;
+  label: string;
+  startDate: string;
+  endDate: string;
+  status: ReportStatus;
+  owner: string;
+  metrics: {
+    tier1: Record<string, ReportMetricValue>;
+    tier2: Record<string, ReportMetricValue>;
+    tier3: Record<string, ReportMetricValue>;
+    platforms: Record<string, Record<string, ReportMetricValue>>;
+    contentPillars: Record<string, ReportMetricValue>;
+    audienceSegments: Record<string, ReportMetricValue>;
+    derivedTotals: Record<string, ReportMetricValue>;
+  };
+  narrative: ReportNarrative;
+  qualitative: ReportQualitative;
+  completeness: ReportCompleteness;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /**
  * Notification model
  * Matches the structure created by buildApprovalNotifications/buildMentionNotifications

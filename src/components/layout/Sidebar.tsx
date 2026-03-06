@@ -15,6 +15,7 @@ export interface SidebarProps {
   canUseKanban: boolean;
   canUseApprovals: boolean;
   canUseIdeas: boolean;
+  canUseRequests: boolean;
   canUseInfluencers: boolean;
   currentUserIsAdmin: boolean;
   outstandingCount: number;
@@ -149,7 +150,7 @@ const iconMap: Record<string, React.ReactNode> = {
 
 export function Sidebar({
   currentView,
-  planTab,
+  planTab: _planTab,
   onNavigate,
   currentUser,
   currentUserEmail,
@@ -159,6 +160,7 @@ export function Sidebar({
   onSignOut,
   canUseCalendar,
   canUseIdeas,
+  canUseRequests,
   canUseInfluencers,
   currentUserIsAdmin,
   outstandingCount,
@@ -167,6 +169,7 @@ export function Sidebar({
   const getActiveItem = () => {
     if (currentView === 'dashboard' || currentView === 'menu') return 'dashboard';
     if (currentView === 'insights') return 'insights';
+    if (currentView === 'reporting') return 'reporting';
     if (currentView === 'admin') return 'admin';
     if (currentView === 'influencers') return 'influencers';
     if (currentView === 'form') return 'content';
@@ -182,10 +185,11 @@ export function Sidebar({
       id: 'content',
       label: 'Content',
       icon: 'calendar',
-      enabled: canUseCalendar,
+      enabled: canUseCalendar || canUseIdeas || canUseRequests,
       badge: outstandingCount,
     },
     { id: 'insights', label: 'Insights', icon: 'bar-chart', enabled: true },
+    { id: 'reporting', label: 'Reporting', icon: 'clipboard', enabled: true },
     { id: 'influencers', label: 'Influencers', icon: 'megaphone', enabled: canUseInfluencers },
     { id: 'admin', label: 'Admin', icon: 'settings', enabled: currentUserIsAdmin },
   ].filter((item) => item.enabled);

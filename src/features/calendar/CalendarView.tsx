@@ -8,13 +8,15 @@ import { selectBaseClasses } from '../../lib/styles';
 import { ALL_PLATFORMS, KANBAN_STATUSES, PRIORITY_TIERS } from '../../constants';
 import MonthGrid from './MonthGrid';
 import WeekGrid from './WeekGrid';
+import { MonthlyGlance } from './MonthlyGlance';
 import UpcomingDeadlines from './UpcomingDeadlines';
+import { KanbanView } from '../kanban';
 import BulkDateShift from './BulkDateShift';
 import { SavedFilters, loadFilterPresets, saveFilterPresets } from './SavedFilters';
 import type { FilterPreset } from './SavedFilters';
 import type { Entry } from '../../types/models';
 
-type CalendarViewMode = 'month' | 'week';
+type CalendarViewMode = 'month' | 'week' | 'board' | 'glance';
 
 /** Get the Sunday of the week containing the given date */
 function getWeekStart(date: Date): Date {
@@ -224,6 +226,18 @@ export interface CalendarViewProps {
   onDailyPostTargetChange?: (target: number) => void;
   /** Callback when bulk date shift is applied */
   onBulkDateShift?: (entryIds: string[], daysDelta: number) => void;
+  /** Callback to update workflow status (used by Board view) */
+  onUpdateStatus?: (id: string, status: string) => void;
+  /** Callback to update an entry (used by Glance view) */
+  onUpdate?: (updates: { id: string } & Partial<Entry>) => void;
+  /** Number of outstanding approvals — shows sidebar card when provided */
+  outstandingCount?: number;
+  /** Opens the approvals modal — shows sidebar card when provided */
+  onOpenApprovals?: () => void;
+  /** Number of open opportunities — shows sidebar card when provided */
+  openOpportunitiesCount?: number;
+  /** Opens the opportunities modal — shows sidebar card when provided */
+  onOpenOpportunities?: () => void;
 }
 
 export function CalendarView({
@@ -240,6 +254,12 @@ export function CalendarView({
   dailyPostTarget = 0,
   onDailyPostTargetChange,
   onBulkDateShift,
+  onUpdateStatus,
+  onUpdate,
+  outstandingCount,
+  onOpenApprovals,
+  openOpportunitiesCount,
+  onOpenOpportunities,
 }: CalendarViewProps): React.ReactElement {
   // View mode and week navigation (week cursor stays internal)
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
@@ -471,32 +491,23 @@ export function CalendarView({
       <div className="flex flex-wrap items-center justify-between gap-3">
         {/* Left: view mode + navigation */}
         <div className="flex items-center gap-2">
-          {/* Month / Week toggle */}
+          {/* Month / Week / Board / Glance toggle */}
           <div className="inline-flex rounded-lg border border-graystone-200 bg-graystone-50 p-0.5">
-            <button
-              type="button"
-              onClick={() => setViewMode('month')}
-              className={cx(
-                'rounded-md px-3 py-1 text-xs font-medium transition',
-                viewMode === 'month'
-                  ? 'bg-white text-ocean-700 shadow-sm'
-                  : 'text-graystone-600 hover:text-graystone-900',
-              )}
-            >
-              Month
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('week')}
-              className={cx(
-                'rounded-md px-3 py-1 text-xs font-medium transition',
-                viewMode === 'week'
-                  ? 'bg-white text-ocean-700 shadow-sm'
-                  : 'text-graystone-600 hover:text-graystone-900',
-              )}
-            >
-              Week
-            </button>
+            {(['month', 'week', 'board', 'glance'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setViewMode(mode)}
+                className={cx(
+                  'rounded-md px-3 py-1 text-xs font-medium transition capitalize',
+                  viewMode === mode
+                    ? 'bg-white text-ocean-700 shadow-sm'
+                    : 'text-graystone-600 hover:text-graystone-900',
+                )}
+              >
+                {mode}
+              </button>
+            ))}
           </div>
 
           {/* Prev / date label / Next */}
@@ -801,43 +812,117 @@ export function CalendarView({
         </div>
       )}
 
+      {/* ── Board view ───────────────────────────────────────────────────────── */}
+      {viewMode === 'board' && (
+        <KanbanView
+          entries={filteredEntries}
+          onOpenEntry={onOpenEntry}
+          onUpdateStatus={onUpdateStatus ?? (() => {})}
+        />
+      )}
+
+      {/* ── Glance view ──────────────────────────────────────────────────────── */}
+      {viewMode === 'glance' && (
+        <MonthlyGlance
+          entries={entries}
+          monthCursor={monthCursor}
+          onPrevMonth={goToPrevMonth}
+          onNextMonth={goToNextMonth}
+          onOpenEntry={onOpenEntry}
+          onUpdate={onUpdate ?? (() => {})}
+        />
+      )}
+
       {/* ── Calendar grid + sidebar ──────────────────────────────────────────── */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(240px,0.8fr)]">
-        <div>
-          {viewMode === 'month' ? (
-            <MonthGrid
-              days={days}
-              month={monthCursor.getMonth()}
-              year={monthCursor.getFullYear()}
-              entries={monthEntries}
-              onApprove={onApprove}
-              onDelete={_onDelete}
-              onOpen={onOpenEntry}
-              onDateChange={onEntryDateChange}
-              dailyPostTarget={dailyPostTarget}
+      {(viewMode === 'month' || viewMode === 'week') && (
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(240px,0.8fr)]">
+          <div>
+            {viewMode === 'month' ? (
+              <MonthGrid
+                days={days}
+                month={monthCursor.getMonth()}
+                year={monthCursor.getFullYear()}
+                entries={monthEntries}
+                onApprove={onApprove}
+                onDelete={_onDelete}
+                onOpen={onOpenEntry}
+                onDateChange={onEntryDateChange}
+                dailyPostTarget={dailyPostTarget}
+              />
+            ) : (
+              <WeekGrid
+                weekStart={weekCursor}
+                entries={weekEntries}
+                onApprove={onApprove}
+                onDelete={_onDelete}
+                onOpen={onOpenEntry}
+                onDateChange={onEntryDateChange}
+                dailyPostTarget={dailyPostTarget}
+              />
+            )}
+          </div>
+          <div className="space-y-4">
+            {onOpenApprovals && (
+              <Card className="shadow-md">
+                <CardContent className="pt-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <div className="text-base font-semibold text-ocean-900">Approvals</div>
+                      <p className="text-xs text-graystone-500">
+                        {outstandingCount ? `${outstandingCount} pending` : 'All clear'}
+                      </p>
+                    </div>
+                    {!!outstandingCount && (
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-ocean-500 text-xs font-semibold text-white">
+                        {outstandingCount}
+                      </span>
+                    )}
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full" onClick={onOpenApprovals}>
+                    View approvals
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+            {onOpenOpportunities && (
+              <Card className="shadow-md">
+                <CardContent className="pt-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <div className="text-base font-semibold text-ocean-900">Opportunities</div>
+                      <p className="text-xs text-graystone-500">
+                        {openOpportunitiesCount
+                          ? `${openOpportunitiesCount} open`
+                          : 'None open'}
+                      </p>
+                    </div>
+                    {!!openOpportunitiesCount && (
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-aqua-600 text-xs font-semibold text-white">
+                        {openOpportunitiesCount}
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={onOpenOpportunities}
+                  >
+                    View opportunities
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+            <UpcomingDeadlines entries={entries} onOpenEntry={onOpenEntry} />
+            <AssetRatioCard
+              summary={assetTypeSummary}
+              monthLabel={monthLabel}
+              goals={assetGoals}
+              onGoalsChange={onGoalsChange}
             />
-          ) : (
-            <WeekGrid
-              weekStart={weekCursor}
-              entries={weekEntries}
-              onApprove={onApprove}
-              onDelete={_onDelete}
-              onOpen={onOpenEntry}
-              onDateChange={onEntryDateChange}
-              dailyPostTarget={dailyPostTarget}
-            />
-          )}
+          </div>
         </div>
-        <div className="space-y-4">
-          <UpcomingDeadlines entries={entries} onOpenEntry={onOpenEntry} />
-          <AssetRatioCard
-            summary={assetTypeSummary}
-            monthLabel={monthLabel}
-            goals={assetGoals}
-            onGoalsChange={onGoalsChange}
-          />
-        </div>
-      </div>
+      )}
     </div>
   );
 }

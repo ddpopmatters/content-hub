@@ -78,14 +78,11 @@ export function TabNavigation({
  */
 export function getDefaultTabs(permissions: {
   canUseCalendar: boolean;
-  canUseKanban: boolean;
-  canUseApprovals: boolean;
+  canUseIdeas: boolean;
 }): TabConfig[] {
   return [
     { key: 'plan', label: 'Calendar', enabled: permissions.canUseCalendar },
-    { key: 'kanban', label: 'Board', enabled: permissions.canUseKanban },
-    { key: 'approvals', label: 'Approvals', enabled: permissions.canUseApprovals },
-    { key: 'trash', label: 'Trash', enabled: permissions.canUseCalendar },
+    { key: 'ideas', label: 'Ideas', enabled: permissions.canUseIdeas },
   ];
 }
 

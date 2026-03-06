@@ -245,6 +245,7 @@ import type {
   Guidelines,
   Influencer,
   PlatformProfile,
+  ReportingPeriod,
 } from '../types/models';
 
 // Local type aliases for types used only in this file
@@ -368,6 +369,23 @@ interface ContentRequestRow {
   created_by: string;
   created_by_email: string;
   converted_entry_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ReportingPeriodRow {
+  id: string;
+  cadence: string;
+  label: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  owner: string;
+  metrics: Record<string, unknown>;
+  narrative: Record<string, unknown>;
+  qualitative: Record<string, unknown>;
+  completeness: Record<string, unknown>;
+  published_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -888,6 +906,105 @@ export const SUPABASE_API = {
     } catch (error) {
       Logger.error(error, 'updateContentRequest');
       return null;
+    }
+  },
+
+  // ==========================================
+  // REPORTING PERIODS
+  // ==========================================
+
+  fetchReportingPeriods: async (): Promise<ReportingPeriod[]> => {
+    await initSupabase();
+    if (!supabase) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('reporting_periods')
+        .select('*')
+        .order('start_date', { ascending: false });
+
+      if (error) {
+        Logger.error(error, 'fetchReportingPeriods');
+        return [];
+      }
+
+      return ((data as ReportingPeriodRow[]) || []).map(SUPABASE_API.mapReportingPeriodToApp);
+    } catch (error) {
+      Logger.error(error, 'fetchReportingPeriods');
+      return [];
+    }
+  },
+
+  createReportingPeriod: async (
+    report: Partial<ReportingPeriod>,
+  ): Promise<ReportingPeriod | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    try {
+      const dbReport = SUPABASE_API.mapReportingPeriodToDb(report);
+      const { data, error } = await supabase
+        .from('reporting_periods')
+        .insert(dbReport)
+        .select()
+        .single();
+
+      if (error) {
+        Logger.error(error, 'createReportingPeriod');
+        return null;
+      }
+
+      return data ? SUPABASE_API.mapReportingPeriodToApp(data as ReportingPeriodRow) : null;
+    } catch (error) {
+      Logger.error(error, 'createReportingPeriod');
+      return null;
+    }
+  },
+
+  updateReportingPeriod: async (
+    id: string,
+    updates: Partial<ReportingPeriod>,
+  ): Promise<ReportingPeriod | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    try {
+      const patch = SUPABASE_API.mapReportingPeriodPatchToDb(updates);
+      if (Object.keys(patch).length === 0) return null;
+
+      const { data, error } = await supabase
+        .from('reporting_periods')
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        Logger.error(error, 'updateReportingPeriod');
+        return null;
+      }
+
+      return data ? SUPABASE_API.mapReportingPeriodToApp(data as ReportingPeriodRow) : null;
+    } catch (error) {
+      Logger.error(error, 'updateReportingPeriod');
+      return null;
+    }
+  },
+
+  deleteReportingPeriod: async (id: string): Promise<boolean> => {
+    await initSupabase();
+    if (!supabase) return false;
+
+    try {
+      const { error } = await supabase.from('reporting_periods').delete().eq('id', id);
+      if (error) {
+        Logger.error(error, 'deleteReportingPeriod');
+        return false;
+      }
+      return true;
+    } catch (error) {
+      Logger.error(error, 'deleteReportingPeriod');
+      return false;
     }
   },
 
@@ -1681,6 +1798,89 @@ export const SUPABASE_API = {
     return patch;
   },
 
+  mapReportingPeriodToApp: (row: ReportingPeriodRow): ReportingPeriod => ({
+    id: row.id,
+    cadence: (row.cadence as ReportingPeriod['cadence']) || 'Monthly',
+    label: row.label || '',
+    startDate: row.start_date || '',
+    endDate: row.end_date || '',
+    status: (row.status as ReportingPeriod['status']) || 'Draft',
+    owner: row.owner || '',
+    metrics: (row.metrics as ReportingPeriod['metrics']) || {
+      tier1: {},
+      tier2: {},
+      tier3: {},
+      platforms: {},
+      contentPillars: {},
+      audienceSegments: {},
+      derivedTotals: {},
+    },
+    narrative: (row.narrative as unknown as ReportingPeriod['narrative']) || {
+      executiveSummary: '',
+      notableMoments: '',
+      wins: '',
+      risks: '',
+      nextActions: '',
+      audienceQualityNotes: '',
+      sentimentSummary: '',
+      platformHealthCommentary: '',
+      annualReflection: '',
+    },
+    qualitative: (row.qualitative as unknown as ReportingPeriod['qualitative']) || {
+      topContentNotes: '',
+      bottomContentNotes: '',
+      contentPillarNotes: '',
+      audienceSegmentNotes: '',
+      quarterlyAuditNotes: '',
+      advocacyCommentary: '',
+      reportFootnote: '',
+      topPerformers: [],
+      bottomPerformers: [],
+    },
+    completeness: (row.completeness as unknown as ReportingPeriod['completeness']) || {
+      complete: false,
+      completionRatio: 0,
+      missingMetricIds: [],
+      missingNarrativeIds: [],
+      missingQualitativeIds: [],
+      lastCheckedAt: '',
+    },
+    publishedAt: row.published_at,
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || row.created_at || '',
+  }),
+
+  mapReportingPeriodToDb: (report: Partial<ReportingPeriod>) => ({
+    id: report.id || undefined,
+    cadence: report.cadence || 'Monthly',
+    label: report.label || '',
+    start_date: dateOrNull(report.startDate),
+    end_date: dateOrNull(report.endDate),
+    status: report.status || 'Draft',
+    owner: report.owner || '',
+    metrics: report.metrics || {},
+    narrative: report.narrative || {},
+    qualitative: report.qualitative || {},
+    completeness: report.completeness || {},
+    published_at: report.publishedAt || null,
+  }),
+
+  mapReportingPeriodPatchToDb: (report: Partial<ReportingPeriod>) => {
+    const patch: Record<string, unknown> = {};
+    if (report.cadence !== undefined) patch.cadence = report.cadence;
+    if (report.label !== undefined) patch.label = report.label;
+    if (report.startDate !== undefined) patch.start_date = dateOrNull(report.startDate);
+    if (report.endDate !== undefined) patch.end_date = dateOrNull(report.endDate);
+    if (report.status !== undefined) patch.status = report.status;
+    if (report.owner !== undefined) patch.owner = report.owner;
+    if (report.metrics !== undefined) patch.metrics = report.metrics;
+    if (report.narrative !== undefined) patch.narrative = report.narrative;
+    if (report.qualitative !== undefined) patch.qualitative = report.qualitative;
+    if (report.completeness !== undefined) patch.completeness = report.completeness;
+    if (report.publishedAt !== undefined) patch.published_at = report.publishedAt || null;
+    return patch;
+  },
+
   mapLinkedInToApp: (row: LinkedInRow): LinkedInSubmission => ({
     id: row.id,
     submissionType: row.submission_type,
@@ -1906,6 +2106,7 @@ export type {
   IdeaRow,
   OpportunityRow,
   ContentRequestRow,
+  ReportingPeriodRow,
   LinkedInRow,
   GuidelinesRow,
   UserProfileRow,

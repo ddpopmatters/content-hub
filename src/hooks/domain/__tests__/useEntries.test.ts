@@ -131,6 +131,28 @@ describe('useEntries', () => {
 
       expect(deps.runSyncTask).toHaveBeenCalled();
     });
+
+    it('fires onEntryCreated only after create sync succeeds', async () => {
+      const onEntryCreated = vi.fn();
+      const deps = mockDeps({ onEntryCreated });
+      const { result } = renderHook(() => useEntries(deps));
+
+      await act(async () => {
+        result.current.addEntry({
+          date: '2026-03-15',
+          assetType: 'Blog',
+          caption: 'Synced entry',
+          sourceRequestId: 'request-123',
+        });
+        await Promise.resolve();
+      });
+
+      expect(onEntryCreated).toHaveBeenCalledTimes(1);
+      expect(onEntryCreated.mock.calls[0][0]).toMatchObject({
+        caption: 'Synced entry',
+        sourceRequestId: 'request-123',
+      });
+    });
   });
 
   describe('softDelete', () => {

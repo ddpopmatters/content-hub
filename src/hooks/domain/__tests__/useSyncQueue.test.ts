@@ -146,6 +146,57 @@ describe('useSyncQueue', () => {
       expect(action.mock.calls.length).toBe(callsBefore);
       expect(result.current.syncQueue).toHaveLength(1);
     });
+
+    it('waits for all queued retries before resolving retryAllSync', async () => {
+      const { result } = renderHook(() => useSyncQueue());
+      const firstAction = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('fail'))
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              setTimeout(() => resolve('first'), 50);
+            }),
+        );
+      const secondAction = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('fail'))
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              setTimeout(() => resolve('second'), 100);
+            }),
+        );
+
+      await act(async () => {
+        await result.current.runSyncTask('First task', firstAction);
+        await result.current.runSyncTask('Second task', secondAction);
+      });
+
+      let retryCompleted = false;
+      const retryPromise = act(async () => {
+        await result.current.retryAllSync();
+        retryCompleted = true;
+      });
+
+      await Promise.resolve();
+      expect(retryCompleted).toBe(false);
+
+      await act(async () => {
+        vi.advanceTimersByTime(99);
+        await Promise.resolve();
+      });
+      expect(retryCompleted).toBe(false);
+
+      await act(async () => {
+        vi.advanceTimersByTime(1);
+        await Promise.resolve();
+      });
+      await retryPromise;
+
+      expect(retryCompleted).toBe(true);
+      expect(result.current.syncQueue).toHaveLength(0);
+    });
   });
 
   describe('syncToast', () => {

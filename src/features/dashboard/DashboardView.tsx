@@ -178,6 +178,8 @@ export function DashboardView({
           <QuickActionsWidget
             onCreateContent={() => onNavigate('form')}
             onViewCalendar={() => onNavigate('plan', 'plan')}
+            onViewRequests={() => onNavigate('plan', 'requests')}
+            onViewReporting={() => onNavigate('reporting')}
             onViewApprovals={onOpenApprovals}
             onOpenGuidelines={onOpenGuidelines}
             pendingCount={pendingApprovalCount}
@@ -226,7 +228,7 @@ export function DashboardView({
             <EngagementProgressWidget
               activities={engagementActivities}
               goals={engagementGoals}
-              onNavigate={() => onNavigate('engagement')}
+              onNavigate={() => onNavigate('insights', 'engagement')}
             />
           )}
         </div>

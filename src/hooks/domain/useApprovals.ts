@@ -4,10 +4,10 @@ import { DEFAULT_APPROVERS } from '../../constants';
 interface UseApprovalsDeps {
   apiGet: (url: string) => Promise<unknown>;
   entries: Record<string, unknown>[];
-  currentUser: string;
+  viewerMatchesValue: (value: unknown) => boolean;
 }
 
-export function useApprovals({ apiGet, entries, currentUser }: UseApprovalsDeps) {
+export function useApprovals({ apiGet, entries, viewerMatchesValue }: UseApprovalsDeps) {
   const [approverDirectory, setApproverDirectory] = useState<string[]>(DEFAULT_APPROVERS);
 
   const refreshApprovers = useCallback(async () => {
@@ -56,10 +56,10 @@ export function useApprovals({ apiGet, entries, currentUser }: UseApprovalsDeps)
             !entry.deletedAt &&
             entry.status === 'Pending' &&
             Array.isArray(entry.approvers) &&
-            (entry.approvers as string[]).includes(currentUser),
+            (entry.approvers as string[]).some((approver) => viewerMatchesValue(approver)),
         )
         .sort((a, b) => ((a.date as string) || '').localeCompare((b.date as string) || '')),
-    [entries, currentUser],
+    [entries, viewerMatchesValue],
   );
 
   const reset = useCallback(() => {

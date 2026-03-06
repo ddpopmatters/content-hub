@@ -12,3 +12,4 @@ export { useApprovals } from './useApprovals';
 export { useAdmin } from './useAdmin';
 export { useInfluencers } from './useInfluencers';
 export { useEntries } from './useEntries';
+export { useReporting } from './useReporting';

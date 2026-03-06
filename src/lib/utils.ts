@@ -161,6 +161,7 @@ export const STORAGE_KEYS = {
   USER: 'pm-content-dashboard-user',
   NOTIFICATIONS: 'pm-content-dashboard-notifications',
   IDEAS: 'pm-content-dashboard-ideas',
+  REPORTING: 'pm-content-dashboard-reporting',
   AUDIT: 'pm-content-audit-log',
   DRAFT_ENTRY: 'pm-content-dashboard-draft-entry',
   INFLUENCERS: 'pm-content-dashboard-influencers',

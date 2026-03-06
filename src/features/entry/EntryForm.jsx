@@ -266,6 +266,8 @@ export function EntryForm({
     onSubmit({
       date,
       approvers,
+      sourceRequestId: initialValues?.sourceRequestId || undefined,
+      sourceRequestTitle: initialValues?.sourceRequestTitle || undefined,
       author: derivedAuthor || undefined,
       platforms: ensureArray(allPlatforms ? [...ALL_PLATFORMS] : platforms),
       caption,

@@ -4,10 +4,10 @@ import { LoginScreen } from './components/auth/LoginScreen';
 import { Sidebar } from './components/layout';
 import { CalendarView } from './features/calendar/CalendarView';
 import { ApprovalsView } from './features/approvals';
-import { KanbanView } from './features/kanban';
 import { AnalyticsView } from './features/analytics/AnalyticsView';
 import { DashboardView } from './features/dashboard';
 import { EngagementView } from './features/engagement/EngagementView';
+import { ReportingWorkspace } from './features/reporting';
 import { PublishSettingsPanel, PlatformConnectionsView } from './features/publishing';
 import { useApi } from './hooks/useApi';
 import { KANBAN_STATUSES, PLAN_TAB_FEATURES, PLAN_TAB_ORDER, DEFAULT_MANAGERS } from './constants';
@@ -24,6 +24,7 @@ import {
   CardContent,
   CardTitle,
   Badge,
+  Modal,
 } from './components/ui';
 import {
   NotificationBell,
@@ -37,10 +38,10 @@ import { PerformanceImportModal } from './features/performance';
 import { GuidelinesModal } from './features/guidelines';
 import { IdeasBoard, IdeaForm } from './features/ideas';
 import { OpportunitiesView } from './features/opportunities';
-import { ContentRequestsView } from './features/requests';
-import { MiniCalendar, NarrativeView, MonthlyGlance } from './features/calendar';
+import { MiniCalendar } from './features/calendar';
 import { AddUserForm, AccessModal } from './features/admin';
 import { EntryForm, EntryModal, EntryPreviewModal } from './features/entry';
+import { ContentRequestsView } from './features/requests';
 import { normalizeGuidelines, saveGuidelines } from './lib/guidelines';
 import { appendAudit } from './lib/audit';
 import { loadIdeas } from './lib/storage';
@@ -61,13 +62,15 @@ import {
   useAdmin,
   useInfluencers,
   useEntries,
+  useReporting,
 } from './hooks/domain';
 
-const { useState, useMemo, useEffect, useCallback } = React;
+const { useState, useMemo, useEffect, useCallback, useRef } = React;
 
 function ContentDashboard() {
   // Destructure stable method references to avoid re-renders when loading/error state changes
   const { get: apiGet, post: apiPost, put: apiPut, del: apiDel } = useApi();
+  const entryCreatedSideEffectsRef = useRef(() => {});
   const [monthCursor, setMonthCursor] = useState(() => new Date());
   // Domain hooks — Layer 1: needs API
   const auth = useAuth({ apiGet, apiPost, apiPut });
@@ -89,6 +92,7 @@ function ContentDashboard() {
     clearInviteParam,
     viewerIsAuthor,
     viewerIsApprover,
+    viewerMatchesValue,
     hasFeature,
     canUseCalendar,
     canUseKanban,
@@ -114,6 +118,9 @@ function ContentDashboard() {
 
   const [currentView, setCurrentView] = useState('dashboard');
   const [planTab, setPlanTab] = useState('plan');
+  const [showTrashModal, setShowTrashModal] = useState(false);
+  const [showApprovalsModal, setShowApprovalsModal] = useState(false);
+  const [showOpportunitiesModal, setShowOpportunitiesModal] = useState(false);
   const [entryFormPrefill, setEntryFormPrefill] = useState(null);
 
   // Domain hooks — Layer 0: standalone
@@ -147,6 +154,64 @@ function ContentDashboard() {
   const guidelinesHook = useGuidelines({ runSyncTask });
   const { guidelines, setGuidelines, guidelinesOpen, setGuidelinesOpen, handleGuidelinesSave } =
     guidelinesHook;
+  const ideasHook = useIdeas({
+    currentUser,
+    runSyncTask: sync.runSyncTask,
+    pushSyncToast: sync.pushSyncToast,
+  });
+  const { ideas, setIdeas, addIdea, deleteIdea, markIdeaConverted } = ideasHook;
+  const opportunitiesHook = useOpportunities({
+    currentUser,
+    currentUserEmail,
+    runSyncTask: sync.runSyncTask,
+    pushSyncToast: sync.pushSyncToast,
+  });
+  const {
+    openOpportunities,
+    urgentOpenCount,
+    addOpportunity,
+    markOpportunityAsActed,
+    dismissOpportunity,
+  } = opportunitiesHook;
+  const contentRequestsHook = useContentRequests({
+    currentUser,
+    currentUserEmail,
+    runSyncTask: sync.runSyncTask,
+    pushSyncToast: sync.pushSyncToast,
+  });
+  const {
+    contentRequests,
+    addContentRequest,
+    updateContentRequestStatus,
+    markContentRequestConverted,
+  } = contentRequestsHook;
+  const reportingHook = useReporting({
+    currentUser,
+    runSyncTask: sync.runSyncTask,
+    pushSyncToast: sync.pushSyncToast,
+  });
+  const {
+    reportingPeriods,
+    createReport,
+    updateReport,
+    recalculateReport,
+    updateReportStatus,
+    deleteReport,
+    reset: resetReporting,
+  } = reportingHook;
+
+  entryCreatedSideEffectsRef.current = (entry) => {
+    if (entry?._sourceIdeaId) {
+      markIdeaConverted(entry._sourceIdeaId, entry.id);
+    }
+    if (entry?.sourceRequestId) {
+      markContentRequestConverted(entry.sourceRequestId, entry.id);
+      setEntryFormPrefill((prev) =>
+        prev?.sourceRequestId === entry.sourceRequestId ? null : prev,
+      );
+      pushSyncToast('Content request marked as converted.', 'success');
+    }
+  };
 
   // Domain hooks — Layer 3: needs multiple hooks
   const entriesHook = useEntries({
@@ -164,6 +229,7 @@ function ContentDashboard() {
     guidelines,
     publishSettings,
     authStatus,
+    onEntryCreated: (entry) => entryCreatedSideEffectsRef.current(entry),
   });
   const {
     entries,
@@ -198,41 +264,7 @@ function ContentDashboard() {
     trashed,
   } = entriesHook;
 
-  const ideasHook = useIdeas({
-    currentUser,
-    runSyncTask: sync.runSyncTask,
-    pushSyncToast: sync.pushSyncToast,
-  });
-  const { ideas, setIdeas, addIdea, deleteIdea, refreshIdeas } = ideasHook;
-
-  const opportunitiesHook = useOpportunities({
-    currentUser,
-    currentUserEmail,
-    runSyncTask: sync.runSyncTask,
-    pushSyncToast: sync.pushSyncToast,
-  });
-  const {
-    openOpportunities,
-    urgentOpenCount,
-    addOpportunity,
-    markOpportunityAsActed,
-    dismissOpportunity,
-  } = opportunitiesHook;
-
-  const contentRequestsHook = useContentRequests({
-    currentUser,
-    currentUserEmail,
-    runSyncTask: sync.runSyncTask,
-    pushSyncToast: sync.pushSyncToast,
-  });
-  const {
-    contentRequests,
-    addContentRequest,
-    updateContentRequestStatus,
-    markContentRequestConverted,
-  } = contentRequestsHook;
-
-  const approvals = useApprovals({ apiGet, entries, currentUser });
+  const approvals = useApprovals({ apiGet, entries, viewerMatchesValue });
   const { approverDirectory, refreshApprovers, outstandingApprovals } = approvals;
 
   const admin = useAdmin({
@@ -294,6 +326,7 @@ function ContentDashboard() {
   const [performanceImportOpen, setPerformanceImportOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const canUseInfluencers = true; // Show to everyone
+  const canUseRequests = true;
   const approverOptions = useMemo(() => {
     const derived = userList
       .filter((user) => user.isApprover && user.status !== 'disabled')
@@ -369,49 +402,56 @@ function ContentDashboard() {
     setIdeas(loadIdeas());
   }, []);
 
+  const applyBootstrapData = useCallback(
+    ({ serverEntries, serverIdeas, serverGuidelines, serverUsers }) => {
+      if (Array.isArray(serverEntries)) setEntries(serverEntries);
+      if (canUseIdeas) {
+        if (Array.isArray(serverIdeas)) setIdeas(serverIdeas);
+      } else {
+        setIdeas([]);
+      }
+      if (serverGuidelines) {
+        const normalized = normalizeGuidelines(serverGuidelines);
+        setGuidelines(normalized);
+        saveGuidelines(normalized);
+      }
+      if (currentUserIsAdmin) {
+        if (Array.isArray(serverUsers)) setUserList(serverUsers);
+      } else {
+        setUserList([]);
+      }
+    },
+    [canUseIdeas, currentUserIsAdmin],
+  );
+
+  const loadBootstrapData = useCallback(async () => {
+    if (!window.api?.enabled) return null;
+    const wantsIdeas = canUseIdeas;
+    const wantsUsers = currentUserIsAdmin;
+    const [serverEntries, serverIdeas, serverGuidelines, serverUsers] = await Promise.all([
+      window.api.listEntries().catch(() => []),
+      wantsIdeas ? window.api.listIdeas().catch(() => []) : Promise.resolve([]),
+      window.api.getGuidelines ? window.api.getGuidelines().catch(() => null) : Promise.resolve(null),
+      wantsUsers && window.api.listUsers ? window.api.listUsers().catch(() => []) : Promise.resolve([]),
+    ]);
+    return { serverEntries, serverIdeas, serverGuidelines, serverUsers };
+  }, [canUseIdeas, currentUserIsAdmin]);
+
   // If server is available, hydrate from API once authenticated; fall back to local on failure
   useEffect(() => {
     if (authStatus !== 'ready') return;
     let cancelled = false;
     (async () => {
       try {
-        if (window.api && window.api.enabled) {
-          const wantsIdeas = canUseIdeas;
-          const wantsUsers = currentUserIsAdmin;
-          const [serverEntries, serverIdeas, serverGuidelines, serverUsers] = await Promise.all([
-            window.api.listEntries().catch(() => []),
-            wantsIdeas ? window.api.listIdeas().catch(() => []) : Promise.resolve([]),
-            window.api.getGuidelines
-              ? window.api.getGuidelines().catch(() => null)
-              : Promise.resolve(null),
-            wantsUsers && window.api.listUsers
-              ? window.api.listUsers().catch(() => [])
-              : Promise.resolve([]),
-          ]);
-          if (cancelled) return;
-          if (Array.isArray(serverEntries)) setEntries(serverEntries);
-          if (wantsIdeas) {
-            if (Array.isArray(serverIdeas)) setIdeas(serverIdeas);
-          } else {
-            setIdeas([]);
-          }
-          if (serverGuidelines) {
-            const normalized = normalizeGuidelines(serverGuidelines);
-            setGuidelines(normalized);
-            saveGuidelines(normalized);
-          }
-          if (wantsUsers) {
-            if (Array.isArray(serverUsers)) setUserList(serverUsers);
-          } else {
-            setUserList([]);
-          }
-        }
+        const bootstrapData = await loadBootstrapData();
+        if (cancelled || !bootstrapData) return;
+        applyBootstrapData(bootstrapData);
       } catch {}
     })();
     return () => {
       cancelled = true;
     };
-  }, [authStatus, canUseIdeas, currentUserIsAdmin]);
+  }, [authStatus, loadBootstrapData, applyBootstrapData]);
 
   // Build managers from DB profiles when authenticated
   useEffect(() => {
@@ -431,47 +471,24 @@ function ContentDashboard() {
 
   // Also hydrate when the api client announces readiness
   useEffect(() => {
-    const onReady = (e) => {
-      if (e?.detail?.enabled && syncQueue.length) {
-        retryAllSync();
+    let active = true;
+    const onReady = async (e) => {
+      if (!e?.detail?.enabled || authStatus !== 'ready') return;
+      if (syncQueue.length) {
+        await retryAllSync();
       }
-      if (e?.detail?.enabled && authStatus === 'ready') {
-        const wantsIdeas = canUseIdeas;
-        const wantsUsers = currentUserIsAdmin;
-        Promise.all([
-          window.api.listEntries().catch(() => []),
-          wantsIdeas ? window.api.listIdeas().catch(() => []) : Promise.resolve([]),
-          window.api.getGuidelines
-            ? window.api.getGuidelines().catch(() => null)
-            : Promise.resolve(null),
-          wantsUsers && window.api.listUsers
-            ? window.api.listUsers().catch(() => [])
-            : Promise.resolve([]),
-        ])
-          .then(([serverEntries, serverIdeas, serverGuidelines, serverUsers]) => {
-            if (Array.isArray(serverEntries)) setEntries(serverEntries);
-            if (wantsIdeas) {
-              if (Array.isArray(serverIdeas)) setIdeas(serverIdeas);
-            } else {
-              setIdeas([]);
-            }
-            if (serverGuidelines) {
-              const normalized = normalizeGuidelines(serverGuidelines);
-              setGuidelines(normalized);
-              saveGuidelines(normalized);
-            }
-            if (wantsUsers) {
-              if (Array.isArray(serverUsers)) setUserList(serverUsers);
-            } else {
-              setUserList([]);
-            }
-          })
-          .catch(() => {});
-      }
+      try {
+        const bootstrapData = await loadBootstrapData();
+        if (!active || !bootstrapData) return;
+        applyBootstrapData(bootstrapData);
+      } catch {}
     };
     window.addEventListener('pm-api-ready', onReady);
-    return () => window.removeEventListener('pm-api-ready', onReady);
-  }, [authStatus, canUseIdeas, currentUserIsAdmin, retryAllSync, syncQueue.length]);
+    return () => {
+      active = false;
+      window.removeEventListener('pm-api-ready', onReady);
+    };
+  }, [authStatus, syncQueue.length, retryAllSync, loadBootstrapData, applyBootstrapData]);
 
   // Fallback navigation via URL hash so CTAs work even if React handler is blocked.
   useEffect(() => {
@@ -613,27 +630,6 @@ function ContentDashboard() {
 
     setEntries((prev) => [entryWithStatus, ...prev]);
 
-    // Mark the idea as converted (local state)
-    setIdeas((prev) =>
-      prev.map((i) =>
-        i.id === idea.id ? { ...i, convertedToEntryId: newId, convertedAt: timestamp } : i,
-      ),
-    );
-
-    // Persist idea conversion to server
-    if (window.api?.updateIdea) {
-      try {
-        runSyncTask(`Update idea conversion (${idea.id})`, () =>
-          window.api.updateIdea(idea.id, {
-            convertedToEntryId: newId,
-            convertedAt: timestamp,
-          }),
-        ).then((ok) => {
-          if (ok) refreshIdeas();
-        });
-      } catch {}
-    }
-
     // Open the new entry for editing
     setViewingId(newId);
     setViewingSnapshot(entryWithStatus);
@@ -694,16 +690,8 @@ function ContentDashboard() {
   );
 
   const handleEntryFormSubmit = useCallback(
-    (payload) => {
-      const createdEntry = addEntry(payload);
-      if (entryFormPrefill?.sourceRequestId) {
-        markContentRequestConverted(entryFormPrefill.sourceRequestId, createdEntry?.id);
-        pushSyncToast('Content request marked as converted.', 'success');
-        setEntryFormPrefill(null);
-      }
-      return createdEntry;
-    },
-    [addEntry, entryFormPrefill, markContentRequestConverted, pushSyncToast],
+    (payload) => addEntry(payload),
+    [addEntry],
   );
 
   const handleSignOut = () => {
@@ -725,6 +713,7 @@ function ContentDashboard() {
       ideasHook.reset();
       opportunitiesHook.reset();
       contentRequestsHook.reset();
+      resetReporting();
       setCurrentView('dashboard');
       setChangePasswordOpen(false);
     })();
@@ -739,6 +728,7 @@ function ContentDashboard() {
       const viewMap = {
         dashboard: { view: 'dashboard', tab: 'plan' },
         insights: { view: 'insights', tab: 'analytics' },
+        reporting: { view: 'reporting', tab: 'reporting' },
         content: { view: 'plan', tab: 'plan' },
         influencers: { view: 'influencers', tab: 'plan' },
         admin: { view: 'admin', tab: 'plan' },
@@ -855,6 +845,7 @@ function ContentDashboard() {
         canUseKanban={canUseKanban}
         canUseApprovals={canUseApprovals}
         canUseIdeas={canUseIdeas}
+        canUseRequests={canUseRequests}
         canUseInfluencers={canUseInfluencers}
         currentUserIsAdmin={currentUserIsAdmin}
         outstandingCount={outstandingCount}
@@ -1012,16 +1003,8 @@ function ContentDashboard() {
                 closeEntry();
               }}
               onOpenGuidelines={() => setGuidelinesOpen(true)}
-              onOpenApprovals={() => {
-                setCurrentView('plan');
-                setPlanTab('approvals');
-                closeEntry();
-              }}
-              onOpenOpportunities={() => {
-                setCurrentView('plan');
-                setPlanTab('opportunities');
-                closeEntry();
-              }}
+              onOpenApprovals={() => setShowApprovalsModal(true)}
+              onOpenOpportunities={() => setShowOpportunitiesModal(true)}
             />
           )}
 
@@ -1048,18 +1031,6 @@ function ContentDashboard() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {entryFormPrefill?.sourceRequestId ? (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setCurrentView('plan');
-                        setPlanTab('requests');
-                        closeEntry();
-                      }}
-                    >
-                      Back to requests
-                    </Button>
-                  ) : null}
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -1167,59 +1138,17 @@ function ContentDashboard() {
                   </Button>
                   <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-ocean-200 bg-ocean-50 p-1 text-ocean-600">
                     {canUseCalendar && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          onClick={() => setPlanTab('plan')}
-                          className={cx(
-                            'rounded-2xl px-4 py-2 text-sm transition',
-                            planTab === 'plan'
-                              ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                              : 'text-ocean-600 hover:bg-ocean-100',
-                          )}
-                        >
-                          Calendar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={() => setPlanTab('trash')}
-                          className={cx(
-                            'rounded-2xl px-4 py-2 text-sm transition',
-                            planTab === 'trash'
-                              ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                              : 'text-ocean-600 hover:bg-ocean-100',
-                          )}
-                        >
-                          Trash
-                        </Button>
-                      </>
-                    )}
-                    {canUseKanban && (
                       <Button
                         variant="ghost"
-                        onClick={() => setPlanTab('kanban')}
+                        onClick={() => setPlanTab('plan')}
                         className={cx(
                           'rounded-2xl px-4 py-2 text-sm transition',
-                          planTab === 'kanban'
+                          planTab === 'plan'
                             ? 'bg-ocean-500 text-white hover:bg-ocean-600'
                             : 'text-ocean-600 hover:bg-ocean-100',
                         )}
                       >
-                        Board
-                      </Button>
-                    )}
-                    {canUseApprovals && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => setPlanTab('approvals')}
-                        className={cx(
-                          'rounded-2xl px-4 py-2 text-sm transition',
-                          planTab === 'approvals'
-                            ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                            : 'text-ocean-600 hover:bg-ocean-100',
-                        )}
-                      >
-                        Approvals
+                        Calendar
                       </Button>
                     )}
                     {canUseIdeas && (
@@ -1236,61 +1165,34 @@ function ContentDashboard() {
                         Ideas
                       </Button>
                     )}
-                    {canUseCalendar && (
+                    {canUseRequests && (
                       <Button
                         variant="ghost"
-                        onClick={() => setPlanTab('narrative')}
+                        onClick={() => setPlanTab('requests')}
                         className={cx(
                           'rounded-2xl px-4 py-2 text-sm transition',
-                          planTab === 'narrative'
+                          planTab === 'requests'
                             ? 'bg-ocean-500 text-white hover:bg-ocean-600'
                             : 'text-ocean-600 hover:bg-ocean-100',
                         )}
                       >
-                        Narrative
+                        Requests
                       </Button>
                     )}
-                    {canUseCalendar && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => setPlanTab('glance')}
-                        className={cx(
-                          'rounded-2xl px-4 py-2 text-sm transition',
-                          planTab === 'glance'
-                            ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                            : 'text-ocean-600 hover:bg-ocean-100',
-                        )}
-                      >
-                        Glance
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      onClick={() => setPlanTab('opportunities')}
-                      className={cx(
-                        'rounded-2xl px-4 py-2 text-sm transition',
-                        planTab === 'opportunities'
-                          ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                          : 'text-ocean-600 hover:bg-ocean-100',
-                      )}
-                    >
-                      Opportunities
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => setPlanTab('requests')}
-                      className={cx(
-                        'rounded-2xl px-4 py-2 text-sm transition',
-                        planTab === 'requests'
-                          ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                          : 'text-ocean-600 hover:bg-ocean-100',
-                      )}
-                    >
-                      Requests
-                    </Button>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {canUseCalendar && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowTrashModal(true)}
+                      className="gap-1.5 text-graystone-600"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                      Trash
+                    </Button>
+                  )}
                   <Button
                     onClick={() => {
                       if (!canUseCalendar) return;
@@ -1329,101 +1231,12 @@ function ContentDashboard() {
                         dailyPostTarget={dailyPostTarget}
                         onDailyPostTargetChange={handleDailyPostTargetChange}
                         onBulkDateShift={handleBulkDateShift}
-                      />
-                    );
-                  case 'trash':
-                    if (!canUseCalendar) return null;
-                    return (
-                      <Card className="shadow-xl">
-                        <CardHeader>
-                          <CardTitle className="text-lg text-ocean-900">
-                            Trash (30-day retention)
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          {trashed.length === 0 ? (
-                            <p className="text-sm text-graystone-500">Nothing in the trash.</p>
-                          ) : (
-                            <div className="space-y-3">
-                              {trashed.map((entry) => (
-                                <div
-                                  key={entry.id}
-                                  className="rounded-xl border border-graystone-200 bg-white px-4 py-3 shadow-sm"
-                                >
-                                  <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <Badge variant="outline">{entry.assetType}</Badge>
-                                      <span className="text-sm font-medium text-graystone-700">
-                                        {new Date(entry.date).toLocaleDateString()}
-                                      </span>
-                                      <span className="text-xs text-graystone-500">
-                                        Deleted{' '}
-                                        {entry.deletedAt
-                                          ? new Date(entry.deletedAt).toLocaleString()
-                                          : ''}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => restore(entry.id)}
-                                      >
-                                        <RotateCcwIcon className="h-4 w-4 text-graystone-600" />
-                                        Restore
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="destructive"
-                                        onClick={() => hardDelete(entry.id)}
-                                      >
-                                        <TrashIcon className="h-4 w-4 text-white" />
-                                        Delete forever
-                                      </Button>
-                                    </div>
-                                  </div>
-                                  {entry.caption && (
-                                    <p className="mt-2 line-clamp-2 text-sm text-graystone-600">
-                                      {entry.caption}
-                                    </p>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  case 'kanban':
-                    if (!canUseKanban) return null;
-                    return (
-                      <KanbanView
-                        entries={entries}
-                        onOpenEntry={openEntry}
                         onUpdateStatus={updateWorkflowStatus}
-                      />
-                    );
-                  case 'approvals':
-                    if (!canUseApprovals) return null;
-                    return (
-                      <ApprovalsView
-                        approvals={outstandingApprovals}
-                        outstandingCount={outstandingCount}
-                        unreadMentionsCount={unreadMentionsCount}
-                        canUseCalendar={canUseCalendar}
-                        onApprove={toggleApprove}
-                        onOpenEntry={openEntry}
-                        onBackToMenu={() => setPlanTab('plan')}
-                        onGoToCalendar={() => setPlanTab('plan')}
-                        onCreateContent={() => {
-                          setCurrentView('form');
-                          setPlanTab('plan');
-                          closeEntry();
-                          try {
-                            window.location.hash = '#create';
-                          } catch {}
-                        }}
-                        onSwitchUser={handleSignOut}
+                        onUpdate={upsert}
+                        outstandingCount={canUseApprovals ? outstandingCount : undefined}
+                        onOpenApprovals={canUseApprovals ? () => setShowApprovalsModal(true) : undefined}
+                        openOpportunitiesCount={openOpportunities.length}
+                        onOpenOpportunities={() => setShowOpportunitiesModal(true)}
                       />
                     );
                   case 'ideas':
@@ -1438,71 +1251,16 @@ function ContentDashboard() {
                         />
                       </div>
                     );
-                  case 'narrative':
-                    if (!canUseCalendar) return null;
-                    return (
-                      <NarrativeView
-                        entries={entries}
-                        monthCursor={monthCursor}
-                        onPrevMonth={() =>
-                          setMonthCursor(
-                            new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1),
-                          )
-                        }
-                        onNextMonth={() =>
-                          setMonthCursor(
-                            new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1),
-                          )
-                        }
-                        onOpenEntry={openEntry}
-                      />
-                    );
-                  case 'glance':
-                    if (!canUseCalendar) return null;
-                    return (
-                      <MonthlyGlance
-                        entries={entries}
-                        monthCursor={monthCursor}
-                        onPrevMonth={() =>
-                          setMonthCursor(
-                            new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1),
-                          )
-                        }
-                        onNextMonth={() =>
-                          setMonthCursor(
-                            new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1),
-                          )
-                        }
-                        onOpenEntry={openEntry}
-                        onUpdate={upsert}
-                      />
-                    );
-                  case 'opportunities':
-                    return (
-                      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <OpportunitiesView
-                          opportunities={openOpportunities}
-                          entries={entries}
-                          currentUser={currentUser}
-                          onAddOpportunity={addOpportunity}
-                          onMarkActed={markOpportunityAsActed}
-                          onDismiss={dismissOpportunity}
-                          onOpenEntry={openEntry}
-                        />
-                      </div>
-                    );
                   case 'requests':
                     return (
-                      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <ContentRequestsView
-                          contentRequests={contentRequests}
-                          currentUser={currentUser}
-                          approverOptions={approverOptions}
-                          onAddContentRequest={addContentRequest}
-                          onUpdateStatus={updateContentRequestStatus}
-                          onConvertToEntry={handleConvertRequestToEntry}
-                        />
-                      </div>
+                      <ContentRequestsView
+                        contentRequests={contentRequests}
+                        currentUser={currentUser || currentUserEmail || null}
+                        approverOptions={approverOptions}
+                        onAddContentRequest={addContentRequest}
+                        onUpdateStatus={updateContentRequestStatus}
+                        onConvertToEntry={handleConvertRequestToEntry}
+                      />
                     );
                   default:
                     return null;
@@ -1585,6 +1343,47 @@ function ContentDashboard() {
                   onUpdateGoals={(goals) => setEngagementGoals(goals)}
                 />
               )}
+            </div>
+          )}
+
+          {currentView === 'reporting' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h1 className="heading-font text-2xl font-bold text-ocean-900">Reporting</h1>
+                  <p className="text-sm text-graystone-500">
+                    Turn entry analytics and period notes into leadership-ready reports.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setCurrentView('insights');
+                      setPlanTab('analytics');
+                    }}
+                  >
+                    Open analytics
+                  </Button>
+                  <Button variant="outline" onClick={() => setPerformanceImportOpen(true)}>
+                    Import performance
+                  </Button>
+                </div>
+              </div>
+              <ReportingWorkspace
+                entries={entries}
+                reportingPeriods={reportingPeriods}
+                onCreateReport={createReport}
+                onUpdateReport={updateReport}
+                onRecalculateReport={recalculateReport}
+                onUpdateStatus={updateReportStatus}
+                onDeleteReport={deleteReport}
+                onOpenAnalytics={() => {
+                  setCurrentView('insights');
+                  setPlanTab('analytics');
+                }}
+                onOpenImport={() => setPerformanceImportOpen(true)}
+              />
             </div>
           )}
 
@@ -1805,6 +1604,111 @@ function ContentDashboard() {
               <PlatformConnectionsView currentUser={currentUser} />
             </div>
           )}
+          {/* Trash modal */}
+          <Modal
+            open={showTrashModal}
+            onClose={() => setShowTrashModal(false)}
+            aria-label="Trash (30-day retention)"
+          >
+            {trashed.length === 0 ? (
+              <p className="text-sm text-graystone-500">Nothing in the trash.</p>
+            ) : (
+              <div className="space-y-3">
+                {trashed.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="rounded-xl border border-graystone-200 bg-white px-4 py-3 shadow-sm"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline">{entry.assetType}</Badge>
+                        <span className="text-sm font-medium text-graystone-700">
+                          {new Date(entry.date).toLocaleDateString()}
+                        </span>
+                        <span className="text-xs text-graystone-500">
+                          Deleted{' '}
+                          {entry.deletedAt ? new Date(entry.deletedAt).toLocaleString() : ''}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => restore(entry.id)}>
+                          <RotateCcwIcon className="h-4 w-4 text-graystone-600" />
+                          Restore
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => hardDelete(entry.id)}
+                        >
+                          <TrashIcon className="h-4 w-4 text-white" />
+                          Delete forever
+                        </Button>
+                      </div>
+                    </div>
+                    {entry.caption && (
+                      <p className="mt-2 line-clamp-2 text-sm text-graystone-600">
+                        {entry.caption}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Modal>
+
+          {/* Approvals modal */}
+          <Modal
+            open={showApprovalsModal}
+            onClose={() => setShowApprovalsModal(false)}
+            aria-label="Approvals"
+          >
+            <ApprovalsView
+              approvals={outstandingApprovals}
+              outstandingCount={outstandingCount}
+              unreadMentionsCount={unreadMentionsCount}
+              canUseCalendar={canUseCalendar}
+              onApprove={toggleApprove}
+              onOpenEntry={(id) => {
+                setShowApprovalsModal(false);
+                openEntry(id);
+              }}
+              onBackToMenu={() => setShowApprovalsModal(false)}
+              onGoToCalendar={() => {
+                setShowApprovalsModal(false);
+                setCurrentView('plan');
+                setPlanTab('plan');
+              }}
+              onCreateContent={() => {
+                setShowApprovalsModal(false);
+                setCurrentView('form');
+                setPlanTab('plan');
+                closeEntry();
+                try { window.location.hash = '#create'; } catch {}
+              }}
+              onSwitchUser={handleSignOut}
+            />
+          </Modal>
+
+          {/* Opportunities modal */}
+          <Modal
+            open={showOpportunitiesModal}
+            onClose={() => setShowOpportunitiesModal(false)}
+            aria-label="Opportunities"
+          >
+            <OpportunitiesView
+              opportunities={openOpportunities}
+              entries={entries}
+              currentUser={currentUser}
+              onAddOpportunity={addOpportunity}
+              onMarkActed={markOpportunityAsActed}
+              onDismiss={dismissOpportunity}
+              onOpenEntry={(id) => {
+                setShowOpportunitiesModal(false);
+                openEntry(id);
+              }}
+            />
+          </Modal>
+
           <EntryPreviewModal
             open={Boolean(previewEntry)}
             entry={previewEntry}

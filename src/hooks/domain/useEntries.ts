@@ -31,6 +31,7 @@ interface UseEntriesDeps {
   guidelines: Record<string, unknown> | null;
   publishSettings: Record<string, unknown>;
   authStatus: string;
+  onEntryCreated?: (entry: Record<string, unknown>) => void;
 }
 
 export function useEntries({
@@ -48,6 +49,7 @@ export function useEntries({
   guidelines,
   publishSettings,
   authStatus,
+  onEntryCreated,
 }: UseEntriesDeps) {
   const [entries, setEntries] = useState<Record<string, unknown>[]>([]);
   const [viewingId, setViewingId] = useState<string | null>(null);
@@ -289,7 +291,10 @@ export function useEntries({
               >
             ).createEntry(payload),
           ).then((ok: unknown) => {
-            if (ok) refreshEntries();
+            if (ok) {
+              onEntryCreated?.(entry);
+              refreshEntries();
+            }
           });
         } catch {
           /* sync failure handled by queue */
@@ -467,6 +472,11 @@ export function useEntries({
                 setEntries((prev) =>
                   prev.map((e) => (e.id === updated.id ? { ...e, _isNew: undefined } : e)),
                 );
+                onEntryCreated?.({
+                  ...(existingEntry as Record<string, unknown>),
+                  ...updated,
+                  _isNew: undefined,
+                });
                 refreshEntries();
               }
             });
@@ -500,6 +510,7 @@ export function useEntries({
       notifyApproversAboutChange,
       runSyncTask,
       refreshEntries,
+      onEntryCreated,
     ],
   );
 
