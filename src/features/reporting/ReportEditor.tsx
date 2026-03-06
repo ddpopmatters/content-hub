@@ -70,6 +70,9 @@ export function ReportEditor({
               <p className="mt-1 text-sm text-graystone-500">
                 Auto-fill what the app already knows, then add the strategic context around it.
               </p>
+              <p className="mt-2 text-xs text-graystone-500">
+                Reporting supports both manual data entry and CSV-driven analytics import.
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant={report.completeness.complete ? 'success' : 'warning'}>

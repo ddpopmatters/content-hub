@@ -54,6 +54,10 @@ export function ReportMetricForm({
                 Auto-fill entry-derived values, then add the period-level inputs the framework still
                 needs.
               </p>
+              <p className="mt-2 text-xs text-graystone-500">
+                Every metric can be entered manually here. CSV import is still available when you
+                want to populate post-level analytics first.
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={onOpenAnalytics}>
@@ -80,7 +84,6 @@ export function ReportMetricForm({
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   {definitions.map((definition) => {
                     const metric = report.metrics[group.id][definition.id];
-                    const isEditable = definition.sourceType === 'manual';
                     return (
                       <div
                         key={definition.id}
@@ -104,7 +107,6 @@ export function ReportMetricForm({
                             type="number"
                             step={definition.inputType === 'percent' ? '0.01' : '1'}
                             value={metric?.value ?? ''}
-                            disabled={!isEditable}
                             onChange={(event) => {
                               const raw = event.target.value;
                               onMetricChange(
@@ -115,7 +117,7 @@ export function ReportMetricForm({
                             }}
                           />
                           <div className="mt-2 text-[11px] text-graystone-500">
-                            Unit: {definition.unit}
+                            Unit: {definition.unit}. Editing here stores a manual reporting value.
                           </div>
                         </div>
                       </div>
