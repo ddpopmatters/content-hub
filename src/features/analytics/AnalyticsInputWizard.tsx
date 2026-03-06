@@ -143,6 +143,14 @@ export const AnalyticsInputWizard: React.FC<AnalyticsInputWizardProps> = ({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+          e.preventDefault();
+          onClose();
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       <div className="flex w-full max-w-lg flex-col rounded-2xl bg-white shadow-2xl">
         {/* Header */}
@@ -170,7 +178,6 @@ export const AnalyticsInputWizard: React.FC<AnalyticsInputWizardProps> = ({
           {step === 'select' && (
             <div className="space-y-3">
               <input
-                autoFocus
                 type="text"
                 placeholder="Search by caption, date, or platform…"
                 value={search}

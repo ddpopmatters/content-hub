@@ -1,7 +1,7 @@
 import React from 'react';
 import { cx, ensureArray } from '../../lib/utils';
 import { selectBaseClasses, fileInputClasses } from '../../lib/styles';
-import { getPlatformCaption, isImageMedia, determineWorkflowStatus } from '../../lib/sanitizers';
+import { determineWorkflowStatus } from '../../lib/sanitizers';
 import { FALLBACK_GUIDELINES } from '../../lib/guidelines';
 import {
   ALL_PLATFORMS,
@@ -9,14 +9,12 @@ import {
   CONTENT_PILLARS,
   DEFAULT_APPROVERS,
   PRIORITY_TIERS,
-  PRIORITY_TIER_BADGE_CLASSES,
 } from '../../constants';
 import {
   Card,
   CardHeader,
   CardContent,
   CardTitle,
-  Badge,
   Label,
   Input,
   Textarea,
@@ -44,13 +42,13 @@ export function EntryForm({
   onSubmit,
   existingEntries = [],
   onPreviewAssetType,
-  guidelines = FALLBACK_GUIDELINES,
+  guidelines: _guidelines = FALLBACK_GUIDELINES,
   currentUser = '',
   currentUserEmail = '',
   approverOptions = DEFAULT_APPROVERS,
   influencers = [],
   onInfluencerChange,
-  teamsWebhookUrl = '',
+  teamsWebhookUrl: _teamsWebhookUrl = '',
   initialValues = null,
 }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -75,7 +73,7 @@ export function EntryForm({
   const [overrideConflict, setOverrideConflict] = useState(false);
   const [platformCaptions, setPlatformCaptions] = useState({});
   const [activeCaptionTab, setActiveCaptionTab] = useState('Main');
-  const [activePreviewPlatform, setActivePreviewPlatform] = useState('Main');
+  const [, setActivePreviewPlatform] = useState('Main');
   const [campaign, setCampaign] = useState('');
   const [contentPillar, setContentPillar] = useState('');
   const [priorityTier, setPriorityTier] = useState('Medium');
@@ -335,14 +333,6 @@ export function EntryForm({
   const captionTabs = useMemo(() => ['Main', ...platforms], [platforms]);
   const currentCaptionValue =
     activeCaptionTab === 'Main' ? caption : (platformCaptions[activeCaptionTab] ?? caption);
-  const previewPlatforms = platforms.length ? platforms : ['Main'];
-  const effectivePreviewPlatform = previewPlatforms.includes(activePreviewPlatform)
-    ? activePreviewPlatform
-    : previewPlatforms[0] || 'Main';
-  const previewCaption = getPlatformCaption(caption, platformCaptions, effectivePreviewPlatform);
-  const previewIsImage = isImageMedia(previewUrl);
-  const previewIsVideo = previewUrl && /\.(mp4|webm|ogg)$/i.test(previewUrl);
-
   const advancedFilledCount = [
     campaign,
     contentPillar,
