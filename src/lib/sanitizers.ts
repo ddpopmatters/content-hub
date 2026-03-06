@@ -22,7 +22,7 @@ import {
   extractMentions,
   serializeForComparison,
 } from './utils';
-import type { Attachment, Entry, Idea, Comment } from '../types/models';
+import type { Entry, Idea, Comment } from '../types/models';
 
 // Type for checklist object
 export type Checklist = Record<string, boolean>;

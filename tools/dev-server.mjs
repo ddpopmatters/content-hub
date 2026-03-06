@@ -65,7 +65,7 @@ const ctx = await context({
 
 await ctx.watch();
 
-const { host, port } = await ctx.serve({
+const { host: _host, port } = await ctx.serve({
   servedir: resolve(root, 'public'),
   port: 3000,
 });

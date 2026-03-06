@@ -2,7 +2,6 @@
  * User normalization utilities extracted from app.jsx
  */
 import { DEFAULT_USERS, FEATURE_OPTIONS } from '../constants';
-import type { UserRecord } from '../constants';
 
 const DEFAULT_FEATURES = FEATURE_OPTIONS.map((option) => option.key);
 
