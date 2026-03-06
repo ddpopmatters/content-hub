@@ -77,7 +77,8 @@ export const getDefaultDateRangeForCadence = (cadence: ReportCadence, now = new 
 const formatLabelRange = (startDate: string, endDate: string) => {
   const start = new Date(startDate);
   const end = new Date(endDate);
-  const sameMonth = start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth();
+  const sameMonth =
+    start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth();
   if (sameMonth) {
     return start.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   }
@@ -214,7 +215,10 @@ const metricNumber = (entry: Entry, key: string) => {
 };
 
 const entryEngagements = (entry: Entry) =>
-  ['likes', 'comments', 'shares', 'saves', 'clicks'].reduce((sum, key) => sum + metricNumber(entry, key), 0);
+  ['likes', 'comments', 'shares', 'saves', 'clicks'].reduce(
+    (sum, key) => sum + metricNumber(entry, key),
+    0,
+  );
 
 const buildPerformanceSnapshots = (
   entries: Entry[],
@@ -251,7 +255,8 @@ const aggregateFromChildren = (
 };
 
 const matchingChildReports = (report: ReportingPeriod, reports: ReportingPeriod[]) => {
-  const childCadence = report.cadence === 'Quarterly' ? 'Monthly' : report.cadence === 'Annual' ? 'Quarterly' : null;
+  const childCadence =
+    report.cadence === 'Quarterly' ? 'Monthly' : report.cadence === 'Annual' ? 'Quarterly' : null;
   if (!childCadence) return [];
   return reports
     .filter(
@@ -275,24 +280,47 @@ export const hydrateReportingPeriod = (
   entries: Entry[],
   reports: ReportingPeriod[],
 ): ReportingPeriod => {
-  const filteredEntries = entries.filter((entry) => isEntryInRange(entry, report.startDate, report.endDate));
+  const filteredEntries = entries.filter((entry) =>
+    isEntryInRange(entry, report.startDate, report.endDate),
+  );
   const totalPosts = filteredEntries.length;
-  const totalPublishedPosts = filteredEntries.filter((entry) => entry.status === 'Published').length;
+  const totalPublishedPosts = filteredEntries.filter(
+    (entry) => entry.status === 'Published',
+  ).length;
   const totalReach = filteredEntries.reduce((sum, entry) => sum + metricNumber(entry, 'reach'), 0);
-  const totalImpressions = filteredEntries.reduce((sum, entry) => sum + metricNumber(entry, 'impressions'), 0);
+  const totalImpressions = filteredEntries.reduce(
+    (sum, entry) => sum + metricNumber(entry, 'impressions'),
+    0,
+  );
   const totalEngagements = filteredEntries.reduce((sum, entry) => sum + entryEngagements(entry), 0);
-  const totalShares = filteredEntries.reduce((sum, entry) => sum + metricNumber(entry, 'shares'), 0);
+  const totalShares = filteredEntries.reduce(
+    (sum, entry) => sum + metricNumber(entry, 'shares'),
+    0,
+  );
   const totalSends = filteredEntries.reduce((sum, entry) => sum + metricNumber(entry, 'sends'), 0);
   const totalSaves = filteredEntries.reduce((sum, entry) => sum + metricNumber(entry, 'saves'), 0);
-  const totalClicks = filteredEntries.reduce((sum, entry) => sum + metricNumber(entry, 'clicks'), 0);
-  const engagementRate = totalReach > 0 ? Number(((totalEngagements / totalReach) * 100).toFixed(2)) : 0;
-  const ctr = totalImpressions > 0 ? Number(((totalClicks / totalImpressions) * 100).toFixed(2)) : 0;
+  const totalClicks = filteredEntries.reduce(
+    (sum, entry) => sum + metricNumber(entry, 'clicks'),
+    0,
+  );
+  const engagementRate =
+    totalReach > 0 ? Number(((totalEngagements / totalReach) * 100).toFixed(2)) : 0;
+  const ctr =
+    totalImpressions > 0 ? Number(((totalClicks / totalImpressions) * 100).toFixed(2)) : 0;
   const engagementQuality = totalPosts
-    ? Number((((totalShares * 3 + totalSaves * 3 + filteredEntries.reduce((sum, entry) => sum + metricNumber(entry, 'comments') * 2, 0)) / totalPosts)).toFixed(2))
+    ? Number(
+        (
+          (totalShares * 3 +
+            totalSaves * 3 +
+            filteredEntries.reduce((sum, entry) => sum + metricNumber(entry, 'comments') * 2, 0)) /
+          totalPosts
+        ).toFixed(2),
+      )
     : 0;
   const postingConsistency = Number(
     (
-      (new Set(filteredEntries.map((entry) => entry.date)).size / daysInRange(report.startDate, report.endDate)) *
+      (new Set(filteredEntries.map((entry) => entry.date)).size /
+        daysInRange(report.startDate, report.endDate)) *
       100
     ).toFixed(2),
   );
@@ -375,8 +403,30 @@ export const hydrateReportingPeriod = (
 
   REPORT_PLATFORM_LIST.forEach((platform) => {
     const platformEntries = filteredEntries.filter((entry) => entry.platforms?.includes(platform));
-    const platformReach = platformEntries.reduce((sum, entry) => sum + metricNumber({ ...entry, analytics: { [platform]: (entry.analytics as Record<string, unknown>)[platform] } } as Entry, 'reach'), 0);
-    const platformImpressions = platformEntries.reduce((sum, entry) => sum + metricNumber({ ...entry, analytics: { [platform]: (entry.analytics as Record<string, unknown>)[platform] } } as Entry, 'impressions'), 0);
+    const platformReach = platformEntries.reduce(
+      (sum, entry) =>
+        sum +
+        metricNumber(
+          {
+            ...entry,
+            analytics: { [platform]: (entry.analytics as Record<string, unknown>)[platform] },
+          } as Entry,
+          'reach',
+        ),
+      0,
+    );
+    const platformImpressions = platformEntries.reduce(
+      (sum, entry) =>
+        sum +
+        metricNumber(
+          {
+            ...entry,
+            analytics: { [platform]: (entry.analytics as Record<string, unknown>)[platform] },
+          } as Entry,
+          'impressions',
+        ),
+      0,
+    );
     const platformEngagements = platformEntries.reduce((sum, entry) => {
       const scoped = {
         ...entry,
@@ -408,7 +458,11 @@ export const hydrateReportingPeriod = (
   Array.from(segmentCounts.keys())
     .sort()
     .forEach((segment) => {
-      nextAudienceSegments[segment] = numericMetric(segmentCounts.get(segment) || 0, 'count', 'auto-filled');
+      nextAudienceSegments[segment] = numericMetric(
+        segmentCounts.get(segment) || 0,
+        'count',
+        'auto-filled',
+      );
     });
   nextReport.metrics.audienceSegments = nextAudienceSegments;
 

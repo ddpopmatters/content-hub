@@ -1,11 +1,23 @@
 import React from 'react';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from '../../components/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+} from '../../components/ui';
 import type { ReportingPeriod } from '../../types/models';
 import { getMetricDefinitionsForGroup } from '../../lib/reporting/metricRegistry';
 
 interface ReportMetricFormProps {
   report: ReportingPeriod;
-  onMetricChange: (group: 'tier1' | 'tier2' | 'tier3', metricId: string, value: number | null) => void;
+  onMetricChange: (
+    group: 'tier1' | 'tier2' | 'tier3',
+    metricId: string,
+    value: number | null,
+  ) => void;
   onRecalculate: () => void;
   onOpenAnalytics: () => void;
   onOpenImport: () => void;
@@ -39,7 +51,8 @@ export function ReportMetricForm({
             <div>
               <CardTitle>Metrics</CardTitle>
               <p className="mt-1 text-sm text-graystone-500">
-                Auto-fill entry-derived values, then add the period-level inputs the framework still needs.
+                Auto-fill entry-derived values, then add the period-level inputs the framework still
+                needs.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -78,7 +91,9 @@ export function ReportMetricForm({
                             <div className="text-sm font-semibold text-ocean-900">
                               {definition.label}
                             </div>
-                            <p className="mt-1 text-xs text-graystone-500">{definition.description}</p>
+                            <p className="mt-1 text-xs text-graystone-500">
+                              {definition.description}
+                            </p>
                           </div>
                           <Badge variant={SOURCE_VARIANTS[metric?.source || 'manual']}>
                             {metric?.source || 'manual'}

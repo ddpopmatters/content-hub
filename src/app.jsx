@@ -431,8 +431,12 @@ function ContentDashboard() {
     const [serverEntries, serverIdeas, serverGuidelines, serverUsers] = await Promise.all([
       window.api.listEntries().catch(() => []),
       wantsIdeas ? window.api.listIdeas().catch(() => []) : Promise.resolve([]),
-      window.api.getGuidelines ? window.api.getGuidelines().catch(() => null) : Promise.resolve(null),
-      wantsUsers && window.api.listUsers ? window.api.listUsers().catch(() => []) : Promise.resolve([]),
+      window.api.getGuidelines
+        ? window.api.getGuidelines().catch(() => null)
+        : Promise.resolve(null),
+      wantsUsers && window.api.listUsers
+        ? window.api.listUsers().catch(() => [])
+        : Promise.resolve([]),
     ]);
     return { serverEntries, serverIdeas, serverGuidelines, serverUsers };
   }, [canUseIdeas, currentUserIsAdmin]);
@@ -689,10 +693,7 @@ function ContentDashboard() {
     [buildEntryPrefillFromRequest, closeEntry, pushSyncToast, updateContentRequestStatus],
   );
 
-  const handleEntryFormSubmit = useCallback(
-    (payload) => addEntry(payload),
-    [addEntry],
-  );
+  const handleEntryFormSubmit = useCallback((payload) => addEntry(payload), [addEntry]);
 
   const handleSignOut = () => {
     (async () => {
@@ -1234,7 +1235,9 @@ function ContentDashboard() {
                         onUpdateStatus={updateWorkflowStatus}
                         onUpdate={upsert}
                         outstandingCount={canUseApprovals ? outstandingCount : undefined}
-                        onOpenApprovals={canUseApprovals ? () => setShowApprovalsModal(true) : undefined}
+                        onOpenApprovals={
+                          canUseApprovals ? () => setShowApprovalsModal(true) : undefined
+                        }
                         openOpportunitiesCount={openOpportunities.length}
                         onOpenOpportunities={() => setShowOpportunitiesModal(true)}
                       />
@@ -1683,7 +1686,9 @@ function ContentDashboard() {
                 setCurrentView('form');
                 setPlanTab('plan');
                 closeEntry();
-                try { window.location.hash = '#create'; } catch {}
+                try {
+                  window.location.hash = '#create';
+                } catch {}
               }}
               onSwitchUser={handleSignOut}
             />

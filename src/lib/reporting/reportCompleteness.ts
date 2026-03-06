@@ -35,7 +35,9 @@ const requiredNarrativeFieldsByCadence: Record<
 };
 
 export const calculateReportCompleteness = (report: ReportingPeriod) => {
-  const metricDefs = getMetricDefinitionsForCadence(report.cadence).filter((metric) => metric.required);
+  const metricDefs = getMetricDefinitionsForCadence(report.cadence).filter(
+    (metric) => metric.required,
+  );
   const missingMetricIds = metricDefs
     .filter((metric) => isEmptyValue(report.metrics[metric.group][metric.id]?.value))
     .map((metric) => metric.id);

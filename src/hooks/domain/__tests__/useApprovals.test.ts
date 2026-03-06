@@ -29,7 +29,9 @@ describe('useApprovals', () => {
         ],
         viewerMatchesValue: (value) =>
           ['fran harrison', 'fran.harrison@example.org'].includes(
-            String(value || '').trim().toLowerCase(),
+            String(value || '')
+              .trim()
+              .toLowerCase(),
           ),
       }),
     );

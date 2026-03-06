@@ -187,11 +187,7 @@ export const PLAN_TAB_FEATURES: Record<string, string> = {
   ideas: 'ideas',
 };
 
-export const PLAN_TAB_ORDER = [
-  'plan',
-  'ideas',
-  'requests',
-] as const;
+export const PLAN_TAB_ORDER = ['plan', 'ideas', 'requests'] as const;
 
 export const WORKFLOW_STAGES = [
   'Briefing',

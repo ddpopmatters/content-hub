@@ -1,5 +1,13 @@
 import React from 'react';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from '../../components/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+} from '../../components/ui';
 import type { ReportingPeriod } from '../../types/models';
 import { ReportMetricForm } from './ReportMetricForm';
 import { ReportNarrativeForm } from './ReportNarrativeForm';
@@ -9,7 +17,11 @@ interface ReportEditorProps {
   report: ReportingPeriod | null;
   autosaving: boolean;
   onChangeMeta: (updates: Partial<ReportingPeriod>) => void;
-  onMetricChange: (group: 'tier1' | 'tier2' | 'tier3', metricId: string, value: number | null) => void;
+  onMetricChange: (
+    group: 'tier1' | 'tier2' | 'tier3',
+    metricId: string,
+    value: number | null,
+  ) => void;
   onNarrativeChange: (field: keyof ReportingPeriod['narrative'], value: string) => void;
   onQualitativeChange: (field: keyof ReportingPeriod['qualitative'], value: string) => void;
   onRecalculate: () => void;
@@ -40,7 +52,8 @@ export function ReportEditor({
         <CardContent className="px-8 py-16 text-center">
           <h3 className="text-lg font-semibold text-ocean-900">Select a reporting period</h3>
           <p className="mt-2 text-sm text-graystone-500">
-            Create a weekly, monthly, quarterly, or annual report to start collecting reporting data.
+            Create a weekly, monthly, quarterly, or annual report to start collecting reporting
+            data.
           </p>
         </CardContent>
       </Card>
@@ -70,14 +83,18 @@ export function ReportEditor({
         <CardContent className="space-y-5">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr,1fr,1fr]">
             <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-wide text-graystone-500">Label</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-graystone-500">
+                Label
+              </div>
               <Input
                 value={report.label}
                 onChange={(event) => onChangeMeta({ label: event.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-wide text-graystone-500">Start</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-graystone-500">
+                Start
+              </div>
               <Input
                 type="date"
                 value={report.startDate}
@@ -85,7 +102,9 @@ export function ReportEditor({
               />
             </div>
             <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-wide text-graystone-500">End</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-graystone-500">
+                End
+              </div>
               <Input
                 type="date"
                 value={report.endDate}
@@ -117,8 +136,8 @@ export function ReportEditor({
           </div>
           {!report.completeness.complete && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Missing metrics: {report.completeness.missingMetricIds.join(', ') || 'none'}.
-              Missing narrative: {report.completeness.missingNarrativeIds.join(', ') || 'none'}.
+              Missing metrics: {report.completeness.missingMetricIds.join(', ') || 'none'}. Missing
+              narrative: {report.completeness.missingNarrativeIds.join(', ') || 'none'}.
             </div>
           )}
         </CardContent>

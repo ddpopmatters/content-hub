@@ -28,7 +28,10 @@ export function ReportPrintView({ report }: ReportPrintViewProps): React.ReactEl
       <CardContent className="space-y-8 print:px-0">
         <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {Object.entries(report.metrics.derivedTotals).map(([key, metric]) => (
-            <div key={key} className="rounded-2xl border border-graystone-200 px-4 py-4 print:break-inside-avoid">
+            <div
+              key={key}
+              className="rounded-2xl border border-graystone-200 px-4 py-4 print:break-inside-avoid"
+            >
               <div className="text-xs uppercase tracking-wide text-graystone-500">{key}</div>
               <div className="mt-2 text-2xl font-bold text-ocean-900">{metric.value ?? '—'}</div>
             </div>
@@ -40,7 +43,10 @@ export function ReportPrintView({ report }: ReportPrintViewProps): React.ReactEl
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {Object.entries(report.narrative).map(([key, value]) =>
               value ? (
-                <div key={key} className="rounded-2xl border border-graystone-200 px-4 py-4 print:break-inside-avoid">
+                <div
+                  key={key}
+                  className="rounded-2xl border border-graystone-200 px-4 py-4 print:break-inside-avoid"
+                >
                   <div className="text-sm font-semibold text-ocean-900">{key}</div>
                   <p className="mt-2 whitespace-pre-wrap text-sm text-graystone-700">{value}</p>
                 </div>
@@ -49,7 +55,10 @@ export function ReportPrintView({ report }: ReportPrintViewProps): React.ReactEl
             {Object.entries(report.qualitative)
               .filter(([_key, value]) => typeof value === 'string' && value)
               .map(([key, value]) => (
-                <div key={key} className="rounded-2xl border border-graystone-200 px-4 py-4 print:break-inside-avoid">
+                <div
+                  key={key}
+                  className="rounded-2xl border border-graystone-200 px-4 py-4 print:break-inside-avoid"
+                >
                   <div className="text-sm font-semibold text-ocean-900">{key}</div>
                   <p className="mt-2 whitespace-pre-wrap text-sm text-graystone-700">
                     {value as string}
@@ -64,7 +73,10 @@ export function ReportPrintView({ report }: ReportPrintViewProps): React.ReactEl
             <h3 className="mb-3 text-lg font-semibold text-ocean-900">Top content</h3>
             <div className="space-y-3">
               {report.qualitative.topPerformers.map((item) => (
-                <div key={item.entryId} className="rounded-2xl border border-graystone-200 px-4 py-4 print:break-inside-avoid">
+                <div
+                  key={item.entryId}
+                  className="rounded-2xl border border-graystone-200 px-4 py-4 print:break-inside-avoid"
+                >
                   <div className="text-sm font-semibold text-ocean-900">{item.caption}</div>
                   <div className="mt-1 text-xs text-graystone-500">
                     {item.date} • {item.platforms.join(', ')}
@@ -80,7 +92,10 @@ export function ReportPrintView({ report }: ReportPrintViewProps): React.ReactEl
             <h3 className="mb-3 text-lg font-semibold text-ocean-900">Bottom content</h3>
             <div className="space-y-3">
               {report.qualitative.bottomPerformers.map((item) => (
-                <div key={item.entryId} className="rounded-2xl border border-graystone-200 px-4 py-4 print:break-inside-avoid">
+                <div
+                  key={item.entryId}
+                  className="rounded-2xl border border-graystone-200 px-4 py-4 print:break-inside-avoid"
+                >
                   <div className="text-sm font-semibold text-ocean-900">{item.caption}</div>
                   <div className="mt-1 text-xs text-graystone-500">
                     {item.date} • {item.platforms.join(', ')}

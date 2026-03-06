@@ -891,9 +891,7 @@ export function CalendarView({
                     <div>
                       <div className="text-base font-semibold text-ocean-900">Opportunities</div>
                       <p className="text-xs text-graystone-500">
-                        {openOpportunitiesCount
-                          ? `${openOpportunitiesCount} open`
-                          : 'None open'}
+                        {openOpportunitiesCount ? `${openOpportunitiesCount} open` : 'None open'}
                       </p>
                     </div>
                     {!!openOpportunitiesCount && (

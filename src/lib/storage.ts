@@ -175,7 +175,9 @@ export const loadReportingPeriods = (): ReportingPeriod[] => {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed)
-      ? (parsed as ReportingPeriod[]).sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''))
+      ? (parsed as ReportingPeriod[]).sort((a, b) =>
+          (b.startDate || '').localeCompare(a.startDate || ''),
+        )
       : [];
   } catch (error) {
     console.warn('Failed to load reporting periods', error);

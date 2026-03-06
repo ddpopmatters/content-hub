@@ -36,7 +36,9 @@ export function ReportingWorkspace({
   const [selectedReportId, setSelectedReportId] = useState<string | null>(
     reportingPeriods[0]?.id || null,
   );
-  const [draftReport, setDraftReport] = useState<ReportingPeriod | null>(reportingPeriods[0] || null);
+  const [draftReport, setDraftReport] = useState<ReportingPeriod | null>(
+    reportingPeriods[0] || null,
+  );
   const [dirty, setDirty] = useState(false);
   const [autosaving, setAutosaving] = useState(false);
 
@@ -142,18 +144,23 @@ export function ReportingWorkspace({
         onOpenImport={onOpenImport}
         onMarkReady={() => {
           if (!draftReport) return;
-          const completeDraft = { ...draftReport, completeness: calculateReportCompleteness(draftReport) };
+          const completeDraft = {
+            ...draftReport,
+            completeness: calculateReportCompleteness(draftReport),
+          };
           if (!completeDraft.completeness.complete) {
             setDraftReport(completeDraft);
             return;
           }
           const updated = onUpdateStatus(draftReport.id, 'Ready');
-          if (updated) setDraftReport({ ...updated, completeness: calculateReportCompleteness(updated) });
+          if (updated)
+            setDraftReport({ ...updated, completeness: calculateReportCompleteness(updated) });
         }}
         onPublish={() => {
           if (!draftReport) return;
           const updated = onUpdateStatus(draftReport.id, 'Published');
-          if (updated) setDraftReport({ ...updated, completeness: calculateReportCompleteness(updated) });
+          if (updated)
+            setDraftReport({ ...updated, completeness: calculateReportCompleteness(updated) });
         }}
         onPrint={() => printReportingPeriod(draftReport)}
       />

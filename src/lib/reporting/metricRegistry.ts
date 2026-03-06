@@ -275,46 +275,146 @@ export const REPORT_QUALITATIVE_FIELDS: Record<
   { id: string; label: string; description: string }[]
 > = {
   Weekly: [
-    { id: 'wins', label: 'Wins this week', description: 'Short summary of wins or positive movement.' },
+    {
+      id: 'wins',
+      label: 'Wins this week',
+      description: 'Short summary of wins or positive movement.',
+    },
     { id: 'risks', label: 'Risks this week', description: 'Known issues or attention points.' },
     { id: 'nextActions', label: 'Next actions', description: 'Immediate next steps for the team.' },
   ],
   Monthly: [
-    { id: 'executiveSummary', label: 'Executive summary', description: 'Monthly summary for leadership.' },
-    { id: 'notableMoments', label: 'Notable moments', description: 'Campaign moments, spikes, or lessons.' },
+    {
+      id: 'executiveSummary',
+      label: 'Executive summary',
+      description: 'Monthly summary for leadership.',
+    },
+    {
+      id: 'notableMoments',
+      label: 'Notable moments',
+      description: 'Campaign moments, spikes, or lessons.',
+    },
     { id: 'wins', label: 'Top wins', description: 'What worked best this month.' },
     { id: 'risks', label: 'Watchouts', description: 'Performance or delivery concerns.' },
     { id: 'nextActions', label: 'Next actions', description: 'Actions for the upcoming month.' },
-    { id: 'audienceQualityNotes', label: 'Audience quality notes', description: 'Audience fit and quality observations.' },
-    { id: 'sentimentSummary', label: 'Sentiment summary', description: 'Tone and sentiment overview.' },
-    { id: 'topContentNotes', label: 'Top content notes', description: 'Context on the strongest posts.' },
-    { id: 'bottomContentNotes', label: 'Bottom content notes', description: 'Context on underperforming posts.' },
-    { id: 'contentPillarNotes', label: 'Content pillar review', description: 'How pillar mix supported strategy.' },
-    { id: 'audienceSegmentNotes', label: 'Audience segment review', description: 'How well posts served target segments.' },
+    {
+      id: 'audienceQualityNotes',
+      label: 'Audience quality notes',
+      description: 'Audience fit and quality observations.',
+    },
+    {
+      id: 'sentimentSummary',
+      label: 'Sentiment summary',
+      description: 'Tone and sentiment overview.',
+    },
+    {
+      id: 'topContentNotes',
+      label: 'Top content notes',
+      description: 'Context on the strongest posts.',
+    },
+    {
+      id: 'bottomContentNotes',
+      label: 'Bottom content notes',
+      description: 'Context on underperforming posts.',
+    },
+    {
+      id: 'contentPillarNotes',
+      label: 'Content pillar review',
+      description: 'How pillar mix supported strategy.',
+    },
+    {
+      id: 'audienceSegmentNotes',
+      label: 'Audience segment review',
+      description: 'How well posts served target segments.',
+    },
   ],
   Quarterly: [
-    { id: 'executiveSummary', label: 'Quarterly summary', description: 'Quarterly strategic overview.' },
-    { id: 'notableMoments', label: 'Quarterly notable moments', description: 'Events, peaks, and important shifts.' },
+    {
+      id: 'executiveSummary',
+      label: 'Quarterly summary',
+      description: 'Quarterly strategic overview.',
+    },
+    {
+      id: 'notableMoments',
+      label: 'Quarterly notable moments',
+      description: 'Events, peaks, and important shifts.',
+    },
     { id: 'wins', label: 'Quarterly wins', description: 'What created the strongest result.' },
     { id: 'risks', label: 'Quarterly risks', description: 'Risks or weak spots in the quarter.' },
-    { id: 'nextActions', label: 'Strategic next actions', description: 'Actions for the next quarter.' },
-    { id: 'audienceQualityNotes', label: 'Audience quality notes', description: 'Audience fit observations and account quality.' },
-    { id: 'sentimentSummary', label: 'Sentiment summary', description: 'Quarter-level audience sentiment.' },
-    { id: 'platformHealthCommentary', label: 'Platform health commentary', description: 'Platform-by-platform health summary.' },
-    { id: 'quarterlyAuditNotes', label: '50-account audience audit', description: 'Quarterly quality audit notes.' },
-    { id: 'contentPillarNotes', label: 'Content pillar review', description: 'How pillar mix supported strategy.' },
-    { id: 'audienceSegmentNotes', label: 'Audience segment review', description: 'How well posts served target segments.' },
-    { id: 'advocacyCommentary', label: 'Advocacy commentary', description: 'Interpretation of advocacy and action data.' },
+    {
+      id: 'nextActions',
+      label: 'Strategic next actions',
+      description: 'Actions for the next quarter.',
+    },
+    {
+      id: 'audienceQualityNotes',
+      label: 'Audience quality notes',
+      description: 'Audience fit observations and account quality.',
+    },
+    {
+      id: 'sentimentSummary',
+      label: 'Sentiment summary',
+      description: 'Quarter-level audience sentiment.',
+    },
+    {
+      id: 'platformHealthCommentary',
+      label: 'Platform health commentary',
+      description: 'Platform-by-platform health summary.',
+    },
+    {
+      id: 'quarterlyAuditNotes',
+      label: '50-account audience audit',
+      description: 'Quarterly quality audit notes.',
+    },
+    {
+      id: 'contentPillarNotes',
+      label: 'Content pillar review',
+      description: 'How pillar mix supported strategy.',
+    },
+    {
+      id: 'audienceSegmentNotes',
+      label: 'Audience segment review',
+      description: 'How well posts served target segments.',
+    },
+    {
+      id: 'advocacyCommentary',
+      label: 'Advocacy commentary',
+      description: 'Interpretation of advocacy and action data.',
+    },
   ],
   Annual: [
-    { id: 'executiveSummary', label: 'Annual summary', description: 'Annual leadership-ready overview.' },
+    {
+      id: 'executiveSummary',
+      label: 'Annual summary',
+      description: 'Annual leadership-ready overview.',
+    },
     { id: 'wins', label: 'Annual wins', description: 'Major wins across the year.' },
     { id: 'risks', label: 'Annual risks', description: 'Structural or strategic risks.' },
-    { id: 'nextActions', label: 'Next-year priorities', description: 'Priorities for the next reporting cycle.' },
-    { id: 'annualReflection', label: 'Annual reflection', description: 'Overall reflection on the year.' },
-    { id: 'platformHealthCommentary', label: 'Platform health commentary', description: 'Year-end platform health summary.' },
-    { id: 'contentPillarNotes', label: 'Content pillar review', description: 'How pillar mix evolved over the year.' },
-    { id: 'audienceSegmentNotes', label: 'Audience segment review', description: 'How audience targeting evolved over the year.' },
+    {
+      id: 'nextActions',
+      label: 'Next-year priorities',
+      description: 'Priorities for the next reporting cycle.',
+    },
+    {
+      id: 'annualReflection',
+      label: 'Annual reflection',
+      description: 'Overall reflection on the year.',
+    },
+    {
+      id: 'platformHealthCommentary',
+      label: 'Platform health commentary',
+      description: 'Year-end platform health summary.',
+    },
+    {
+      id: 'contentPillarNotes',
+      label: 'Content pillar review',
+      description: 'How pillar mix evolved over the year.',
+    },
+    {
+      id: 'audienceSegmentNotes',
+      label: 'Audience segment review',
+      description: 'How audience targeting evolved over the year.',
+    },
   ],
 };
 
@@ -330,7 +430,12 @@ export const getMetricDefinitionsForGroup = (
 export const getMetricDefinition = (metricId: string): ReportMetricDefinition | undefined =>
   REPORT_METRIC_REGISTRY.find((metric) => metric.id === metricId);
 
-export const REPORT_PLATFORM_SUMMARY_KEYS = ['posts', 'reach', 'impressions', 'engagements'] as const;
+export const REPORT_PLATFORM_SUMMARY_KEYS = [
+  'posts',
+  'reach',
+  'impressions',
+  'engagements',
+] as const;
 
 export const REPORT_DERIVED_TOTAL_KEYS = [
   'totalPosts',
