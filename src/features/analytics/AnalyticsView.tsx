@@ -213,11 +213,20 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         platforms: current.platforms.filter((platform) =>
           filterOptions.platforms.includes(platform),
         ),
+        reviewReadiness: current.reviewReadiness.filter((status) =>
+          filterOptions.reviewReadiness.includes(status),
+        ),
         campaigns: current.campaigns.filter((campaign) =>
           filterOptions.campaigns.includes(campaign),
         ),
         contentPillars: current.contentPillars.filter((pillar) =>
           filterOptions.contentPillars.includes(pillar),
+        ),
+        contentCategories: current.contentCategories.filter((category) =>
+          filterOptions.contentCategories.includes(category),
+        ),
+        responseModes: current.responseModes.filter((mode) =>
+          filterOptions.responseModes.includes(mode),
         ),
         assetTypes: current.assetTypes.filter((assetType) =>
           filterOptions.assetTypes.includes(assetType),
@@ -235,8 +244,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
   const activeFilterCount = [
     filters.platforms.length,
+    filters.reviewReadiness.length,
     filters.campaigns.length,
     filters.contentPillars.length,
+    filters.contentCategories.length,
+    filters.responseModes.length,
     filters.assetTypes.length,
     filters.authors.length,
     filters.audienceSegments.length,
@@ -253,6 +265,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   };
 
   const statusOptions = filterOptions.statuses.map((status) => ({ value: status, label: status }));
+  const readinessOptions = filterOptions.reviewReadiness.map((status) => ({
+    value: status,
+    label: status,
+  }));
   const metricOptions = filterOptions.metrics.map((metric) => ({
     value: metric.value,
     label: metric.label,
@@ -265,8 +281,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           <div className="max-w-3xl">
             <h1 className="heading-font mb-2 text-3xl font-bold">Insights</h1>
             <p className="text-ocean-100">
-              Assess performance across platform, metric, timeframe, content pillar, campaign, asset
-              type, author, audience segment, and status from one workspace.
+              Assess performance across platform, metric, timeframe, pillar, content category,
+              response mode, campaign, asset type, author, audience segment, and status from one
+              workspace.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Badge className="bg-white/15 text-white">{insights.rangeLabel}</Badge>
@@ -370,6 +387,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             />
           </div>
 
+          <div className="space-y-2">
+            <Label>Review readiness</Label>
+            <MultiSelect
+              placeholder="Ready and blocked"
+              value={filters.reviewReadiness}
+              onChange={(value) => updateFilter('reviewReadiness', value)}
+              options={readinessOptions}
+            />
+          </div>
+
           {filters.timePeriod === 'custom' && (
             <>
               <div className="space-y-2">
@@ -403,6 +430,32 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
               options={filterOptions.contentPillars.map((pillar) => ({
                 value: pillar,
                 label: pillar,
+              }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Content categories</Label>
+            <MultiSelect
+              placeholder="All categories"
+              value={filters.contentCategories}
+              onChange={(value) => updateFilter('contentCategories', value)}
+              options={filterOptions.contentCategories.map((category) => ({
+                value: category,
+                label: category,
+              }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Response modes</Label>
+            <MultiSelect
+              placeholder="All response modes"
+              value={filters.responseModes}
+              onChange={(value) => updateFilter('responseModes', value)}
+              options={filterOptions.responseModes.map((mode) => ({
+                value: mode,
+                label: mode,
               }))}
             />
           </div>
@@ -492,57 +545,112 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
         <TrendCard metric={filters.metric} trend={insights.trend} />
 
-        <Card className="shadow-xl">
-          <CardHeader>
-            <CardTitle className="text-xl text-ocean-900">Data readiness</CardTitle>
-            <p className="text-sm text-graystone-500">
-              Spot where missing analytics are suppressing the picture.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-2xl bg-ocean-50 p-4">
-              <div className="text-sm font-semibold text-ocean-900">
-                {insights.postsWithSelectedMetric} of {insights.totalPosts} posts have{' '}
-                {metricLabel(filters.metric).toLowerCase()} data.
+        <div className="space-y-6">
+          <Card className="shadow-xl">
+            <CardHeader>
+              <CardTitle className="text-xl text-ocean-900">Data readiness</CardTitle>
+              <p className="text-sm text-graystone-500">
+                Spot where missing analytics are suppressing the picture.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-2xl bg-ocean-50 p-4">
+                <div className="text-sm font-semibold text-ocean-900">
+                  {insights.postsWithSelectedMetric} of {insights.totalPosts} posts have{' '}
+                  {metricLabel(filters.metric).toLowerCase()} data.
+                </div>
+                <div className="mt-1 text-xs text-graystone-600">
+                  Use manual logging for one-off updates or CSV import for bulk platform exports.
+                </div>
               </div>
-              <div className="mt-1 text-xs text-graystone-600">
-                Use manual logging for one-off updates or CSV import for bulk platform exports.
-              </div>
-            </div>
 
-            <div className="space-y-2 text-sm text-graystone-600">
-              <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
-                <span>Selected metric coverage</span>
-                <span className="font-semibold text-ocean-700">
-                  {insights.coverageRate.toFixed(0)}%
-                </span>
+              <div className="space-y-2 text-sm text-graystone-600">
+                <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
+                  <span>Selected metric coverage</span>
+                  <span className="font-semibold text-ocean-700">
+                    {insights.coverageRate.toFixed(0)}%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
+                  <span>Any analytics coverage</span>
+                  <span className="font-semibold text-ocean-700">
+                    {insights.analyticsCoverageRate.toFixed(0)}%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
+                  <span>Posts without analytics</span>
+                  <span className="font-semibold text-ocean-700">
+                    {(insights.totalPosts - insights.postsWithAnyAnalytics).toLocaleString()}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
-                <span>Any analytics coverage</span>
-                <span className="font-semibold text-ocean-700">
-                  {insights.analyticsCoverageRate.toFixed(0)}%
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
-                <span>Posts without analytics</span>
-                <span className="font-semibold text-ocean-700">
-                  {(insights.totalPosts - insights.postsWithAnyAnalytics).toLocaleString()}
-                </span>
-              </div>
-            </div>
 
-            <div className="flex flex-wrap gap-2">
-              {onOpenImport ? (
-                <Button onClick={onOpenImport} variant="outline">
-                  Import CSV
-                </Button>
-              ) : null}
-              {onUpdateEntry ? (
-                <Button onClick={() => setWizardOpen(true)}>Log metrics</Button>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
+              <div className="flex flex-wrap gap-2">
+                {onOpenImport ? (
+                  <Button onClick={onOpenImport} variant="outline">
+                    Import CSV
+                  </Button>
+                ) : null}
+                {onUpdateEntry ? (
+                  <Button onClick={() => setWizardOpen(true)}>Log metrics</Button>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-xl">
+            <CardHeader>
+              <CardTitle className="text-xl text-ocean-900">Strategy compliance</CardTitle>
+              <p className="text-sm text-graystone-500">
+                Track execution quality across the active filter set, not just post performance.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-graystone-600">
+              <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
+                <span>Ready for review</span>
+                <span className="font-semibold text-ocean-700">
+                  {insights.compliance.readyForReviewCount}/{insights.compliance.totalPosts || 0}
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
+                <span>Source verified</span>
+                <span className="font-semibold text-ocean-700">
+                  {insights.compliance.sourceVerifiedRate.toFixed(0)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
+                <span>CTA defined</span>
+                <span className="font-semibold text-ocean-700">
+                  {insights.compliance.ctaRate.toFixed(0)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
+                <span>Alt text ready</span>
+                <span className="font-semibold text-ocean-700">
+                  {insights.compliance.altTextReadyRate.toFixed(0)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
+                <span>Subtitles ready</span>
+                <span className="font-semibold text-ocean-700">
+                  {insights.compliance.subtitlesReadyRate.toFixed(0)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
+                <span>UTM plan ready</span>
+                <span className="font-semibold text-ocean-700">
+                  {insights.compliance.utmReadyRate.toFixed(0)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-graystone-200 px-3 py-2">
+                <span>SEO query set</span>
+                <span className="font-semibold text-ocean-700">
+                  {insights.compliance.seoReadyRate.toFixed(0)}%
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
@@ -553,10 +661,28 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           emptyLabel="No platform performance is available for this filter set."
         />
         <BreakdownCard
+          title="Review readiness breakdown"
+          rows={insights.breakdowns.reviewReadiness}
+          metric={filters.metric}
+          emptyLabel="No entries match the current readiness filter."
+        />
+        <BreakdownCard
           title="Content pillar breakdown"
           rows={insights.breakdowns.contentPillars}
           metric={filters.metric}
           emptyLabel="No content pillars match the current filters."
+        />
+        <BreakdownCard
+          title="Content category breakdown"
+          rows={insights.breakdowns.contentCategories}
+          metric={filters.metric}
+          emptyLabel="No content categories match the current filters."
+        />
+        <BreakdownCard
+          title="Response mode breakdown"
+          rows={insights.breakdowns.responseModes}
+          metric={filters.metric}
+          emptyLabel="No response modes match the current filters."
         />
         <BreakdownCard
           title="Campaign breakdown"

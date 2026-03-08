@@ -57,6 +57,173 @@ export const CAMPAIGNS = [
 ] as const;
 export type Campaign = (typeof CAMPAIGNS)[number];
 
+export const CONTENT_CATEGORIES = [
+  'Evidence & education',
+  'Campaign & advocacy',
+  'Counter-disinformation',
+  'Community & engagement',
+  'Partner & people stories',
+  'Organisational',
+] as const;
+export type ContentCategory = (typeof CONTENT_CATEGORIES)[number];
+
+export const CONTENT_CATEGORY_TARGETS: Record<ContentCategory, number> = {
+  'Evidence & education': 30,
+  'Campaign & advocacy': 25,
+  'Counter-disinformation': 15,
+  'Community & engagement': 15,
+  'Partner & people stories': 10,
+  Organisational: 5,
+};
+
+export const RESPONSE_MODES = ['Planned', 'Reactive', 'Pre-bunk', 'Rapid response'] as const;
+export type ResponseMode = (typeof RESPONSE_MODES)[number];
+
+export const SIGN_OFF_ROUTES = [
+  'Standard scheduled content',
+  'Reactive / rapid response',
+  'Counter-disinformation / pre-bunking',
+  'Research publication content',
+  'Partner / E2P content',
+  'Coalition content',
+  'Paid social creative',
+  'Named staff content',
+  'Risk audience content',
+] as const;
+export type SignOffRoute = (typeof SIGN_OFF_ROUTES)[number];
+
+export const EXECUTION_STATUSES = ['Pending', 'Ready', 'Not needed'] as const;
+export type ExecutionStatus = (typeof EXECUTION_STATUSES)[number];
+
+export const LINK_PLACEMENTS = [
+  'First comment',
+  'Caption / body',
+  'Bio / profile',
+  'No external link',
+] as const;
+export type LinkPlacement = (typeof LINK_PLACEMENTS)[number];
+
+export const CTA_TYPES = [
+  'Read more',
+  'Donate',
+  'Sign petition',
+  'Share',
+  'Comment',
+  'Follow',
+  'Register',
+  'Partner action',
+  'No CTA',
+] as const;
+export type CtaType = (typeof CTA_TYPES)[number];
+
+export interface SignOffRouteRecommendationInput {
+  campaign?: string | null;
+  contentCategory?: string | null;
+  partnerOrg?: string | null;
+  responseMode?: string | null;
+}
+
+export interface ApprovalRouteTemplate {
+  route: SignOffRoute;
+  preferredCount: number;
+  matchers: string[];
+}
+
+export const recommendSignOffRoute = ({
+  campaign,
+  contentCategory,
+  partnerOrg,
+  responseMode,
+}: SignOffRouteRecommendationInput): SignOffRoute | '' => {
+  if (responseMode === 'Rapid response' || responseMode === 'Reactive') {
+    return 'Reactive / rapid response';
+  }
+  if (responseMode === 'Pre-bunk' || contentCategory === 'Counter-disinformation') {
+    return 'Counter-disinformation / pre-bunking';
+  }
+  if (campaign === 'Research Launch') {
+    return 'Research publication content';
+  }
+  if (partnerOrg && partnerOrg.trim()) {
+    return 'Partner / E2P content';
+  }
+  return 'Standard scheduled content';
+};
+
+export const APPROVAL_ROUTE_TEMPLATES: readonly ApprovalRouteTemplate[] = [
+  {
+    route: 'Standard scheduled content',
+    preferredCount: 2,
+    matchers: ['comms', 'social', 'content'],
+  },
+  {
+    route: 'Reactive / rapid response',
+    preferredCount: 2,
+    matchers: ['comms', 'social', 'campaign'],
+  },
+  {
+    route: 'Counter-disinformation / pre-bunking',
+    preferredCount: 2,
+    matchers: ['policy', 'campaign', 'comms'],
+  },
+  {
+    route: 'Research publication content',
+    preferredCount: 2,
+    matchers: ['policy', 'research', 'comms'],
+  },
+  {
+    route: 'Partner / E2P content',
+    preferredCount: 2,
+    matchers: ['campaign', 'partnership', 'comms'],
+  },
+  {
+    route: 'Coalition content',
+    preferredCount: 2,
+    matchers: ['campaign', 'advocacy', 'comms'],
+  },
+  {
+    route: 'Paid social creative',
+    preferredCount: 2,
+    matchers: ['creative', 'design', 'social'],
+  },
+  {
+    route: 'Named staff content',
+    preferredCount: 2,
+    matchers: ['comms', 'social', 'manager'],
+  },
+  {
+    route: 'Risk audience content',
+    preferredCount: 3,
+    matchers: ['policy', 'campaign', 'comms', 'manager'],
+  },
+] as const;
+
+export const recommendApproversForRoute = (
+  route: string | null | undefined,
+  approverOptions: readonly string[] = DEFAULT_APPROVERS,
+): string[] => {
+  const normalizedOptions = Array.from(
+    new Set(
+      approverOptions
+        .map((option) => (typeof option === 'string' ? option.trim() : ''))
+        .filter(Boolean),
+    ),
+  );
+  if (!normalizedOptions.length) return [];
+  const template = APPROVAL_ROUTE_TEMPLATES.find((item) => item.route === route);
+  if (!template) return normalizedOptions.slice(0, 2);
+
+  const matched = normalizedOptions.filter((option) => {
+    const lower = option.toLowerCase();
+    return template.matchers.some((matcher) => lower.includes(matcher));
+  });
+  const picks = matched.slice(0, template.preferredCount);
+  if (picks.length >= template.preferredCount) return picks;
+
+  const fallbacks = normalizedOptions.filter((option) => !picks.includes(option));
+  return [...picks, ...fallbacks.slice(0, Math.max(template.preferredCount - picks.length, 0))];
+};
+
 export const CONTENT_PILLARS = [
   'Reproductive Rights & Bodily Autonomy',
   'Population & Demographics',
@@ -184,10 +351,20 @@ export const FEATURE_OPTIONS: FeatureOption[] = [
 
 export const PLAN_TAB_FEATURES: Record<string, string> = {
   plan: 'calendar',
+  peaks: 'calendar',
+  series: 'calendar',
+  responses: 'calendar',
   ideas: 'ideas',
 };
 
-export const PLAN_TAB_ORDER = ['plan', 'ideas', 'requests'] as const;
+export const PLAN_TAB_ORDER = [
+  'plan',
+  'peaks',
+  'series',
+  'responses',
+  'ideas',
+  'requests',
+] as const;
 
 export const WORKFLOW_STAGES = [
   'Briefing',

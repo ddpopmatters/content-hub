@@ -17,6 +17,7 @@ import {
   ensureAnalytics,
   ensurePlatformCaptions,
   computeStatusDetail,
+  getWorkflowBlockers,
   getPlatformCaption,
   isImageMedia,
   determineWorkflowStatus,
@@ -26,13 +27,21 @@ import { resolveMentionCandidate, computeMentionState } from '../../lib/mentions
 import {
   ALL_PLATFORMS,
   CAMPAIGNS,
+  CONTENT_CATEGORIES,
+  CTA_TYPES,
   CONTENT_PILLARS,
   DEFAULT_APPROVERS,
   DEFAULT_USERS,
+  EXECUTION_STATUSES,
   getChecklistItemsForEntry,
   KANBAN_STATUSES,
+  LINK_PLACEMENTS,
   PRIORITY_TIERS,
   PRIORITY_TIER_BADGE_CLASSES,
+  recommendApproversForRoute,
+  recommendSignOffRoute,
+  RESPONSE_MODES,
+  SIGN_OFF_ROUTES,
 } from '../../constants';
 import {
   Modal,
@@ -138,6 +147,21 @@ export function EntryModal({
     () => (draft?.caption ? checkTerminology(draft.caption) : []),
     [draft?.caption],
   );
+  const recommendedSignOffRoute = useMemo(
+    () =>
+      recommendSignOffRoute({
+        campaign: draft?.campaign,
+        contentCategory: draft?.contentCategory,
+        partnerOrg: draft?.partnerOrg,
+        responseMode: draft?.responseMode,
+      }),
+    [draft?.campaign, draft?.contentCategory, draft?.partnerOrg, draft?.responseMode],
+  );
+  const recommendedApprovers = useMemo(
+    () =>
+      recommendApproversForRoute(draft?.signOffRoute || recommendedSignOffRoute, approverOptions),
+    [approverOptions, draft?.signOffRoute, recommendedSignOffRoute],
+  );
   const draftPlatforms = Array.isArray(draft?.platforms) ? draft.platforms : [];
   const draftPlatformsKey = draftPlatforms.join('|');
   const sanitizedSignature = entrySignature(sanitizedEntry);
@@ -165,6 +189,16 @@ export function EntryModal({
     setActiveCaptionTab('Main');
     setActivePreviewPlatform(sanitizedEntry.platforms[0] || 'Main');
   }, [sanitizedSignature]);
+
+  useEffect(() => {
+    if (!draft) return;
+    if ((draft.approvers || []).length > 0) return;
+    if (!recommendedApprovers.length) return;
+    setDraft((prev) => {
+      if (!prev || (prev.approvers || []).length > 0) return prev;
+      return normalizeEntry({ ...prev, approvers: recommendedApprovers });
+    });
+  }, [draft, recommendedApprovers]);
 
   useEffect(() => {
     if (!sanitizedEntry) return;
@@ -311,6 +345,16 @@ export function EntryModal({
       approvers: next.approvers,
       assetType: next.assetType,
       previewUrl: next.previewUrl,
+      platforms: next.platforms,
+      url: next.url,
+      firstComment: next.firstComment,
+      altTextStatus: next.altTextStatus,
+      subtitlesStatus: next.subtitlesStatus,
+      utmStatus: next.utmStatus,
+      sourceVerified: next.sourceVerified,
+      seoPrimaryQuery: next.seoPrimaryQuery,
+      linkPlacement: next.linkPlacement,
+      ctaType: next.ctaType,
     });
     next = { ...next, workflowStatus: computedStatus };
     if (next.status === 'Approved') {
@@ -579,6 +623,8 @@ export function EntryModal({
     ({ key }) => ensureChecklist(draft.checklist)[key],
   ).length;
   const checklistTotal = entryChecklistItems.length;
+  const workflowBlockers = getWorkflowBlockers(draft);
+  const canApproveReadiness = workflowBlockers.length === 0;
   const formatFriendlyDate = (value) => {
     if (!value) return 'Not set';
     const parsed = new Date(value);
@@ -683,6 +729,72 @@ export function EntryModal({
           </div>
         </div>
       </div>
+      {(draft.contentCategory ||
+        draft.responseMode ||
+        draft.contentPeak ||
+        draft.partnerOrg ||
+        draft.seriesName ||
+        draft.signOffRoute) && (
+        <div className="space-y-3">
+          <div className="text-sm font-semibold text-graystone-800">Strategy context</div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-graystone-200 bg-graystone-50 px-4 py-4">
+              <div className="flex flex-wrap gap-2">
+                {draft.contentCategory ? (
+                  <Badge variant="outline">{draft.contentCategory}</Badge>
+                ) : null}
+                {draft.responseMode ? <Badge variant="outline">{draft.responseMode}</Badge> : null}
+                {draft.contentPillar ? (
+                  <Badge variant="outline">{draft.contentPillar}</Badge>
+                ) : null}
+                {draft.campaign ? <Badge variant="outline">{draft.campaign}</Badge> : null}
+              </div>
+              {(draft.seriesName || draft.episodeNumber) && (
+                <div className="mt-3 text-sm text-graystone-700">
+                  Series: {draft.seriesName || 'Untitled'}{' '}
+                  {draft.episodeNumber ? `· Episode ${draft.episodeNumber}` : ''}
+                </div>
+              )}
+            </div>
+            <div className="rounded-2xl border border-graystone-200 bg-graystone-50 px-4 py-4 text-sm text-graystone-700">
+              <div>
+                <span className="font-semibold text-graystone-800">Peak:</span>{' '}
+                {draft.contentPeak || 'Not set'}
+              </div>
+              <div className="mt-2">
+                <span className="font-semibold text-graystone-800">Partner:</span>{' '}
+                {draft.partnerOrg || 'Not set'}
+              </div>
+              <div className="mt-2">
+                <span className="font-semibold text-graystone-800">Sign-off route:</span>{' '}
+                {draft.signOffRoute || 'Manual approvers'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="space-y-3">
+        <div className="text-sm font-semibold text-graystone-800">Execution readiness</div>
+        <div className="rounded-2xl border border-graystone-200 bg-white p-4 shadow-sm">
+          {workflowBlockers.length === 0 ? (
+            <p className="text-sm text-emerald-700">This entry is ready for review and approval.</p>
+          ) : (
+            <>
+              <p className="text-sm text-amber-700">
+                Approval is blocked until the following items are complete.
+              </p>
+              <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-graystone-700">
+                {workflowBlockers.map((item) => (
+                  <li key={item.key}>
+                    <span className="font-medium text-graystone-800">{item.label}:</span>{' '}
+                    {item.detail}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
       <div className="space-y-3">
         <div className="text-sm font-semibold text-graystone-800">Planned platforms</div>
         <div className="grid gap-4 lg:grid-cols-2">
@@ -771,7 +883,6 @@ export function EntryModal({
     </div>
   );
 
-  const canApproveAction = isApproverView && draft.status !== 'Approved';
   const canEdit = isAuthorView;
   const timelineList = Array.isArray(timelineEntries) ? timelineEntries : [];
 
@@ -847,11 +958,31 @@ export function EntryModal({
                 </FieldRow>
 
                 <FieldRow label="Approvers">
-                  <ApproverMulti
-                    value={draft.approvers || []}
-                    onChange={(value) => update('approvers', value)}
-                    options={approverOptions}
-                  />
+                  <div className="space-y-2">
+                    <ApproverMulti
+                      value={draft.approvers || []}
+                      onChange={(value) => update('approvers', value)}
+                      options={approverOptions}
+                    />
+                    <div className="flex items-center justify-between gap-3 text-xs text-graystone-500">
+                      <span>
+                        Recommended for this route:{' '}
+                        {recommendedApprovers.length
+                          ? recommendedApprovers.join(', ')
+                          : 'No approvers suggested'}
+                      </span>
+                      {JSON.stringify(draft.approvers || []) !==
+                      JSON.stringify(recommendedApprovers) ? (
+                        <button
+                          type="button"
+                          className="font-medium text-ocean-700 underline-offset-2 hover:underline"
+                          onClick={() => update('approvers', recommendedApprovers)}
+                        >
+                          Use template
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
                 </FieldRow>
 
                 <FieldRow label="Campaign">
@@ -882,6 +1013,245 @@ export function EntryModal({
                       </option>
                     ))}
                   </select>
+                </FieldRow>
+
+                <FieldRow label="Content category">
+                  <select
+                    value={draft.contentCategory || ''}
+                    onChange={(event) => update('contentCategory', event.target.value || undefined)}
+                    className={cx(selectBaseClasses, 'w-full')}
+                  >
+                    <option value="">Not tagged</option>
+                    {CONTENT_CATEGORIES.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </FieldRow>
+
+                <FieldRow label="Response mode">
+                  <select
+                    value={draft.responseMode || 'Planned'}
+                    onChange={(event) => update('responseMode', event.target.value || undefined)}
+                    className={cx(selectBaseClasses, 'w-full')}
+                  >
+                    {RESPONSE_MODES.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </FieldRow>
+
+                <FieldRow label="Sign-off route">
+                  <div className="space-y-2">
+                    <select
+                      value={draft.signOffRoute || ''}
+                      onChange={(event) => update('signOffRoute', event.target.value || undefined)}
+                      className={cx(selectBaseClasses, 'w-full')}
+                    >
+                      <option value="">Use manual approvers only</option>
+                      {SIGN_OFF_ROUTES.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex items-center justify-between gap-3 text-xs text-graystone-500">
+                      <span>
+                        Recommended from strategy metadata: {recommendedSignOffRoute || 'None'}
+                      </span>
+                      {draft.signOffRoute !== recommendedSignOffRoute ? (
+                        <button
+                          type="button"
+                          className="font-medium text-ocean-700 underline-offset-2 hover:underline"
+                          onClick={() =>
+                            update('signOffRoute', recommendedSignOffRoute || undefined)
+                          }
+                        >
+                          Use recommendation
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </FieldRow>
+
+                <FieldRow label="Content peak / moment">
+                  <Input
+                    value={draft.contentPeak || ''}
+                    onChange={(event) => update('contentPeak', event.target.value || undefined)}
+                    placeholder="World Population Day, COP, budget, research launch..."
+                  />
+                </FieldRow>
+
+                <FieldRow label="Partner organisation">
+                  <Input
+                    value={draft.partnerOrg || ''}
+                    onChange={(event) => update('partnerOrg', event.target.value || undefined)}
+                    placeholder="Partner, coalition, or programme lead"
+                  />
+                </FieldRow>
+
+                <FieldRow label="Series">
+                  <Input
+                    value={draft.seriesName || ''}
+                    onChange={(event) => update('seriesName', event.target.value || undefined)}
+                    placeholder="Rights in practice, Myth-bust Monday..."
+                  />
+                </FieldRow>
+
+                <FieldRow label="Episode number">
+                  <Input
+                    type="number"
+                    min="1"
+                    value={draft.episodeNumber ?? ''}
+                    onChange={(event) =>
+                      update(
+                        'episodeNumber',
+                        event.target.value ? Number(event.target.value) : undefined,
+                      )
+                    }
+                    placeholder="1"
+                  />
+                </FieldRow>
+
+                <FieldRow label="Origin content ID">
+                  <Input
+                    value={draft.originContentId || ''}
+                    onChange={(event) => update('originContentId', event.target.value || undefined)}
+                    placeholder="Reference the origin entry for repurposed content"
+                  />
+                </FieldRow>
+
+                <FieldRow label="Execution readiness">
+                  <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Alt text</Label>
+                        <select
+                          value={draft.altTextStatus || 'Pending'}
+                          onChange={(event) =>
+                            update('altTextStatus', event.target.value || undefined)
+                          }
+                          className={cx(selectBaseClasses, 'w-full')}
+                        >
+                          {EXECUTION_STATUSES.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Subtitles / transcript</Label>
+                        <select
+                          value={draft.subtitlesStatus || 'Pending'}
+                          onChange={(event) =>
+                            update('subtitlesStatus', event.target.value || undefined)
+                          }
+                          className={cx(selectBaseClasses, 'w-full')}
+                        >
+                          {EXECUTION_STATUSES.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>UTM plan</Label>
+                        <select
+                          value={draft.utmStatus || 'Pending'}
+                          onChange={(event) => update('utmStatus', event.target.value || undefined)}
+                          className={cx(selectBaseClasses, 'w-full')}
+                        >
+                          {EXECUTION_STATUSES.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Link placement</Label>
+                        <select
+                          value={draft.linkPlacement || ''}
+                          onChange={(event) =>
+                            update('linkPlacement', event.target.value || undefined)
+                          }
+                          className={cx(selectBaseClasses, 'w-full')}
+                        >
+                          <option value="">Not set</option>
+                          {LINK_PLACEMENTS.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>CTA type</Label>
+                        <select
+                          value={draft.ctaType || ''}
+                          onChange={(event) => update('ctaType', event.target.value || undefined)}
+                          className={cx(selectBaseClasses, 'w-full')}
+                        >
+                          <option value="">Select CTA</option>
+                          {CTA_TYPES.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>SEO primary query</Label>
+                        <Input
+                          value={draft.seoPrimaryQuery || ''}
+                          onChange={(event) =>
+                            update('seoPrimaryQuery', event.target.value || undefined)
+                          }
+                          placeholder="Primary search phrase for discovery"
+                        />
+                      </div>
+                    </div>
+
+                    <label className="flex items-start gap-3 rounded-xl border border-graystone-200 bg-graystone-50 px-3 py-3 text-sm text-graystone-700">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 rounded border-graystone-300"
+                        checked={draft.sourceVerified === true}
+                        onChange={(event) => update('sourceVerified', event.target.checked)}
+                      />
+                      <span>
+                        Source verified
+                        <span className="block text-xs text-graystone-500">
+                          Confirms facts, evidence sources, and rights checks are complete.
+                        </span>
+                      </span>
+                    </label>
+
+                    {workflowBlockers.length > 0 ? (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
+                        <div className="font-medium">Still blocking review</div>
+                        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
+                          {workflowBlockers.map((item) => (
+                            <li key={item.key}>{item.label}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-700">
+                        Ready for review.
+                      </div>
+                    )}
+                  </div>
                 </FieldRow>
 
                 <FieldRow label="Priority">
@@ -1300,8 +1670,13 @@ export function EntryModal({
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-aqua-200 bg-aqua-50 px-6 py-4">
             <div className="flex flex-wrap items-center gap-3">
-              {canApproveAction ? (
-                <Button variant="outline" onClick={() => onApprove(draft.id)} className="gap-2">
+              {isApproverView && draft.status !== 'Approved' ? (
+                <Button
+                  variant="outline"
+                  onClick={() => onApprove(draft.id)}
+                  className="gap-2"
+                  disabled={!canApproveReadiness}
+                >
                   Mark as approved
                 </Button>
               ) : null}
@@ -1343,6 +1718,11 @@ export function EntryModal({
               )}
             </div>
             <div className="flex items-center gap-3">
+              {!canApproveReadiness && isApproverView && draft.status !== 'Approved' ? (
+                <span className="text-xs text-amber-700">
+                  Approval blocked until execution readiness is complete.
+                </span>
+              ) : null}
               <Button variant="ghost" onClick={onClose}>
                 {showApproverContent ? 'Close' : 'Cancel'}
               </Button>

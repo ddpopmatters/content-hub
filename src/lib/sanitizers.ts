@@ -5,12 +5,18 @@ import {
   ASSET_TYPES,
   CAMPAIGNS,
   CONTENT_PILLARS,
+  CONTENT_CATEGORIES,
+  CTA_TYPES,
+  EXECUTION_STATUSES,
   ALL_CHECKLIST_ITEMS,
   getChecklistItemsForEntry,
   KANBAN_STATUSES,
   LEGACY_STATUS_MAP,
+  LINK_PLACEMENTS,
   IDEA_TYPES,
   PRIORITY_TIERS,
+  RESPONSE_MODES,
+  SIGN_OFF_ROUTES,
   WORKFLOW_STAGES,
 } from '../constants';
 import {
@@ -204,6 +210,63 @@ export const sanitizeEntry = (entry: unknown): Entry | null => {
   base.audienceSegments = Array.isArray(raw.audienceSegments)
     ? (raw.audienceSegments as string[]).filter((s) => typeof s === 'string')
     : [];
+  base.contentCategory =
+    typeof raw.contentCategory === 'string' && isInArray(CONTENT_CATEGORIES, raw.contentCategory)
+      ? raw.contentCategory
+      : undefined;
+  base.responseMode =
+    typeof raw.responseMode === 'string' && isInArray(RESPONSE_MODES, raw.responseMode)
+      ? raw.responseMode
+      : undefined;
+  base.signOffRoute =
+    typeof raw.signOffRoute === 'string' && isInArray(SIGN_OFF_ROUTES, raw.signOffRoute)
+      ? raw.signOffRoute
+      : undefined;
+  base.contentPeak =
+    typeof raw.contentPeak === 'string' && raw.contentPeak.trim()
+      ? raw.contentPeak.trim()
+      : undefined;
+  base.seriesName =
+    typeof raw.seriesName === 'string' && raw.seriesName.trim() ? raw.seriesName.trim() : undefined;
+  base.originContentId =
+    typeof raw.originContentId === 'string' && raw.originContentId.trim()
+      ? raw.originContentId.trim()
+      : undefined;
+  base.partnerOrg =
+    typeof raw.partnerOrg === 'string' && raw.partnerOrg.trim() ? raw.partnerOrg.trim() : undefined;
+  base.altTextStatus =
+    typeof raw.altTextStatus === 'string' && isInArray(EXECUTION_STATUSES, raw.altTextStatus)
+      ? raw.altTextStatus
+      : undefined;
+  base.subtitlesStatus =
+    typeof raw.subtitlesStatus === 'string' && isInArray(EXECUTION_STATUSES, raw.subtitlesStatus)
+      ? raw.subtitlesStatus
+      : undefined;
+  base.utmStatus =
+    typeof raw.utmStatus === 'string' && isInArray(EXECUTION_STATUSES, raw.utmStatus)
+      ? raw.utmStatus
+      : undefined;
+  base.sourceVerified = typeof raw.sourceVerified === 'boolean' ? raw.sourceVerified : undefined;
+  base.seoPrimaryQuery =
+    typeof raw.seoPrimaryQuery === 'string' && raw.seoPrimaryQuery.trim()
+      ? raw.seoPrimaryQuery.trim()
+      : undefined;
+  base.linkPlacement =
+    typeof raw.linkPlacement === 'string' && isInArray(LINK_PLACEMENTS, raw.linkPlacement)
+      ? raw.linkPlacement
+      : undefined;
+  base.ctaType =
+    typeof raw.ctaType === 'string' && isInArray(CTA_TYPES, raw.ctaType) ? raw.ctaType : undefined;
+  const parsedEpisodeNumber =
+    typeof raw.episodeNumber === 'number'
+      ? raw.episodeNumber
+      : typeof raw.episodeNumber === 'string' && raw.episodeNumber.trim()
+        ? Number(raw.episodeNumber)
+        : NaN;
+  base.episodeNumber =
+    Number.isFinite(parsedEpisodeNumber) && parsedEpisodeNumber > 0
+      ? Math.round(parsedEpisodeNumber)
+      : undefined;
   base.goldenThreadPass = typeof raw.goldenThreadPass === 'boolean' ? raw.goldenThreadPass : null;
   if (raw.assessmentScores && typeof raw.assessmentScores === 'object') {
     const scores = raw.assessmentScores as Record<string, unknown>;
@@ -324,6 +387,13 @@ export const entrySignature = (entry: Partial<Entry> | null | undefined): string
       entry.contentPillar,
       entry.caption,
       entry.previewUrl,
+      entry.altTextStatus,
+      entry.subtitlesStatus,
+      entry.utmStatus,
+      entry.sourceVerified,
+      entry.seoPrimaryQuery,
+      entry.linkPlacement,
+      entry.ctaType,
       (entry.platforms || []).join('|'),
       JSON.stringify(ensureChecklist(entry.checklist)),
       (entry.comments || []).length,
@@ -335,23 +405,141 @@ export const entrySignature = (entry: Partial<Entry> | null | undefined): string
 };
 
 // Determine workflow status params
-interface DetermineWorkflowParams {
-  approvers?: string[];
-  assetType?: string;
-  previewUrl?: string;
+type DetermineWorkflowParams = Partial<
+  Pick<
+    Entry,
+    | 'approvers'
+    | 'assetType'
+    | 'previewUrl'
+    | 'platforms'
+    | 'url'
+    | 'firstComment'
+    | 'altTextStatus'
+    | 'subtitlesStatus'
+    | 'utmStatus'
+    | 'sourceVerified'
+    | 'seoPrimaryQuery'
+    | 'linkPlacement'
+    | 'ctaType'
+  >
+>;
+
+export interface WorkflowRequirement {
+  key: string;
+  label: string;
+  detail: string;
+  required: boolean;
+  complete: boolean;
 }
+
+const hasExternalLinkContent = (value: unknown): boolean => {
+  if (typeof value !== 'string') return false;
+  return /https?:\/\/|www\./i.test(value);
+};
+
+export const getExecutionRequirements = (
+  entry: Partial<Entry> | null | undefined,
+): WorkflowRequirement[] => {
+  if (!entry) return [];
+  const platforms = Array.isArray(entry.platforms) ? entry.platforms : [];
+  const assetType = typeof entry.assetType === 'string' ? entry.assetType : 'No asset';
+  const hasExternalLink =
+    hasExternalLinkContent(entry.url) ||
+    hasExternalLinkContent(entry.firstComment) ||
+    (typeof entry.linkPlacement === 'string' && entry.linkPlacement !== 'No external link');
+  const requiresAltText = assetType === 'Design' || assetType === 'Carousel';
+  const requiresSubtitles = assetType === 'Video';
+  const requiresSeoQuery = platforms.some(
+    (platform) => platform === 'LinkedIn' || platform === 'YouTube',
+  );
+  const requiresUtm = hasExternalLink && entry.linkPlacement !== 'No external link';
+
+  return [
+    {
+      key: 'sourceVerified',
+      label: 'Source verified',
+      detail: 'Verify the evidence, source ownership, and facts before review.',
+      required: true,
+      complete: entry.sourceVerified === true,
+    },
+    {
+      key: 'ctaType',
+      label: 'CTA defined',
+      detail: 'Select the intended call to action before requesting review.',
+      required: true,
+      complete: typeof entry.ctaType === 'string' && entry.ctaType.trim().length > 0,
+    },
+    {
+      key: 'linkPlacement',
+      label: 'Link placement set',
+      detail: 'Decide how the external link will be delivered for the post.',
+      required: hasExternalLink,
+      complete: typeof entry.linkPlacement === 'string' && entry.linkPlacement.trim().length > 0,
+    },
+    {
+      key: 'utmStatus',
+      label: 'UTM plan ready',
+      detail: 'Mark link tracking as ready before review when the post includes an external link.',
+      required: requiresUtm,
+      complete: entry.utmStatus === 'Ready',
+    },
+    {
+      key: 'seoPrimaryQuery',
+      label: 'SEO query set',
+      detail: 'Add the primary search phrase for LinkedIn or YouTube discovery.',
+      required: requiresSeoQuery,
+      complete:
+        typeof entry.seoPrimaryQuery === 'string' && entry.seoPrimaryQuery.trim().length > 0,
+    },
+    {
+      key: 'altTextStatus',
+      label: 'Alt text ready',
+      detail: 'Alt text is required for image and carousel content.',
+      required: requiresAltText,
+      complete: entry.altTextStatus === 'Ready',
+    },
+    {
+      key: 'subtitlesStatus',
+      label: 'Subtitles/transcript ready',
+      detail: 'Video content needs subtitles or a transcript before review.',
+      required: requiresSubtitles,
+      complete: entry.subtitlesStatus === 'Ready',
+    },
+  ];
+};
+
+export const getWorkflowBlockers = (
+  entry: Partial<Entry> | null | undefined,
+): WorkflowRequirement[] => {
+  if (!entry) return [];
+  const requirements = getExecutionRequirements(entry).filter(
+    (item) => item.required && !item.complete,
+  );
+  const needsVisual =
+    entry.assetType &&
+    entry.assetType !== 'No asset' &&
+    !(entry.previewUrl && String(entry.previewUrl).trim());
+  if (needsVisual) {
+    requirements.unshift({
+      key: 'previewUrl',
+      label: 'Asset preview uploaded',
+      detail: 'Upload or attach the visual asset before sending this for review.',
+      required: true,
+      complete: false,
+    });
+  }
+  return requirements;
+};
 
 // Determine workflow status
 export const determineWorkflowStatus = ({
   approvers = [],
-  assetType = 'No asset',
-  previewUrl = '',
+  ...entry
 }: DetermineWorkflowParams): string => {
   const hasApprovers = Array.isArray(approvers) && approvers.length > 0;
-  const needsVisual =
-    assetType && assetType !== 'No asset' && !(previewUrl && String(previewUrl).trim());
-  if (hasApprovers || needsVisual) return 'Ready for Review';
-  return 'Draft';
+  if (!hasApprovers) return 'Draft';
+  if (getWorkflowBlockers({ approvers, ...entry }).length) return 'Draft';
+  return 'Ready for Review';
 };
 
 // Fields that trigger approver re-notification when changed
@@ -365,6 +553,21 @@ export const APPROVER_ALERT_FIELDS: readonly string[] = [
   'approvalDeadline',
   'campaign',
   'contentPillar',
+  'contentCategory',
+  'responseMode',
+  'signOffRoute',
+  'contentPeak',
+  'seriesName',
+  'episodeNumber',
+  'originContentId',
+  'partnerOrg',
+  'altTextStatus',
+  'subtitlesStatus',
+  'utmStatus',
+  'sourceVerified',
+  'seoPrimaryQuery',
+  'linkPlacement',
+  'ctaType',
   'priorityTier',
   'previewUrl',
   'checklist',

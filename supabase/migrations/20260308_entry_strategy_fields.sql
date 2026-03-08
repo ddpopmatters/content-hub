@@ -1,0 +1,8 @@
+ALTER TABLE entries ADD COLUMN IF NOT EXISTS audience_segments JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE entries ADD COLUMN IF NOT EXISTS golden_thread_pass BOOLEAN;
+ALTER TABLE entries ADD COLUMN IF NOT EXISTS assessment_scores JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE entries ADD COLUMN IF NOT EXISTS influencer_id UUID;
+ALTER TABLE entries ADD COLUMN IF NOT EXISTS script TEXT;
+ALTER TABLE entries ADD COLUMN IF NOT EXISTS design_copy TEXT;
+ALTER TABLE entries ADD COLUMN IF NOT EXISTS carousel_slides JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE entries ADD COLUMN IF NOT EXISTS url TEXT;

@@ -1,5 +1,5 @@
 import { build, context } from 'esbuild';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync } from 'fs';
@@ -51,9 +51,13 @@ const config = {
 // Build Tailwind CSS
 const tailwindInput = resolve(root, 'src/styles/app.css');
 const tailwindOutput = resolve(root, 'public/css/app.css');
-const tailwindCmd = `npx @tailwindcss/cli -i "${tailwindInput}" -o "${tailwindOutput}"${isWatch ? '' : ' --minify'}`;
+const tailwindBin = resolve(root, 'node_modules/.bin/tailwindcss');
+const tailwindArgs = ['-i', tailwindInput, '-o', tailwindOutput];
+if (!isWatch) {
+  tailwindArgs.push('--minify');
+}
 console.log('Building Tailwind CSS...');
-execSync(tailwindCmd, { stdio: 'inherit', cwd: root });
+execFileSync(tailwindBin, tailwindArgs, { stdio: 'inherit', cwd: root });
 
 if (isWatch) {
   const ctx = await context(config);

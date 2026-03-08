@@ -16,6 +16,7 @@ export interface OpportunitiesViewProps {
   entries: Entry[];
   currentUser: string | null;
   onAddOpportunity: (payload: OpportunityPayload) => void;
+  onStartResponse: (opportunity: Opportunity) => void;
   onMarkActed: (id: string) => void;
   onDismiss: (id: string) => void;
   onOpenEntry: (id: string) => void;
@@ -26,6 +27,7 @@ export function OpportunitiesView({
   entries,
   currentUser,
   onAddOpportunity,
+  onStartResponse,
   onMarkActed,
   onDismiss,
   onOpenEntry,
@@ -112,6 +114,9 @@ export function OpportunitiesView({
                         </div>
 
                         <div className="flex flex-col gap-2">
+                          <Button size="sm" onClick={() => onStartResponse(opportunity)}>
+                            Start response
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"

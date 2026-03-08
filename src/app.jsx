@@ -8,6 +8,9 @@ import { AnalyticsView } from './features/analytics/AnalyticsView';
 import { DashboardView } from './features/dashboard';
 import { EngagementView } from './features/engagement/EngagementView';
 import { ReportingWorkspace } from './features/reporting';
+import { ContentPeaksView } from './features/peaks';
+import { ContentSeriesView } from './features/series';
+import { RapidResponsesView } from './features/responses';
 import { PublishSettingsPanel, PlatformConnectionsView } from './features/publishing';
 import { useApi } from './hooks/useApi';
 import { KANBAN_STATUSES, PLAN_TAB_FEATURES, PLAN_TAB_ORDER, DEFAULT_MANAGERS } from './constants';
@@ -63,6 +66,9 @@ import {
   useInfluencers,
   useEntries,
   useReporting,
+  useContentPeaks,
+  useContentSeries,
+  useRapidResponses,
 } from './hooks/domain';
 
 const { useState, useMemo, useEffect, useCallback, useRef } = React;
@@ -199,6 +205,18 @@ function ContentDashboard() {
     deleteReport,
     reset: resetReporting,
   } = reportingHook;
+  const peaksHook = useContentPeaks({ currentUser });
+  const { contentPeaks, addContentPeak, updateContentPeak, deleteContentPeak } = peaksHook;
+  const seriesHook = useContentSeries({ currentUser });
+  const { contentSeries, addContentSeries, updateContentSeries, deleteContentSeries } = seriesHook;
+  const rapidResponsesHook = useRapidResponses({ currentUser });
+  const {
+    rapidResponses,
+    addRapidResponse,
+    createRapidResponseFromOpportunity,
+    updateRapidResponse,
+    deleteRapidResponse,
+  } = rapidResponsesHook;
 
   entryCreatedSideEffectsRef.current = (entry) => {
     if (entry?._sourceIdeaId) {
@@ -693,6 +711,81 @@ function ContentDashboard() {
     [buildEntryPrefillFromRequest, closeEntry, pushSyncToast, updateContentRequestStatus],
   );
 
+  const handleCreateEntryFromPeak = useCallback(
+    (peak) => {
+      if (!peak) return;
+      setEntryFormPrefill({
+        date: peak.startDate || new Date().toISOString().slice(0, 10),
+        platforms: Array.isArray(peak.requiredPlatforms) ? peak.requiredPlatforms : [],
+        assetType:
+          Array.isArray(peak.requiredAssetTypes) && peak.requiredAssetTypes.length === 1
+            ? peak.requiredAssetTypes[0]
+            : 'No asset',
+        campaign: peak.campaign || '',
+        contentPillar: peak.contentPillar || '',
+        responseMode: peak.responseMode || 'Planned',
+        contentPeak: peak.title || '',
+        priorityTier: peak.priorityTier || 'High',
+      });
+      setCurrentView('form');
+      setPlanTab('plan');
+      closeEntry();
+      pushSyncToast('Peak loaded into Create Content form.', 'success');
+    },
+    [closeEntry, pushSyncToast],
+  );
+
+  const handleCreateEntryFromSeries = useCallback(
+    (series, nextEpisodeNumber) => {
+      if (!series) return;
+      setEntryFormPrefill({
+        platforms: Array.isArray(series.targetPlatforms) ? series.targetPlatforms : [],
+        campaign: series.campaign || '',
+        contentPillar: series.contentPillar || '',
+        responseMode: series.responseMode || 'Planned',
+        seriesName: series.title || '',
+        episodeNumber: nextEpisodeNumber,
+      });
+      setCurrentView('form');
+      setPlanTab('plan');
+      closeEntry();
+      pushSyncToast('Series loaded into Create Content form.', 'success');
+    },
+    [closeEntry, pushSyncToast],
+  );
+
+  const handleCreateEntryFromResponse = useCallback(
+    (response) => {
+      if (!response) return;
+      setEntryFormPrefill({
+        date: response.triggerDate || new Date().toISOString().slice(0, 10),
+        platforms: Array.isArray(response.targetPlatforms) ? response.targetPlatforms : [],
+        campaign: response.campaign || '',
+        contentPillar: response.contentPillar || '',
+        responseMode: response.responseMode || 'Rapid response',
+        signOffRoute: response.signOffRoute || '',
+        caption: response.notes || response.title || '',
+      });
+      setCurrentView('form');
+      setPlanTab('plan');
+      closeEntry();
+      pushSyncToast('Rapid response loaded into Create Content form.', 'success');
+    },
+    [closeEntry, pushSyncToast],
+  );
+
+  const handleStartResponseFromOpportunity = useCallback(
+    (opportunity) => {
+      if (!opportunity) return;
+      createRapidResponseFromOpportunity(opportunity);
+      setShowOpportunitiesModal(false);
+      setCurrentView('plan');
+      setPlanTab('responses');
+      pushSyncToast('Opportunity moved into Rapid Responses.', 'success');
+    },
+    [createRapidResponseFromOpportunity, pushSyncToast],
+  );
+
   const handleEntryFormSubmit = useCallback((payload) => addEntry(payload), [addEntry]);
 
   const handleSignOut = () => {
@@ -995,6 +1088,8 @@ function ContentDashboard() {
               assetGoals={assetGoals}
               engagementActivities={engagementActivities}
               engagementGoals={engagementGoals}
+              contentPeaks={contentPeaks}
+              contentSeries={contentSeries}
               pendingApprovalCount={outstandingCount}
               urgentOpportunityCount={urgentOpenCount}
               onOpenEntry={openEntry}
@@ -1071,6 +1166,9 @@ function ContentDashboard() {
                     currentUser={currentUser}
                     currentUserEmail={currentUserEmail}
                     approverOptions={approverOptions}
+                    influencers={influencers}
+                    teamsWebhookUrl={guidelines?.teamsWebhookUrl ?? ''}
+                    pushSyncToast={pushSyncToast}
                     initialValues={entryFormPrefill}
                   />
                 </div>
@@ -1150,6 +1248,48 @@ function ContentDashboard() {
                         )}
                       >
                         Calendar
+                      </Button>
+                    )}
+                    {canUseCalendar && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => setPlanTab('peaks')}
+                        className={cx(
+                          'rounded-2xl px-4 py-2 text-sm transition',
+                          planTab === 'peaks'
+                            ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                            : 'text-ocean-600 hover:bg-ocean-100',
+                        )}
+                      >
+                        Peaks
+                      </Button>
+                    )}
+                    {canUseCalendar && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => setPlanTab('series')}
+                        className={cx(
+                          'rounded-2xl px-4 py-2 text-sm transition',
+                          planTab === 'series'
+                            ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                            : 'text-ocean-600 hover:bg-ocean-100',
+                        )}
+                      >
+                        Series
+                      </Button>
+                    )}
+                    {canUseCalendar && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => setPlanTab('responses')}
+                        className={cx(
+                          'rounded-2xl px-4 py-2 text-sm transition',
+                          planTab === 'responses'
+                            ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                            : 'text-ocean-600 hover:bg-ocean-100',
+                        )}
+                      >
+                        Responses
                       </Button>
                     )}
                     {canUseIdeas && (
@@ -1240,6 +1380,58 @@ function ContentDashboard() {
                         }
                         openOpportunitiesCount={openOpportunities.length}
                         onOpenOpportunities={() => setShowOpportunitiesModal(true)}
+                      />
+                    );
+                  case 'peaks':
+                    if (!canUseCalendar) return null;
+                    return (
+                      <ContentPeaksView
+                        contentPeaks={contentPeaks}
+                        entries={entries}
+                        currentUser={currentUser}
+                        ownerOptions={managerCandidates
+                          .map((user) => user.name || user.email || '')
+                          .filter(Boolean)}
+                        onAddContentPeak={addContentPeak}
+                        onUpdateContentPeak={updateContentPeak}
+                        onDeleteContentPeak={deleteContentPeak}
+                        onOpenEntry={openEntry}
+                        onCreateEntryFromPeak={handleCreateEntryFromPeak}
+                      />
+                    );
+                  case 'series':
+                    if (!canUseCalendar) return null;
+                    return (
+                      <ContentSeriesView
+                        contentSeries={contentSeries}
+                        entries={entries}
+                        currentUser={currentUser}
+                        ownerOptions={managerCandidates
+                          .map((user) => user.name || user.email || '')
+                          .filter(Boolean)}
+                        onAddContentSeries={addContentSeries}
+                        onUpdateContentSeries={updateContentSeries}
+                        onDeleteContentSeries={deleteContentSeries}
+                        onOpenEntry={openEntry}
+                        onCreateEntryFromSeries={handleCreateEntryFromSeries}
+                      />
+                    );
+                  case 'responses':
+                    if (!canUseCalendar) return null;
+                    return (
+                      <RapidResponsesView
+                        rapidResponses={rapidResponses}
+                        opportunities={openOpportunities}
+                        entries={entries}
+                        currentUser={currentUser}
+                        ownerOptions={managerCandidates
+                          .map((user) => user.name || user.email || '')
+                          .filter(Boolean)}
+                        onAddRapidResponse={addRapidResponse}
+                        onUpdateRapidResponse={updateRapidResponse}
+                        onDeleteRapidResponse={deleteRapidResponse}
+                        onOpenEntry={openEntry}
+                        onCreateEntryFromResponse={handleCreateEntryFromResponse}
                       />
                     );
                   case 'ideas':
@@ -1706,6 +1898,7 @@ function ContentDashboard() {
               entries={entries}
               currentUser={currentUser}
               onAddOpportunity={addOpportunity}
+              onStartResponse={handleStartResponseFromOpportunity}
               onMarkActed={markOpportunityAsActed}
               onDismiss={dismissOpportunity}
               onOpenEntry={(id) => {

@@ -1,7 +1,15 @@
 // Supabase client and API wrapper - matching PM-Productivity-Tool pattern
 import type { SupabaseClient, Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { APP_CONFIG, Logger } from './config';
-import { PRIORITY_TIERS } from '../constants';
+import {
+  CONTENT_CATEGORIES,
+  CTA_TYPES,
+  EXECUTION_STATUSES,
+  LINK_PLACEMENTS,
+  PRIORITY_TIERS,
+  RESPONSE_MODES,
+  SIGN_OFF_ROUTES,
+} from '../constants';
 import { daysInMonth } from './utils';
 
 /**
@@ -77,6 +85,36 @@ const mapPriorityTierFromDb = (
 ): (typeof PRIORITY_TIERS)[number] => {
   return PRIORITY_TIERS.find((tier) => tier === priorityTier) ?? 'Medium';
 };
+
+const mapContentCategoryFromDb = (
+  value: string | null | undefined,
+): (typeof CONTENT_CATEGORIES)[number] | undefined =>
+  CONTENT_CATEGORIES.find((option) => option === value) ?? undefined;
+
+const mapResponseModeFromDb = (
+  value: string | null | undefined,
+): (typeof RESPONSE_MODES)[number] | undefined =>
+  RESPONSE_MODES.find((option) => option === value) ?? undefined;
+
+const mapSignOffRouteFromDb = (
+  value: string | null | undefined,
+): (typeof SIGN_OFF_ROUTES)[number] | undefined =>
+  SIGN_OFF_ROUTES.find((option) => option === value) ?? undefined;
+
+const mapExecutionStatusFromDb = (
+  value: string | null | undefined,
+): (typeof EXECUTION_STATUSES)[number] | undefined =>
+  EXECUTION_STATUSES.find((option) => option === value) ?? undefined;
+
+const mapLinkPlacementFromDb = (
+  value: string | null | undefined,
+): (typeof LINK_PLACEMENTS)[number] | undefined =>
+  LINK_PLACEMENTS.find((option) => option === value) ?? undefined;
+
+const mapCtaTypeFromDb = (
+  value: string | null | undefined,
+): (typeof CTA_TYPES)[number] | undefined =>
+  CTA_TYPES.find((option) => option === value) ?? undefined;
 
 const OPPORTUNITY_URGENCY_LEVELS = ['High', 'Medium', 'Low'] as const;
 const OPPORTUNITY_STATUS_VALUES = ['Open', 'Acted', 'Dismissed'] as const;
@@ -303,6 +341,21 @@ interface EntryRow {
   author: string;
   campaign: string;
   content_pillar: string;
+  content_category: string | null;
+  response_mode: string | null;
+  sign_off_route: string | null;
+  content_peak: string | null;
+  series_name: string | null;
+  episode_number: number | null;
+  origin_content_id: string | null;
+  partner_org: string | null;
+  alt_text_status: string | null;
+  subtitles_status: string | null;
+  utm_status: string | null;
+  source_verified: boolean | null;
+  seo_primary_query: string | null;
+  link_placement: string | null;
+  cta_type: string | null;
   preview_url: string;
   checklist: Record<string, boolean>;
   analytics: Record<string, unknown>;
@@ -1634,6 +1687,21 @@ export const SUPABASE_API = {
     author: row.author,
     campaign: row.campaign,
     contentPillar: row.content_pillar,
+    contentCategory: mapContentCategoryFromDb(row.content_category),
+    responseMode: mapResponseModeFromDb(row.response_mode),
+    signOffRoute: mapSignOffRouteFromDb(row.sign_off_route),
+    contentPeak: row.content_peak || undefined,
+    seriesName: row.series_name || undefined,
+    episodeNumber: row.episode_number ?? undefined,
+    originContentId: row.origin_content_id || undefined,
+    partnerOrg: row.partner_org || undefined,
+    altTextStatus: mapExecutionStatusFromDb(row.alt_text_status),
+    subtitlesStatus: mapExecutionStatusFromDb(row.subtitles_status),
+    utmStatus: mapExecutionStatusFromDb(row.utm_status),
+    sourceVerified: typeof row.source_verified === 'boolean' ? row.source_verified : undefined,
+    seoPrimaryQuery: row.seo_primary_query || undefined,
+    linkPlacement: mapLinkPlacementFromDb(row.link_placement),
+    ctaType: mapCtaTypeFromDb(row.cta_type),
     previewUrl: row.preview_url,
     checklist: row.checklist || {},
     analytics: row.analytics || {},
@@ -1674,6 +1742,21 @@ export const SUPABASE_API = {
     author_email: userEmail,
     campaign: entry.campaign,
     content_pillar: entry.contentPillar,
+    content_category: entry.contentCategory || null,
+    response_mode: entry.responseMode || null,
+    sign_off_route: entry.signOffRoute || null,
+    content_peak: entry.contentPeak || null,
+    series_name: entry.seriesName || null,
+    episode_number: entry.episodeNumber ?? null,
+    origin_content_id: entry.originContentId || null,
+    partner_org: entry.partnerOrg || null,
+    alt_text_status: entry.altTextStatus || null,
+    subtitles_status: entry.subtitlesStatus || null,
+    utm_status: entry.utmStatus || null,
+    source_verified: typeof entry.sourceVerified === 'boolean' ? entry.sourceVerified : null,
+    seo_primary_query: entry.seoPrimaryQuery || null,
+    link_placement: entry.linkPlacement || null,
+    cta_type: entry.ctaType || null,
     preview_url: entry.previewUrl,
     checklist: entry.checklist || {},
     analytics: entry.analytics || {},

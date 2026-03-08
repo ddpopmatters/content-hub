@@ -1,14 +1,22 @@
 import React from 'react';
 import { cx, ensureArray } from '../../lib/utils';
 import { selectBaseClasses, fileInputClasses } from '../../lib/styles';
-import { determineWorkflowStatus } from '../../lib/sanitizers';
+import { determineWorkflowStatus, getWorkflowBlockers } from '../../lib/sanitizers';
 import { FALLBACK_GUIDELINES } from '../../lib/guidelines';
 import {
   ALL_PLATFORMS,
   CAMPAIGNS,
+  CONTENT_CATEGORIES,
+  CTA_TYPES,
   CONTENT_PILLARS,
   DEFAULT_APPROVERS,
+  EXECUTION_STATUSES,
+  LINK_PLACEMENTS,
   PRIORITY_TIERS,
+  RESPONSE_MODES,
+  recommendApproversForRoute,
+  recommendSignOffRoute,
+  SIGN_OFF_ROUTES,
 } from '../../constants';
 import {
   Card,
@@ -48,7 +56,8 @@ export function EntryForm({
   approverOptions = DEFAULT_APPROVERS,
   influencers = [],
   onInfluencerChange,
-  teamsWebhookUrl: _teamsWebhookUrl = '',
+  teamsWebhookUrl = '',
+  pushSyncToast,
   initialValues = null,
 }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -66,8 +75,7 @@ export function EntryForm({
   const [assetType, setAssetType] = useState('No asset');
   const [script, setScript] = useState('');
   const [designCopy, setDesignCopy] = useState('');
-  const [slidesCount, setSlidesCount] = useState(2);
-  const [carouselSlides, setCarouselSlides] = useState(['', '']);
+  const [carouselSlides, setCarouselSlides] = useState(['']);
   const [firstComment, setFirstComment] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [overrideConflict, setOverrideConflict] = useState(false);
@@ -76,14 +84,30 @@ export function EntryForm({
   const [, setActivePreviewPlatform] = useState('Main');
   const [campaign, setCampaign] = useState('');
   const [contentPillar, setContentPillar] = useState('');
+  const [contentCategory, setContentCategory] = useState('');
+  const [responseMode, setResponseMode] = useState('Planned');
+  const [signOffRoute, setSignOffRoute] = useState('');
+  const [contentPeak, setContentPeak] = useState('');
+  const [seriesName, setSeriesName] = useState('');
+  const [episodeNumber, setEpisodeNumber] = useState('');
+  const [originContentId, setOriginContentId] = useState('');
+  const [partnerOrg, setPartnerOrg] = useState('');
+  const [altTextStatus, setAltTextStatus] = useState('Pending');
+  const [subtitlesStatus, setSubtitlesStatus] = useState('Pending');
+  const [utmStatus, setUtmStatus] = useState('Pending');
+  const [sourceVerified, setSourceVerified] = useState(false);
+  const [seoPrimaryQuery, setSeoPrimaryQuery] = useState('');
+  const [linkPlacement, setLinkPlacement] = useState('');
+  const [ctaType, setCtaType] = useState('');
   const [priorityTier, setPriorityTier] = useState('Medium');
   const [influencerId, setInfluencerId] = useState('');
   const [audienceSegments, setAudienceSegments] = useState([]);
   const [quickAssessment, setQuickAssessment] = useState({});
   const [goldenThread, setGoldenThread] = useState({});
   const [entryFormErrors, setEntryFormErrors] = useState([]);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [autoSignOffRoute, setAutoSignOffRoute] = useState(true);
+  const [autoApprovers, setAutoApprovers] = useState(true);
 
   useEffect(() => {
     if (!initialValues) return;
@@ -115,11 +139,9 @@ export function EntryForm({
     setScript(initialValues.script || '');
     setDesignCopy(initialValues.designCopy || '');
     if (nextSlides.length > 0) {
-      setSlidesCount(nextSlides.length);
       setCarouselSlides(nextSlides);
     } else {
-      setSlidesCount(3);
-      setCarouselSlides(['', '', '']);
+      setCarouselSlides(['']);
     }
     setFirstComment(initialValues.firstComment || '');
     setPreviewUrl(initialValues.previewUrl || '');
@@ -129,6 +151,25 @@ export function EntryForm({
     setActivePreviewPlatform(nextPlatforms[0] || 'Main');
     setCampaign(initialValues.campaign || '');
     setContentPillar(initialValues.contentPillar || '');
+    setContentCategory(initialValues.contentCategory || '');
+    setResponseMode(initialValues.responseMode || 'Planned');
+    setSignOffRoute(initialValues.signOffRoute || '');
+    setContentPeak(initialValues.contentPeak || '');
+    setSeriesName(initialValues.seriesName || '');
+    setEpisodeNumber(
+      initialValues.episodeNumber !== undefined && initialValues.episodeNumber !== null
+        ? String(initialValues.episodeNumber)
+        : '',
+    );
+    setOriginContentId(initialValues.originContentId || '');
+    setPartnerOrg(initialValues.partnerOrg || '');
+    setAltTextStatus(initialValues.altTextStatus || 'Pending');
+    setSubtitlesStatus(initialValues.subtitlesStatus || 'Pending');
+    setUtmStatus(initialValues.utmStatus || 'Pending');
+    setSourceVerified(initialValues.sourceVerified === true);
+    setSeoPrimaryQuery(initialValues.seoPrimaryQuery || '');
+    setLinkPlacement(initialValues.linkPlacement || '');
+    setCtaType(initialValues.ctaType || '');
     setPriorityTier(initialValues.priorityTier || 'Medium');
     setInfluencerId(initialValues.influencerId || '');
     setAudienceSegments(ensureArray(initialValues.audienceSegments));
@@ -136,16 +177,58 @@ export function EntryForm({
     setGoldenThread(initialValues.assessmentScores?.goldenThread ?? {});
     setEntryFormErrors([]);
     const hasAdvancedValues = !!(
-      initialValues.campaign ||
-      initialValues.contentPillar ||
+      initialValues.contentCategory ||
+      (initialValues.responseMode && initialValues.responseMode !== 'Planned') ||
+      initialValues.signOffRoute ||
+      initialValues.contentPeak ||
+      initialValues.seriesName ||
+      initialValues.episodeNumber ||
+      initialValues.originContentId ||
+      initialValues.partnerOrg ||
+      (initialValues.altTextStatus && initialValues.altTextStatus !== 'Pending') ||
+      (initialValues.subtitlesStatus && initialValues.subtitlesStatus !== 'Pending') ||
+      (initialValues.utmStatus && initialValues.utmStatus !== 'Pending') ||
+      initialValues.sourceVerified ||
+      initialValues.seoPrimaryQuery ||
+      initialValues.linkPlacement ||
+      initialValues.ctaType ||
       (initialValues.priorityTier && initialValues.priorityTier !== 'Medium') ||
       ensureArray(initialValues.audienceSegments).length > 0 ||
       initialValues.influencerId ||
-      ensureArray(initialValues.approvers).length > 0 ||
-      initialValues.approvalDeadline
+      initialValues.url ||
+      initialValues.previewUrl ||
+      Object.keys(initialValues.assessmentScores?.quick ?? {}).length > 0 ||
+      Object.keys(initialValues.assessmentScores?.goldenThread ?? {}).length > 0
     );
     setShowAdvanced(hasAdvancedValues);
+    setAutoSignOffRoute(!initialValues.signOffRoute);
+    setAutoApprovers(ensureArray(initialValues.approvers).length === 0);
   }, [initialValues]);
+
+  const recommendedSignOffRoute = useMemo(
+    () =>
+      recommendSignOffRoute({
+        campaign,
+        contentCategory,
+        partnerOrg,
+        responseMode,
+      }),
+    [campaign, contentCategory, partnerOrg, responseMode],
+  );
+  const recommendedApprovers = useMemo(
+    () => recommendApproversForRoute(signOffRoute || recommendedSignOffRoute, approverOptions),
+    [approverOptions, recommendedSignOffRoute, signOffRoute],
+  );
+
+  useEffect(() => {
+    if (!autoSignOffRoute) return;
+    setSignOffRoute(recommendedSignOffRoute);
+  }, [autoSignOffRoute, recommendedSignOffRoute]);
+
+  useEffect(() => {
+    if (!autoApprovers) return;
+    setApprovers(recommendedApprovers);
+  }, [autoApprovers, recommendedApprovers]);
 
   useEffect(() => {
     if (allPlatforms) {
@@ -160,18 +243,6 @@ export function EntryForm({
   useEffect(() => {
     onPreviewAssetType?.(assetType === 'No asset' ? null : assetType);
   }, [assetType, onPreviewAssetType]);
-
-  useEffect(() => {
-    setCarouselSlides((prev) => {
-      if (slidesCount > prev.length) {
-        return [...prev, ...Array(slidesCount - prev.length).fill('')];
-      }
-      if (slidesCount < prev.length) {
-        return prev.slice(0, slidesCount);
-      }
-      return prev;
-    });
-  }, [slidesCount]);
 
   const conflicts = useMemo(
     () =>
@@ -219,8 +290,7 @@ export function EntryForm({
     setAssetType('No asset');
     setScript('');
     setDesignCopy('');
-    setSlidesCount(2);
-    setCarouselSlides(['', '']);
+    setCarouselSlides(['']);
     setFirstComment('');
     setOverrideConflict(false);
     setPlatformCaptions({});
@@ -228,12 +298,29 @@ export function EntryForm({
     setActivePreviewPlatform('Main');
     setCampaign('');
     setContentPillar('');
+    setContentCategory('');
+    setResponseMode('Planned');
+    setSignOffRoute('');
+    setContentPeak('');
+    setSeriesName('');
+    setEpisodeNumber('');
+    setOriginContentId('');
+    setPartnerOrg('');
+    setAltTextStatus('Pending');
+    setSubtitlesStatus('Pending');
+    setUtmStatus('Pending');
+    setSourceVerified(false);
+    setSeoPrimaryQuery('');
+    setLinkPlacement('');
+    setCtaType('');
     setPriorityTier('Medium');
     setInfluencerId('');
     setAudienceSegments([]);
     setQuickAssessment({});
     setGoldenThread({});
     setEntryFormErrors([]);
+    setAutoSignOffRoute(true);
+    setAutoApprovers(true);
     onPreviewAssetType?.(null);
   };
 
@@ -256,6 +343,7 @@ export function EntryForm({
   const derivedAuthor = currentAuthorName || currentUserEmail || '';
 
   const submitEntry = () => {
+    const scheduledDate = date;
     const cleanedCaptions = {};
     platforms.forEach((platform) => {
       const value = platformCaptions[platform];
@@ -281,6 +369,21 @@ export function EntryForm({
       platformCaptions: cleanedCaptions,
       campaign: campaign || undefined,
       contentPillar: contentPillar || undefined,
+      contentCategory: contentCategory || undefined,
+      responseMode: responseMode || undefined,
+      signOffRoute: signOffRoute || undefined,
+      contentPeak: contentPeak || undefined,
+      seriesName: seriesName || undefined,
+      episodeNumber: episodeNumber ? Number(episodeNumber) : undefined,
+      originContentId: originContentId || undefined,
+      partnerOrg: partnerOrg || undefined,
+      altTextStatus: altTextStatus || undefined,
+      subtitlesStatus: subtitlesStatus || undefined,
+      utmStatus: utmStatus || undefined,
+      sourceVerified,
+      seoPrimaryQuery: seoPrimaryQuery || undefined,
+      linkPlacement: linkPlacement || undefined,
+      ctaType: ctaType || undefined,
       influencerId: influencerId || undefined,
       audienceSegments: audienceSegments.length > 0 ? audienceSegments : undefined,
       assessmentScores:
@@ -291,11 +394,24 @@ export function EntryForm({
         Object.keys(goldenThread).length === 4
           ? Object.values(goldenThread).every((v) => v === false)
           : undefined,
-      workflowStatus: determineWorkflowStatus({ approvers, assetType, previewUrl }),
+      workflowStatus: determineWorkflowStatus({
+        approvers,
+        assetType,
+        previewUrl,
+        platforms,
+        url,
+        firstComment,
+        altTextStatus,
+        subtitlesStatus,
+        utmStatus,
+        sourceVerified,
+        seoPrimaryQuery,
+        linkPlacement,
+        ctaType,
+      }),
     });
     reset();
-    setSubmitSuccess(true);
-    setTimeout(() => setSubmitSuccess(false), 2500);
+    pushSyncToast?.(`Scheduled for ${new Date(scheduledDate).toLocaleDateString()}`, 'success');
   };
 
   const handleSubmit = (event) => {
@@ -334,14 +450,62 @@ export function EntryForm({
   const currentCaptionValue =
     activeCaptionTab === 'Main' ? caption : (platformCaptions[activeCaptionTab] ?? caption);
   const advancedFilledCount = [
-    campaign,
-    contentPillar,
+    contentCategory,
+    responseMode !== 'Planned',
+    signOffRoute,
+    contentPeak,
+    seriesName,
+    episodeNumber,
+    originContentId,
+    partnerOrg,
+    altTextStatus !== 'Pending',
+    subtitlesStatus !== 'Pending',
+    utmStatus !== 'Pending',
+    sourceVerified,
+    seoPrimaryQuery,
+    linkPlacement,
+    ctaType,
     priorityTier !== 'Medium',
     audienceSegments.length > 0,
     influencerId,
-    approvers.length > 0,
-    !!approvalDeadline,
+    !!url,
+    !!previewUrl,
+    Object.keys(quickAssessment).length > 0,
+    Object.keys(goldenThread).length > 0,
   ].filter(Boolean).length;
+  const workflowBlockers = useMemo(
+    () =>
+      getWorkflowBlockers({
+        approvers,
+        assetType,
+        previewUrl,
+        platforms,
+        url,
+        firstComment,
+        altTextStatus,
+        subtitlesStatus,
+        utmStatus,
+        sourceVerified,
+        seoPrimaryQuery,
+        linkPlacement,
+        ctaType,
+      }),
+    [
+      approvers,
+      assetType,
+      previewUrl,
+      platforms,
+      url,
+      firstComment,
+      altTextStatus,
+      subtitlesStatus,
+      utmStatus,
+      sourceVerified,
+      seoPrimaryQuery,
+      linkPlacement,
+      ctaType,
+    ],
+  );
 
   const handleCaptionChange = (value) => {
     if (activeCaptionTab === 'Main') {
@@ -378,6 +542,23 @@ export function EntryForm({
     });
   };
 
+  const handleAddSlide = () => {
+    setCarouselSlides((prev) => (prev.length >= 10 ? prev : [...prev, '']));
+  };
+
+  const handleRemoveSlide = (indexToRemove) => {
+    setCarouselSlides((prev) => {
+      if (prev.length === 1) return [''];
+      return prev.filter((_, index) => index !== indexToRemove);
+    });
+  };
+
+  const handleSlideChange = (indexToUpdate, value) => {
+    setCarouselSlides((prev) =>
+      prev.map((slide, index) => (index === indexToUpdate ? value : slide)),
+    );
+  };
+
   return (
     <Card className="shadow-xl">
       <CardHeader>
@@ -400,16 +581,6 @@ export function EntryForm({
           <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
             <div className="space-y-6">
               {/* ── Core fields ─────────────────────────────────────────── */}
-
-              <div className="space-y-2">
-                <Label htmlFor="entry-date">Date</Label>
-                <Input
-                  id="entry-date"
-                  type="date"
-                  value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                />
-              </div>
 
               <div className="space-y-2">
                 <Label>Platforms</Label>
@@ -495,58 +666,9 @@ export function EntryForm({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="url">URL (optional)</Label>
-                <Input
-                  id="url"
-                  type="url"
-                  value={url}
-                  onChange={(event) => setUrl(event.target.value)}
-                  placeholder="https://example.org/article"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label>Preview asset</Label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => {
-                      const file = event.target.files && event.target.files[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        if (typeof reader.result === 'string') {
-                          setPreviewUrl(reader.result);
-                        }
-                      };
-                      reader.readAsDataURL(file);
-                    }}
-                    className={cx(fileInputClasses, 'text-xs')}
-                  />
-                  {previewUrl && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setPreviewUrl('')}
-                    >
-                      Clear
-                    </Button>
-                  )}
-                </div>
-                <Input
-                  id="previewUrl"
-                  type="url"
-                  value={previewUrl}
-                  onChange={(event) => setPreviewUrl(event.target.value)}
-                  placeholder="Or paste an image URL"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Asset type</Label>
+                <Label htmlFor="asset-type">Asset type</Label>
                 <select
+                  id="asset-type"
                   value={assetType}
                   onChange={(event) => setAssetType(event.target.value)}
                   className={cx(selectBaseClasses, 'w-full')}
@@ -584,33 +706,43 @@ export function EntryForm({
 
               {assetType === 'Carousel' && (
                 <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label>Number of slides</Label>
-                    <select
-                      value={String(slidesCount)}
-                      onChange={(event) => setSlidesCount(Number(event.target.value))}
-                      className={cx(selectBaseClasses, 'w-full')}
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <Label>Carousel slides</Label>
+                      <p className="text-xs text-graystone-500">
+                        Add up to 10 slides and remove any you do not need.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleAddSlide}
+                      disabled={carouselSlides.length >= 10}
                     >
-                      {Array.from({ length: 9 }, (_, index) => (
-                        <option key={index + 2} value={index + 2}>
-                          {index + 2}
-                        </option>
-                      ))}
-                    </select>
+                      Add slide
+                    </Button>
                   </div>
                   <div className="space-y-3">
                     {carouselSlides.map((val, idx) => (
-                      <div key={idx} className="space-y-2">
-                        <Label>Slide {idx + 1} copy</Label>
+                      <div
+                        key={idx}
+                        className="space-y-2 rounded-2xl border border-graystone-200 p-3"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <Label>Slide {idx + 1} copy</Label>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleRemoveSlide(idx)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
                         <Textarea
                           value={val}
-                          onChange={(event) =>
-                            setCarouselSlides((prev) =>
-                              prev.map((slide, slideIndex) =>
-                                slideIndex === idx ? event.target.value : slide,
-                              ),
-                            )
-                          }
+                          onChange={(event) => handleSlideChange(idx, event.target.value)}
                           placeholder={`Copy for slide ${idx + 1}`}
                         />
                       </div>
@@ -630,6 +762,100 @@ export function EntryForm({
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="entry-date">Date</Label>
+                <Input
+                  id="entry-date"
+                  type="date"
+                  value={date}
+                  onChange={(event) => setDate(event.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="approvalDeadline">Approval deadline</Label>
+                <Input
+                  id="approvalDeadline"
+                  type="datetime-local"
+                  value={approvalDeadline}
+                  onChange={(event) => setApprovalDeadline(event.target.value)}
+                  className="w-full"
+                />
+                <p className="text-xs text-graystone-500">
+                  {teamsWebhookUrl
+                    ? 'Use this when approvers and Teams reminders need a clear decision deadline.'
+                    : 'Let approvers know when you need a decision by (optional).'}
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="campaign">Campaign</Label>
+                  <select
+                    id="campaign"
+                    value={campaign}
+                    onChange={(event) => setCampaign(event.target.value)}
+                    className={cx(selectBaseClasses, 'w-full')}
+                  >
+                    <option value="">No campaign</option>
+                    {CAMPAIGNS.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="content-pillar">Content pillar</Label>
+                  <select
+                    id="content-pillar"
+                    value={contentPillar}
+                    onChange={(event) => setContentPillar(event.target.value)}
+                    className={cx(selectBaseClasses, 'w-full')}
+                  >
+                    <option value="">Not tagged</option>
+                    {CONTENT_PILLARS.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Approvers</Label>
+                <ApproverMulti
+                  value={approvers}
+                  onChange={(value) => {
+                    setAutoApprovers(false);
+                    setApprovers(value);
+                  }}
+                  options={approverOptions}
+                />
+                <div className="flex items-center justify-between gap-3 text-xs text-graystone-500">
+                  <span>
+                    Recommended for this route:{' '}
+                    {recommendedApprovers.length
+                      ? recommendedApprovers.join(', ')
+                      : 'No approvers suggested'}
+                  </span>
+                  {!autoApprovers ? (
+                    <button
+                      type="button"
+                      className="font-medium text-ocean-700 underline-offset-2 hover:underline"
+                      onClick={() => {
+                        setAutoApprovers(true);
+                        setApprovers(recommendedApprovers);
+                      }}
+                    >
+                      Use template
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
               {/* ── Advanced options ─────────────────────────────────────── */}
 
               <div className="rounded-xl border border-graystone-200">
@@ -642,7 +868,7 @@ export function EntryForm({
                   )}
                 >
                   <span className="flex items-center gap-2">
-                    Advanced options
+                    Advanced
                     {advancedFilledCount > 0 && (
                       <span className="inline-flex items-center rounded-full bg-ocean-100 px-2 py-0.5 text-xs font-semibold text-ocean-700">
                         {advancedFilledCount} set
@@ -671,14 +897,87 @@ export function EntryForm({
                 {showAdvanced && (
                   <div className="space-y-5 border-t border-graystone-100 px-4 pb-5 pt-4">
                     <div className="space-y-2">
-                      <Label>Campaign</Label>
+                      <Label htmlFor="url">URL (optional)</Label>
+                      <Input
+                        id="url"
+                        type="url"
+                        value={url}
+                        onChange={(event) => setUrl(event.target.value)}
+                        placeholder="https://example.org/article"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label>Preview asset</Label>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => {
+                            const file = event.target.files && event.target.files[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              if (typeof reader.result === 'string') {
+                                setPreviewUrl(reader.result);
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }}
+                          className={cx(fileInputClasses, 'text-xs')}
+                        />
+                        {previewUrl && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setPreviewUrl('')}
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                      <Input
+                        id="previewUrl"
+                        type="url"
+                        value={previewUrl}
+                        onChange={(event) => setPreviewUrl(event.target.value)}
+                        placeholder="Or paste an image URL"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Audience segments</Label>
+                      <AudienceSelector value={audienceSegments} onChange={setAudienceSegments} />
+                    </div>
+
+                    <div className="space-y-4">
+                      <QuickAssessment values={quickAssessment} onChange={setQuickAssessment} />
+                      <GoldenThreadCheck values={goldenThread} onChange={setGoldenThread} />
+                    </div>
+
+                    {influencers.length > 0 && (
+                      <InfluencerPicker
+                        influencers={influencers}
+                        value={influencerId}
+                        onChange={(id) => {
+                          setInfluencerId(id);
+                          onInfluencerChange?.(id);
+                        }}
+                        showOnlyActive={true}
+                        label="Influencer collaboration"
+                      />
+                    )}
+
+                    <div className="space-y-2">
+                      <Label>Content category</Label>
                       <select
-                        value={campaign}
-                        onChange={(event) => setCampaign(event.target.value)}
+                        value={contentCategory}
+                        onChange={(event) => setContentCategory(event.target.value)}
                         className={cx(selectBaseClasses, 'w-full')}
                       >
-                        <option value="">No campaign</option>
-                        {CAMPAIGNS.map((name) => (
+                        <option value="">Not tagged</option>
+                        {CONTENT_CATEGORIES.map((name) => (
                           <option key={name} value={name}>
                             {name}
                           </option>
@@ -687,19 +986,105 @@ export function EntryForm({
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Content pillar</Label>
+                      <Label>Response mode</Label>
                       <select
-                        value={contentPillar}
-                        onChange={(event) => setContentPillar(event.target.value)}
+                        value={responseMode}
+                        onChange={(event) => setResponseMode(event.target.value)}
                         className={cx(selectBaseClasses, 'w-full')}
                       >
-                        <option value="">Not tagged</option>
-                        {CONTENT_PILLARS.map((name) => (
-                          <option key={name} value={name}>
-                            {name}
+                        {RESPONSE_MODES.map((mode) => (
+                          <option key={mode} value={mode}>
+                            {mode}
                           </option>
                         ))}
                       </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Sign-off route</Label>
+                      <select
+                        value={signOffRoute}
+                        onChange={(event) => {
+                          setAutoSignOffRoute(false);
+                          setSignOffRoute(event.target.value);
+                        }}
+                        className={cx(selectBaseClasses, 'w-full')}
+                      >
+                        <option value="">Use manual approvers only</option>
+                        {SIGN_OFF_ROUTES.map((route) => (
+                          <option key={route} value={route}>
+                            {route}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex items-center justify-between gap-3 text-xs text-graystone-500">
+                        <span>
+                          Recommended from strategy metadata: {recommendedSignOffRoute || 'None'}
+                        </span>
+                        {!autoSignOffRoute && signOffRoute !== recommendedSignOffRoute ? (
+                          <button
+                            type="button"
+                            className="font-medium text-ocean-700 underline-offset-2 hover:underline"
+                            onClick={() => {
+                              setAutoSignOffRoute(true);
+                              setSignOffRoute(recommendedSignOffRoute);
+                            }}
+                          >
+                            Use recommendation
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="contentPeak">Content peak / moment</Label>
+                        <Input
+                          id="contentPeak"
+                          value={contentPeak}
+                          onChange={(event) => setContentPeak(event.target.value)}
+                          placeholder="World Population Day, COP, budget, research launch..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="partnerOrg">Partner organisation</Label>
+                        <Input
+                          id="partnerOrg"
+                          value={partnerOrg}
+                          onChange={(event) => setPartnerOrg(event.target.value)}
+                          placeholder="Partner, coalition, or programme lead"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="seriesName">Series</Label>
+                        <Input
+                          id="seriesName"
+                          value={seriesName}
+                          onChange={(event) => setSeriesName(event.target.value)}
+                          placeholder="Rights in practice, Myth-bust Monday..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="episodeNumber">Episode number</Label>
+                        <Input
+                          id="episodeNumber"
+                          type="number"
+                          min="1"
+                          value={episodeNumber}
+                          onChange={(event) => setEpisodeNumber(event.target.value)}
+                          placeholder="1"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="originContentId">Origin content ID</Label>
+                      <Input
+                        id="originContentId"
+                        value={originContentId}
+                        onChange={(event) => setOriginContentId(event.target.value)}
+                        placeholder="Use when adapting an existing hub-and-spoke entry"
+                      />
                     </div>
 
                     <div className="space-y-2">
@@ -717,45 +1102,120 @@ export function EntryForm({
                       </select>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Audience segments</Label>
-                      <AudienceSelector value={audienceSegments} onChange={setAudienceSegments} />
-                    </div>
+                    <div className="space-y-4 rounded-2xl border border-graystone-200 bg-graystone-50 p-4">
+                      <div>
+                        <div className="text-sm font-semibold text-ocean-900">
+                          Execution quality
+                        </div>
+                        <p className="mt-1 text-xs text-graystone-500">
+                          These fields drive review readiness for links, accessibility, source
+                          checking, and search intent.
+                        </p>
+                      </div>
 
-                    {influencers.length > 0 && (
-                      <InfluencerPicker
-                        influencers={influencers}
-                        value={influencerId}
-                        onChange={(id) => {
-                          setInfluencerId(id);
-                          onInfluencerChange?.(id);
-                        }}
-                        showOnlyActive={true}
-                        label="Influencer collaboration"
-                      />
-                    )}
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Alt text</Label>
+                          <select
+                            value={altTextStatus}
+                            onChange={(event) => setAltTextStatus(event.target.value)}
+                            className={cx(selectBaseClasses, 'w-full')}
+                          >
+                            {EXECUTION_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                    <div className="space-y-2">
-                      <Label>Approvers</Label>
-                      <ApproverMulti
-                        value={approvers}
-                        onChange={setApprovers}
-                        options={approverOptions}
-                      />
-                    </div>
+                        <div className="space-y-2">
+                          <Label>Subtitles / transcript</Label>
+                          <select
+                            value={subtitlesStatus}
+                            onChange={(event) => setSubtitlesStatus(event.target.value)}
+                            className={cx(selectBaseClasses, 'w-full')}
+                          >
+                            {EXECUTION_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="approvalDeadline">Approval deadline</Label>
-                      <Input
-                        id="approvalDeadline"
-                        type="datetime-local"
-                        value={approvalDeadline}
-                        onChange={(event) => setApprovalDeadline(event.target.value)}
-                        className="w-full"
-                      />
-                      <p className="text-xs text-graystone-500">
-                        Let approvers know when you need a decision by (optional).
-                      </p>
+                        <div className="space-y-2">
+                          <Label>UTM plan</Label>
+                          <select
+                            value={utmStatus}
+                            onChange={(event) => setUtmStatus(event.target.value)}
+                            className={cx(selectBaseClasses, 'w-full')}
+                          >
+                            {EXECUTION_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Link placement</Label>
+                          <select
+                            value={linkPlacement}
+                            onChange={(event) => setLinkPlacement(event.target.value)}
+                            className={cx(selectBaseClasses, 'w-full')}
+                          >
+                            <option value="">Not set</option>
+                            {LINK_PLACEMENTS.map((placement) => (
+                              <option key={placement} value={placement}>
+                                {placement}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>CTA type</Label>
+                          <select
+                            value={ctaType}
+                            onChange={(event) => setCtaType(event.target.value)}
+                            className={cx(selectBaseClasses, 'w-full')}
+                          >
+                            <option value="">Select CTA</option>
+                            {CTA_TYPES.map((type) => (
+                              <option key={type} value={type}>
+                                {type}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="seoPrimaryQuery">SEO primary query</Label>
+                          <Input
+                            id="seoPrimaryQuery"
+                            value={seoPrimaryQuery}
+                            onChange={(event) => setSeoPrimaryQuery(event.target.value)}
+                            placeholder="e.g. population decline myth, reproductive rights UK"
+                          />
+                        </div>
+                      </div>
+
+                      <label className="flex items-start gap-3 rounded-xl border border-graystone-200 bg-white px-3 py-3 text-sm text-graystone-700">
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 rounded border-graystone-300 text-ocean-600 focus:ring-ocean-500"
+                          checked={sourceVerified}
+                          onChange={(event) => setSourceVerified(event.target.checked)}
+                        />
+                        <span>
+                          Source verified
+                          <span className="block text-xs text-graystone-500">
+                            Confirms facts, evidence source, and usage rights have been checked.
+                          </span>
+                        </span>
+                      </label>
                     </div>
                   </div>
                 )}
@@ -764,17 +1224,6 @@ export function EntryForm({
 
             <PlatformGuidancePanel platforms={platforms} contentPillar={contentPillar} />
           </div>
-
-          <div className="space-y-4">
-            <QuickAssessment values={quickAssessment} onChange={setQuickAssessment} />
-            <GoldenThreadCheck values={goldenThread} onChange={setGoldenThread} />
-          </div>
-
-          {submitSuccess && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-              Post added to the plan
-            </div>
-          )}
 
           <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" className="gap-2">
@@ -789,6 +1238,19 @@ export function EntryForm({
             <p className="text-xs text-amber-700">
               Resolve the scheduling conflict above before submitting.
             </p>
+          )}
+          {approvers.length > 0 && workflowBlockers.length > 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <div className="font-medium">Review blockers</div>
+              <p className="mt-1 text-xs text-amber-700">
+                This entry can be saved, but it will stay in Draft until these are completed.
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
+                {workflowBlockers.map((item) => (
+                  <li key={item.key}>{item.label}</li>
+                ))}
+              </ul>
+            </div>
           )}
         </form>
       </CardContent>
