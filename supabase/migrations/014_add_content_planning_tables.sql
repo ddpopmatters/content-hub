@@ -1,7 +1,7 @@
 -- Content planning tables for strategic peaks, series, and rapid responses.
 
 CREATE TABLE IF NOT EXISTS content_peaks (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   start_date DATE NOT NULL,
   end_date DATE NOT NULL,
@@ -57,7 +57,7 @@ CREATE TRIGGER update_content_peaks_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS content_series (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   owner TEXT,
   status TEXT DEFAULT 'Active' CHECK (status IN ('Active', 'Paused', 'Completed')),
@@ -109,7 +109,7 @@ CREATE TRIGGER update_content_series_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS rapid_responses (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   owner TEXT,
   status TEXT DEFAULT 'New' CHECK (status IN ('New', 'Drafting', 'In Review', 'Ready to Publish', 'Closed')),
