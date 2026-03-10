@@ -3,6 +3,18 @@ import { cx, ensureArray } from '../../lib/utils';
 import { selectBaseClasses, fileInputClasses } from '../../lib/styles';
 import { determineWorkflowStatus, getWorkflowBlockers } from '../../lib/sanitizers';
 import { FALLBACK_GUIDELINES } from '../../lib/guidelines';
+import type {
+  ContentCategory,
+  CtaType,
+  Entry,
+  ExecutionStatus,
+  Guidelines,
+  Influencer,
+  LinkPlacement,
+  PriorityTier,
+  ResponseMode,
+  SignOffRoute,
+} from '../../types/models';
 import {
   ALL_PLATFORMS,
   CAMPAIGNS,
@@ -40,6 +52,31 @@ import { checkTerminology } from '../../lib/terminology';
 
 const { useState, useMemo, useEffect, useRef } = React;
 
+interface EntryFormProps {
+  onSubmit: (data: Partial<Entry>) => void;
+  existingEntries?: Entry[];
+  onPreviewAssetType?: (assetType: string | null) => void;
+  guidelines?: Guidelines;
+  currentUser?: string;
+  currentUserEmail?: string;
+  approverOptions?: readonly string[];
+  influencers?: Influencer[];
+  onInfluencerChange?: (influencerId: string | undefined) => void;
+  teamsWebhookUrl?: string;
+  pushSyncToast?: (message: string, type?: 'success' | 'warning' | 'error') => void;
+  initialValues?: Partial<Entry> | null;
+}
+
+interface EntryValidationError {
+  field: string;
+  message: string;
+}
+
+type EntryFormInitialValues = Partial<Entry> & {
+  sourceRequestId?: string;
+  sourceRequestTitle?: string;
+};
+
 const FIELD_ERROR_MESSAGES = {
   date: 'Date is required.',
   platforms: 'At least one platform is required.',
@@ -47,9 +84,9 @@ const FIELD_ERROR_MESSAGES = {
   script: 'Video script is required.',
   designCopy: 'Design copy is required.',
   carouselSlides: 'At least one carousel slide needs copy.',
-};
+} as const;
 
-const normalizeDateTimeLocal = (value) => {
+const normalizeDateTimeLocal = (value: string | null | undefined): string => {
   if (!value || typeof value !== 'string') return '';
   if (value.includes('T')) return value.slice(0, 16);
   return `${value}T17:00`;
@@ -68,73 +105,75 @@ export function EntryForm({
   teamsWebhookUrl = '',
   pushSyncToast,
   initialValues = null,
-}) {
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [approvers, setApprovers] = useState([]);
+}: EntryFormProps): React.ReactElement {
+  const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [approvers, setApprovers] = useState<string[]>([]);
   const currentAuthorName = useMemo(() => {
     if (currentUser && currentUser.trim().length) return currentUser.trim();
     if (currentUserEmail && currentUserEmail.trim().length) return currentUserEmail.trim();
     return '';
   }, [currentUser, currentUserEmail]);
-  const [platforms, setPlatforms] = useState([]);
-  const [allPlatforms, setAllPlatforms] = useState(false);
-  const [caption, setCaption] = useState('');
-  const [url, setUrl] = useState('');
-  const [approvalDeadline, setApprovalDeadline] = useState('');
-  const [assetType, setAssetType] = useState('No asset');
-  const [script, setScript] = useState('');
-  const [designCopy, setDesignCopy] = useState('');
-  const [carouselSlides, setCarouselSlides] = useState(['']);
-  const [firstComment, setFirstComment] = useState('');
-  const [previewUrl, setPreviewUrl] = useState('');
-  const [overrideConflict, setOverrideConflict] = useState(false);
-  const [platformCaptions, setPlatformCaptions] = useState({});
-  const [activeCaptionTab, setActiveCaptionTab] = useState('Main');
-  const [, setActivePreviewPlatform] = useState('Main');
-  const [campaign, setCampaign] = useState('');
-  const [contentPillar, setContentPillar] = useState('');
-  const [contentCategory, setContentCategory] = useState('');
-  const [responseMode, setResponseMode] = useState('Planned');
-  const [signOffRoute, setSignOffRoute] = useState('');
-  const [contentPeak, setContentPeak] = useState('');
-  const [seriesName, setSeriesName] = useState('');
-  const [episodeNumber, setEpisodeNumber] = useState('');
-  const [originContentId, setOriginContentId] = useState('');
-  const [partnerOrg, setPartnerOrg] = useState('');
-  const [altTextStatus, setAltTextStatus] = useState('Pending');
-  const [subtitlesStatus, setSubtitlesStatus] = useState('Pending');
-  const [utmStatus, setUtmStatus] = useState('Pending');
-  const [sourceVerified, setSourceVerified] = useState(false);
-  const [seoPrimaryQuery, setSeoPrimaryQuery] = useState('');
-  const [linkPlacement, setLinkPlacement] = useState('');
-  const [ctaType, setCtaType] = useState('');
-  const [priorityTier, setPriorityTier] = useState('Medium');
-  const [influencerId, setInfluencerId] = useState('');
-  const [audienceSegments, setAudienceSegments] = useState([]);
-  const [quickAssessment, setQuickAssessment] = useState({});
-  const [goldenThread, setGoldenThread] = useState({});
-  const [entryFormErrors, setEntryFormErrors] = useState([]);
-  const [entryFormErrorFields, setEntryFormErrorFields] = useState([]);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [autoSignOffRoute, setAutoSignOffRoute] = useState(true);
-  const [autoApprovers, setAutoApprovers] = useState(true);
-  const errorSummaryRef = useRef(null);
-  const conflictWarningRef = useRef(null);
+  const [platforms, setPlatforms] = useState<string[]>([]);
+  const [allPlatforms, setAllPlatforms] = useState<boolean>(false);
+  const [caption, setCaption] = useState<string>('');
+  const [url, setUrl] = useState<string>('');
+  const [approvalDeadline, setApprovalDeadline] = useState<string>('');
+  const [assetType, setAssetType] = useState<string>('No asset');
+  const [script, setScript] = useState<string>('');
+  const [designCopy, setDesignCopy] = useState<string>('');
+  const [carouselSlides, setCarouselSlides] = useState<string[]>(['']);
+  const [firstComment, setFirstComment] = useState<string>('');
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [overrideConflict, setOverrideConflict] = useState<boolean>(false);
+  const [platformCaptions, setPlatformCaptions] = useState<Record<string, string>>({});
+  const [activeCaptionTab, setActiveCaptionTab] = useState<string>('Main');
+  const [, setActivePreviewPlatform] = useState<string>('Main');
+  const [campaign, setCampaign] = useState<string>('');
+  const [contentPillar, setContentPillar] = useState<string>('');
+  const [contentCategory, setContentCategory] = useState<string>('');
+  const [responseMode, setResponseMode] = useState<string>('Planned');
+  const [signOffRoute, setSignOffRoute] = useState<string>('');
+  const [contentPeak, setContentPeak] = useState<string>('');
+  const [seriesName, setSeriesName] = useState<string>('');
+  const [episodeNumber, setEpisodeNumber] = useState<string>('');
+  const [originContentId, setOriginContentId] = useState<string>('');
+  const [partnerOrg, setPartnerOrg] = useState<string>('');
+  const [altTextStatus, setAltTextStatus] = useState<string>('Pending');
+  const [subtitlesStatus, setSubtitlesStatus] = useState<string>('Pending');
+  const [utmStatus, setUtmStatus] = useState<string>('Pending');
+  const [sourceVerified, setSourceVerified] = useState<boolean>(false);
+  const [seoPrimaryQuery, setSeoPrimaryQuery] = useState<string>('');
+  const [linkPlacement, setLinkPlacement] = useState<string>('');
+  const [ctaType, setCtaType] = useState<string>('');
+  const [priorityTier, setPriorityTier] = useState<string>('Medium');
+  const [influencerId, setInfluencerId] = useState<string | undefined>('');
+  const [audienceSegments, setAudienceSegments] = useState<string[]>([]);
+  const [quickAssessment, setQuickAssessment] = useState<Record<string, boolean>>({});
+  const [goldenThread, setGoldenThread] = useState<Record<string, boolean>>({});
+  const [entryFormErrors, setEntryFormErrors] = useState<string[]>([]);
+  const [entryFormErrorFields, setEntryFormErrorFields] = useState<string[]>([]);
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  const [autoSignOffRoute, setAutoSignOffRoute] = useState<boolean>(true);
+  const [autoApprovers, setAutoApprovers] = useState<boolean>(true);
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
+  const conflictWarningRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!initialValues) return;
 
+    const sourceInitialValues = initialValues as EntryFormInitialValues;
     const today = new Date().toISOString().slice(0, 10);
     const nextPlatforms = ensureArray(initialValues.platforms).filter((platform) =>
-      ALL_PLATFORMS.includes(platform),
+      ALL_PLATFORMS.includes(platform as (typeof ALL_PLATFORMS)[number]),
     );
     const nextAssetType = initialValues.assetType || 'No asset';
     const nextSlides = ensureArray(initialValues.carouselSlides).filter(
       (slide) => typeof slide === 'string',
     );
-    const nextPlatformCaptions =
-      initialValues.platformCaptions && typeof initialValues.platformCaptions === 'object'
-        ? initialValues.platformCaptions
+    const nextPlatformCaptions: Record<string, string> =
+      sourceInitialValues.platformCaptions &&
+      typeof sourceInitialValues.platformCaptions === 'object'
+        ? sourceInitialValues.platformCaptions
         : {};
 
     setDate(initialValues.date || today);
@@ -185,8 +224,10 @@ export function EntryForm({
     setPriorityTier(initialValues.priorityTier || 'Medium');
     setInfluencerId(initialValues.influencerId || '');
     setAudienceSegments(ensureArray(initialValues.audienceSegments));
-    setQuickAssessment(initialValues.assessmentScores?.quick ?? {});
-    setGoldenThread(initialValues.assessmentScores?.goldenThread ?? {});
+    setQuickAssessment((initialValues.assessmentScores?.quick ?? {}) as Record<string, boolean>);
+    setGoldenThread(
+      (initialValues.assessmentScores?.goldenThread ?? {}) as Record<string, boolean>,
+    );
     setEntryFormErrors([]);
     setEntryFormErrorFields([]);
     const hasAdvancedValues = !!(
@@ -344,8 +385,8 @@ export function EntryForm({
     onPreviewAssetType?.(null);
   };
 
-  const validateEntry = () => {
-    const errors = [];
+  const validateEntry = (): EntryValidationError[] => {
+    const errors: EntryValidationError[] = [];
     if (!date) errors.push({ field: 'date', message: FIELD_ERROR_MESSAGES.date });
     const resolvedPlatforms = allPlatforms ? [...ALL_PLATFORMS] : platforms;
     if (!resolvedPlatforms.length)
@@ -370,17 +411,21 @@ export function EntryForm({
   const resolvedPlatforms = allPlatforms ? [...ALL_PLATFORMS] : platforms;
 
   const submitEntry = () => {
+    const requestInitialValues = initialValues as EntryFormInitialValues | null;
     const scheduledDate = date;
-    const cleanedCaptions = {};
+    const cleanedCaptions: Record<string, string> = {};
     resolvedPlatforms.forEach((platform) => {
       const value = platformCaptions[platform];
       if (value && value.trim()) cleanedCaptions[platform] = value;
     });
-    onSubmit({
+    const payload: Partial<Entry> & {
+      sourceRequestId?: string;
+      sourceRequestTitle?: string;
+    } = {
       date,
       approvers,
-      sourceRequestId: initialValues?.sourceRequestId || undefined,
-      sourceRequestTitle: initialValues?.sourceRequestTitle || undefined,
+      sourceRequestId: requestInitialValues?.sourceRequestId || undefined,
+      sourceRequestTitle: requestInitialValues?.sourceRequestTitle || undefined,
       author: derivedAuthor || undefined,
       platforms: ensureArray(resolvedPlatforms),
       caption,
@@ -392,25 +437,25 @@ export function EntryForm({
       designCopy: assetType === 'Design' ? designCopy : undefined,
       carouselSlides: assetType === 'Carousel' ? carouselSlides : undefined,
       firstComment,
-      priorityTier,
+      priorityTier: priorityTier as PriorityTier,
       platformCaptions: cleanedCaptions,
       campaign: campaign || undefined,
       contentPillar: contentPillar || undefined,
-      contentCategory: contentCategory || undefined,
-      responseMode: responseMode || undefined,
-      signOffRoute: signOffRoute || undefined,
+      contentCategory: contentCategory ? (contentCategory as ContentCategory) : undefined,
+      responseMode: responseMode ? (responseMode as ResponseMode) : undefined,
+      signOffRoute: signOffRoute ? (signOffRoute as SignOffRoute) : undefined,
       contentPeak: contentPeak || undefined,
       seriesName: seriesName || undefined,
       episodeNumber: episodeNumber ? Number(episodeNumber) : undefined,
       originContentId: originContentId || undefined,
       partnerOrg: partnerOrg || undefined,
-      altTextStatus: altTextStatus || undefined,
-      subtitlesStatus: subtitlesStatus || undefined,
-      utmStatus: utmStatus || undefined,
+      altTextStatus: altTextStatus ? (altTextStatus as ExecutionStatus) : undefined,
+      subtitlesStatus: subtitlesStatus ? (subtitlesStatus as ExecutionStatus) : undefined,
+      utmStatus: utmStatus ? (utmStatus as ExecutionStatus) : undefined,
       sourceVerified,
       seoPrimaryQuery: seoPrimaryQuery || undefined,
-      linkPlacement: linkPlacement || undefined,
-      ctaType: ctaType || undefined,
+      linkPlacement: linkPlacement ? (linkPlacement as LinkPlacement) : undefined,
+      ctaType: ctaType ? (ctaType as CtaType) : undefined,
       influencerId: influencerId || undefined,
       audienceSegments: audienceSegments.length > 0 ? audienceSegments : undefined,
       assessmentScores:
@@ -428,20 +473,21 @@ export function EntryForm({
         platforms: resolvedPlatforms,
         url,
         firstComment,
-        altTextStatus,
-        subtitlesStatus,
-        utmStatus,
+        altTextStatus: altTextStatus as ExecutionStatus,
+        subtitlesStatus: subtitlesStatus as ExecutionStatus,
+        utmStatus: utmStatus as ExecutionStatus,
         sourceVerified,
         seoPrimaryQuery,
-        linkPlacement,
-        ctaType,
+        linkPlacement: (linkPlacement || undefined) as LinkPlacement | undefined,
+        ctaType: (ctaType || undefined) as CtaType | undefined,
       }),
-    });
+    };
+    onSubmit(payload);
     reset();
     pushSyncToast?.(`Scheduled for ${new Date(scheduledDate).toLocaleDateString()}`, 'success');
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const errors = validateEntry();
     if (errors.length) {
@@ -519,13 +565,13 @@ export function EntryForm({
         platforms: resolvedPlatforms,
         url,
         firstComment,
-        altTextStatus,
-        subtitlesStatus,
-        utmStatus,
+        altTextStatus: altTextStatus as ExecutionStatus,
+        subtitlesStatus: subtitlesStatus as ExecutionStatus,
+        utmStatus: utmStatus as ExecutionStatus,
         sourceVerified,
         seoPrimaryQuery,
-        linkPlacement,
-        ctaType,
+        linkPlacement: (linkPlacement || undefined) as LinkPlacement | undefined,
+        ctaType: (ctaType || undefined) as CtaType | undefined,
       }),
     [
       approvers,
@@ -544,7 +590,7 @@ export function EntryForm({
     ],
   );
 
-  const handleCaptionChange = (value) => {
+  const handleCaptionChange = (value: string) => {
     if (activeCaptionTab === 'Main') {
       setCaption(value);
     } else {
@@ -555,7 +601,7 @@ export function EntryForm({
     }
   };
 
-  const handlePlatformToggle = (platform, checked) => {
+  const handlePlatformToggle = (platform: string, checked: boolean) => {
     setPlatforms((prev) => {
       const next = checked
         ? prev.includes(platform)
@@ -583,14 +629,14 @@ export function EntryForm({
     setCarouselSlides((prev) => (prev.length >= 10 ? prev : [...prev, '']));
   };
 
-  const handleRemoveSlide = (indexToRemove) => {
+  const handleRemoveSlide = (indexToRemove: number) => {
     setCarouselSlides((prev) => {
       if (prev.length === 1) return [''];
       return prev.filter((_, index) => index !== indexToRemove);
     });
   };
 
-  const handleSlideChange = (indexToUpdate, value) => {
+  const handleSlideChange = (indexToUpdate: number, value: string) => {
     setCarouselSlides((prev) =>
       prev.map((slide, index) => (index === indexToUpdate ? value : slide)),
     );
@@ -1004,6 +1050,11 @@ export function EntryForm({
                           onChange={(event) => {
                             const file = event.target.files && event.target.files[0];
                             if (!file) return;
+                            if (file.size > 512 * 1024) {
+                              pushSyncToast?.('Preview image must be under 500 KB.', 'warning');
+                              event.target.value = '';
+                              return;
+                            }
                             const reader = new FileReader();
                             reader.onload = () => {
                               if (typeof reader.result === 'string') {
