@@ -2,9 +2,12 @@ import {
   ALL_PLATFORMS,
   ASSET_TYPES,
   CAMPAIGNS,
+  CONTENT_CATEGORIES,
   CONTENT_PILLARS,
   PLATFORM_METRICS,
+  RESPONSE_MODES,
 } from '../../constants';
+import { getExecutionRequirements, getWorkflowBlockers } from '../../lib/sanitizers';
 import type { Entry } from '../../types/models';
 
 export const TIME_PERIODS = [
@@ -27,8 +30,11 @@ export interface InsightFilters {
   customEndDate: string;
   platforms: string[];
   metric: string;
+  reviewReadiness: string[];
   campaigns: string[];
   contentPillars: string[];
+  contentCategories: string[];
+  responseModes: string[];
   assetTypes: string[];
   statuses: string[];
   authors: string[];
@@ -74,24 +80,43 @@ export interface InsightsSnapshot {
   trend: InsightTrendPoint[];
   breakdowns: {
     platforms: InsightBreakdownRow[];
+    reviewReadiness: InsightBreakdownRow[];
     contentPillars: InsightBreakdownRow[];
+    contentCategories: InsightBreakdownRow[];
+    responseModes: InsightBreakdownRow[];
     campaigns: InsightBreakdownRow[];
     assetTypes: InsightBreakdownRow[];
     authors: InsightBreakdownRow[];
     audienceSegments: InsightBreakdownRow[];
   };
+  compliance: ComplianceSnapshot;
   topPerformers: TopPerformer[];
 }
 
 export interface InsightFilterOptions {
   platforms: string[];
   metrics: InsightMetricOption[];
+  reviewReadiness: string[];
   campaigns: string[];
   contentPillars: string[];
+  contentCategories: string[];
+  responseModes: string[];
   assetTypes: string[];
   statuses: string[];
   authors: string[];
   audienceSegments: string[];
+}
+
+export interface ComplianceSnapshot {
+  totalPosts: number;
+  readyForReviewCount: number;
+  blockedCount: number;
+  sourceVerifiedRate: number;
+  ctaRate: number;
+  altTextReadyRate: number;
+  subtitlesReadyRate: number;
+  utmReadyRate: number;
+  seoReadyRate: number;
 }
 
 const BASE_METRIC_OPTIONS: InsightMetricOption[] = [
@@ -132,6 +157,7 @@ const METRIC_UNITS: Record<string, InsightMetricOption['unit']> = BASE_METRIC_OP
 );
 
 const STATUS_ORDER = ['Published', 'Approved', 'Pending', 'Draft'];
+const REVIEW_READINESS_OPTIONS = ['Ready for review', 'Blocked'];
 
 const unique = (values: string[]) => Array.from(new Set(values.filter(Boolean)));
 
@@ -205,6 +231,9 @@ const entryStatus = (entry: Entry) => {
 
 const entryPlatforms = (entry: Entry) =>
   unique([...entry.platforms, ...Object.keys((entry.analytics || {}) as Record<string, unknown>)]);
+
+const reviewReadiness = (entry: Entry) =>
+  getWorkflowBlockers(entry).length === 0 ? 'Ready for review' : 'Blocked';
 
 const scopedPlatformsForEntry = (entry: Entry, selectedPlatforms: string[]) => {
   const candidates = entryPlatforms(entry);
@@ -326,6 +355,65 @@ const buildDimensionBreakdown = (
     .filter((item): item is InsightBreakdownRow => Boolean(item))
     .sort((a, b) => b.value - a.value || b.posts - a.posts);
 
+const rateFromRequirements = (
+  entries: Entry[],
+  predicate: (entry: Entry) => boolean,
+  applicable: (entry: Entry) => boolean,
+) => {
+  const scoped = entries.filter(applicable);
+  if (!scoped.length) return 0;
+  return (scoped.filter(predicate).length / scoped.length) * 100;
+};
+
+export const buildComplianceSnapshot = (entries: Entry[]): ComplianceSnapshot => ({
+  totalPosts: entries.length,
+  readyForReviewCount: entries.filter((entry) => reviewReadiness(entry) === 'Ready for review')
+    .length,
+  blockedCount: entries.filter((entry) => reviewReadiness(entry) === 'Blocked').length,
+  sourceVerifiedRate: rateFromRequirements(
+    entries,
+    (entry) => entry.sourceVerified === true,
+    () => true,
+  ),
+  ctaRate: rateFromRequirements(
+    entries,
+    (entry) => typeof entry.ctaType === 'string' && entry.ctaType.trim().length > 0,
+    () => true,
+  ),
+  altTextReadyRate: rateFromRequirements(
+    entries,
+    (entry) => entry.altTextStatus === 'Ready',
+    (entry) =>
+      getExecutionRequirements(entry).some(
+        (requirement) => requirement.key === 'altTextStatus' && requirement.required,
+      ),
+  ),
+  subtitlesReadyRate: rateFromRequirements(
+    entries,
+    (entry) => entry.subtitlesStatus === 'Ready',
+    (entry) =>
+      getExecutionRequirements(entry).some(
+        (requirement) => requirement.key === 'subtitlesStatus' && requirement.required,
+      ),
+  ),
+  utmReadyRate: rateFromRequirements(
+    entries,
+    (entry) => entry.utmStatus === 'Ready',
+    (entry) =>
+      getExecutionRequirements(entry).some(
+        (requirement) => requirement.key === 'utmStatus' && requirement.required,
+      ),
+  ),
+  seoReadyRate: rateFromRequirements(
+    entries,
+    (entry) => typeof entry.seoPrimaryQuery === 'string' && entry.seoPrimaryQuery.trim().length > 0,
+    (entry) =>
+      getExecutionRequirements(entry).some(
+        (requirement) => requirement.key === 'seoPrimaryQuery' && requirement.required,
+      ),
+  ),
+});
+
 const getTrendGranularity = (rangeDays: number) => {
   if (rangeDays <= 14) return 'day';
   if (rangeDays <= 120) return 'week';
@@ -423,11 +511,20 @@ export const getInsightFilterOptions = (entries: Entry[]): InsightFilterOptions 
     entries.some((entry) => entryPlatforms(entry).includes(platform)),
   ),
   metrics: getMetricOptions(entries),
+  reviewReadiness: REVIEW_READINESS_OPTIONS.filter((status) =>
+    entries.some((entry) => reviewReadiness(entry) === status),
+  ),
   campaigns: unique(entries.map((entry) => entry.campaign)).filter((value) =>
     CAMPAIGNS.includes(value as never),
   ),
   contentPillars: unique(entries.map((entry) => entry.contentPillar)).filter((value) =>
     CONTENT_PILLARS.includes(value as never),
+  ),
+  contentCategories: unique(entries.map((entry) => entry.contentCategory || '')).filter((value) =>
+    CONTENT_CATEGORIES.includes(value as never),
+  ),
+  responseModes: unique(entries.map((entry) => entry.responseMode || '')).filter((value) =>
+    RESPONSE_MODES.includes(value as never),
   ),
   assetTypes: unique(entries.map((entry) => entry.assetType)).filter((value) =>
     ASSET_TYPES.includes(value as never),
@@ -457,6 +554,12 @@ export const buildInsightsSnapshot = (
     if (entryDate < start || entryDate > end) return false;
     if (filters.statuses.length && !filters.statuses.includes(entryStatus(entry))) return false;
     if (
+      filters.reviewReadiness.length &&
+      !filters.reviewReadiness.includes(reviewReadiness(entry))
+    ) {
+      return false;
+    }
+    if (
       filters.platforms.length &&
       !entryPlatforms(entry).some((platform) => filters.platforms.includes(platform))
     ) {
@@ -464,6 +567,15 @@ export const buildInsightsSnapshot = (
     }
     if (filters.campaigns.length && !filters.campaigns.includes(entry.campaign)) return false;
     if (filters.contentPillars.length && !filters.contentPillars.includes(entry.contentPillar)) {
+      return false;
+    }
+    if (
+      filters.contentCategories.length &&
+      !filters.contentCategories.includes(entry.contentCategory || '')
+    ) {
+      return false;
+    }
+    if (filters.responseModes.length && !filters.responseModes.includes(entry.responseMode || '')) {
       return false;
     }
     if (filters.assetTypes.length && !filters.assetTypes.includes(entry.assetType)) return false;
@@ -513,12 +625,33 @@ export const buildInsightsSnapshot = (
       filters.platforms,
       (entry, label) => entryPlatforms(entry).includes(label),
     ),
+    reviewReadiness: buildDimensionBreakdown(
+      filteredEntries,
+      REVIEW_READINESS_OPTIONS,
+      filters.metric,
+      filters.platforms,
+      (entry, label) => reviewReadiness(entry) === label,
+    ),
     contentPillars: buildDimensionBreakdown(
       filteredEntries,
       filterOptions.contentPillars,
       filters.metric,
       filters.platforms,
       (entry, label) => entry.contentPillar === label,
+    ),
+    contentCategories: buildDimensionBreakdown(
+      filteredEntries,
+      filterOptions.contentCategories,
+      filters.metric,
+      filters.platforms,
+      (entry, label) => entry.contentCategory === label,
+    ),
+    responseModes: buildDimensionBreakdown(
+      filteredEntries,
+      filterOptions.responseModes,
+      filters.metric,
+      filters.platforms,
+      (entry, label) => entry.responseMode === label,
     ),
     campaigns: buildDimensionBreakdown(
       filteredEntries,
@@ -572,6 +705,7 @@ export const buildInsightsSnapshot = (
     analyticsCoverageRate: totalPosts ? (postsWithAnyAnalytics / totalPosts) * 100 : 0,
     trend,
     breakdowns,
+    compliance: buildComplianceSnapshot(filteredEntries),
     topPerformers,
   };
 };
@@ -596,8 +730,11 @@ export const createDefaultInsightFilters = (entries: Entry[]): InsightFilters =>
   metric: getMetricOptions(entries).some((option) => option.value === 'engagements')
     ? 'engagements'
     : getMetricOptions(entries)[0]?.value || 'posts',
+  reviewReadiness: [],
   campaigns: [],
   contentPillars: [],
+  contentCategories: [],
+  responseModes: [],
   assetTypes: [],
   statuses: ['Approved', 'Published'],
   authors: [],

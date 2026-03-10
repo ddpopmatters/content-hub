@@ -35,6 +35,14 @@ const createEntry = (overrides: Partial<Entry>): Entry => ({
   variantOfId: overrides.variantOfId,
   variantIds: overrides.variantIds,
   relatedEntryIds: overrides.relatedEntryIds,
+  contentCategory: overrides.contentCategory,
+  responseMode: overrides.responseMode,
+  signOffRoute: overrides.signOffRoute,
+  contentPeak: overrides.contentPeak,
+  seriesName: overrides.seriesName,
+  episodeNumber: overrides.episodeNumber,
+  originContentId: overrides.originContentId,
+  partnerOrg: overrides.partnerOrg,
   audienceSegments: overrides.audienceSegments || [],
   goldenThreadPass: overrides.goldenThreadPass ?? null,
   assessmentScores: overrides.assessmentScores ?? null,
@@ -64,6 +72,8 @@ describe('analyticsUtils', () => {
         platforms: ['Instagram'],
         assetType: 'Video',
         contentPillar: 'Social Justice',
+        contentCategory: 'Counter-disinformation',
+        responseMode: 'Rapid response',
         analytics: {
           Instagram: { impressions: 100, reach: 80, likes: 10, comments: 2, shares: 1, clicks: 4 },
         },
@@ -101,8 +111,11 @@ describe('analyticsUtils', () => {
         customEndDate: '',
         platforms: ['Instagram'],
         metric: 'impressions',
+        reviewReadiness: ['Blocked'],
         campaigns: [],
         contentPillars: ['Social Justice'],
+        contentCategories: ['Counter-disinformation'],
+        responseModes: ['Rapid response'],
         assetTypes: [],
         statuses: ['Approved', 'Published'],
         authors: [],
@@ -115,7 +128,11 @@ describe('analyticsUtils', () => {
     expect(snapshot.totalMetricValue).toBe(100);
     expect(snapshot.postsWithSelectedMetric).toBe(1);
     expect(snapshot.breakdowns.platforms[0]?.label).toBe('Instagram');
+    expect(snapshot.breakdowns.reviewReadiness[0]?.label).toBe('Blocked');
     expect(snapshot.breakdowns.contentPillars[0]?.label).toBe('Social Justice');
+    expect(snapshot.breakdowns.contentCategories[0]?.label).toBe('Counter-disinformation');
+    expect(snapshot.breakdowns.responseModes[0]?.label).toBe('Rapid response');
+    expect(snapshot.compliance.blockedCount).toBe(1);
     expect(snapshot.topPerformers[0]?.entry.id).toBe('instagram-post');
   });
 
@@ -144,8 +161,11 @@ describe('analyticsUtils', () => {
         customEndDate: '',
         platforms: [],
         metric: 'engagementRate',
+        reviewReadiness: [],
         campaigns: [],
         contentPillars: [],
+        contentCategories: [],
+        responseModes: [],
         assetTypes: [],
         statuses: ['Approved', 'Published'],
         authors: [],
@@ -163,7 +183,10 @@ describe('analyticsUtils', () => {
         author: 'Dan',
         campaign: 'Awareness Day',
         contentPillar: 'Environmental Sustainability',
+        contentCategory: 'Evidence & education',
+        responseMode: 'Pre-bunk',
         assetType: 'Carousel',
+        altTextStatus: 'Pending',
         analytics: {
           Instagram: { impressions: 100, clicks: 3, saves: 2 },
         },
@@ -175,8 +198,11 @@ describe('analyticsUtils', () => {
 
     expect(options.platforms).toContain('Instagram');
     expect(options.metrics.some((metric) => metric.value === 'clicks')).toBe(true);
+    expect(options.reviewReadiness).toContain('Blocked');
     expect(options.campaigns).toContain('Awareness Day');
     expect(options.contentPillars).toContain('Environmental Sustainability');
+    expect(options.contentCategories).toContain('Evidence & education');
+    expect(options.responseModes).toContain('Pre-bunk');
     expect(options.assetTypes).toContain('Carousel');
     expect(options.authors).toContain('Dan');
     expect(options.audienceSegments).toEqual(['Donors', 'Supporters']);

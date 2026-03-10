@@ -1,8 +1,24 @@
 /**
  * Domain model types for PM Dashboard frontend
  */
-import type { PriorityTier } from '../constants';
+import type {
+  ContentCategory,
+  CtaType,
+  ExecutionStatus,
+  LinkPlacement,
+  PriorityTier,
+  ResponseMode,
+  SignOffRoute,
+} from '../constants';
 export type { PriorityTier };
+export type {
+  ContentCategory,
+  CtaType,
+  ExecutionStatus,
+  LinkPlacement,
+  ResponseMode,
+  SignOffRoute,
+};
 
 /**
  * Attachment model - file attachments with metadata
@@ -115,6 +131,21 @@ export interface Entry {
   variantIds?: string[];
   relatedEntryIds?: string[];
   // Strategy alignment fields
+  contentCategory?: ContentCategory;
+  responseMode?: ResponseMode;
+  signOffRoute?: SignOffRoute;
+  contentPeak?: string;
+  seriesName?: string;
+  episodeNumber?: number;
+  originContentId?: string;
+  partnerOrg?: string;
+  altTextStatus?: ExecutionStatus;
+  subtitlesStatus?: ExecutionStatus;
+  utmStatus?: ExecutionStatus;
+  sourceVerified?: boolean;
+  seoPrimaryQuery?: string;
+  linkPlacement?: LinkPlacement;
+  ctaType?: CtaType;
   audienceSegments?: string[];
   goldenThreadPass?: boolean | null;
   assessmentScores?: {
@@ -206,6 +237,62 @@ export interface ContentRequest {
   status: ContentRequestStatus;
   createdBy: string;
   convertedEntryId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContentPeak {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  priorityTier: PriorityTier;
+  owner: string;
+  campaign?: string;
+  contentPillar?: string;
+  responseMode?: ResponseMode;
+  requiredPlatforms: string[];
+  requiredAssetTypes: string[];
+  linkedEntryIds: string[];
+  description?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContentSeries {
+  id: string;
+  title: string;
+  owner: string;
+  status: 'Active' | 'Paused' | 'Completed';
+  targetPlatforms: string[];
+  targetEpisodeCount?: number;
+  reviewCheckpoint: number;
+  campaign?: string;
+  contentPillar?: string;
+  responseMode?: ResponseMode;
+  linkedEntryIds: string[];
+  description?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RapidResponse {
+  id: string;
+  title: string;
+  owner: string;
+  status: 'New' | 'Drafting' | 'In Review' | 'Ready to Publish' | 'Closed';
+  responseMode: Extract<ResponseMode, 'Reactive' | 'Pre-bunk' | 'Rapid response'>;
+  triggerDate: string;
+  dueAt: string;
+  signOffRoute?: SignOffRoute;
+  sourceOpportunityId?: string;
+  linkedEntryId?: string;
+  campaign?: string;
+  contentPillar?: string;
+  targetPlatforms: string[];
+  notes?: string;
   createdAt: string;
   updatedAt: string;
 }

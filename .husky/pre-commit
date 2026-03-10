@@ -1,1 +1,4 @@
-npx lint-staged
+lint-staged
+
+# Regression check (typecheck + tests + bundle size)
+bash "/Users/dan/.claude/tools/pre-commit-check.sh"

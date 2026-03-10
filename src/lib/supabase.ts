@@ -1,7 +1,15 @@
 // Supabase client and API wrapper - matching PM-Productivity-Tool pattern
 import type { SupabaseClient, Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { APP_CONFIG, Logger } from './config';
-import { PRIORITY_TIERS } from '../constants';
+import {
+  CONTENT_CATEGORIES,
+  CTA_TYPES,
+  EXECUTION_STATUSES,
+  LINK_PLACEMENTS,
+  PRIORITY_TIERS,
+  RESPONSE_MODES,
+  SIGN_OFF_ROUTES,
+} from '../constants';
 import { daysInMonth } from './utils';
 
 /**
@@ -77,6 +85,36 @@ const mapPriorityTierFromDb = (
 ): (typeof PRIORITY_TIERS)[number] => {
   return PRIORITY_TIERS.find((tier) => tier === priorityTier) ?? 'Medium';
 };
+
+const mapContentCategoryFromDb = (
+  value: string | null | undefined,
+): (typeof CONTENT_CATEGORIES)[number] | undefined =>
+  CONTENT_CATEGORIES.find((option) => option === value) ?? undefined;
+
+const mapResponseModeFromDb = (
+  value: string | null | undefined,
+): (typeof RESPONSE_MODES)[number] | undefined =>
+  RESPONSE_MODES.find((option) => option === value) ?? undefined;
+
+const mapSignOffRouteFromDb = (
+  value: string | null | undefined,
+): (typeof SIGN_OFF_ROUTES)[number] | undefined =>
+  SIGN_OFF_ROUTES.find((option) => option === value) ?? undefined;
+
+const mapExecutionStatusFromDb = (
+  value: string | null | undefined,
+): (typeof EXECUTION_STATUSES)[number] | undefined =>
+  EXECUTION_STATUSES.find((option) => option === value) ?? undefined;
+
+const mapLinkPlacementFromDb = (
+  value: string | null | undefined,
+): (typeof LINK_PLACEMENTS)[number] | undefined =>
+  LINK_PLACEMENTS.find((option) => option === value) ?? undefined;
+
+const mapCtaTypeFromDb = (
+  value: string | null | undefined,
+): (typeof CTA_TYPES)[number] | undefined =>
+  CTA_TYPES.find((option) => option === value) ?? undefined;
 
 const OPPORTUNITY_URGENCY_LEVELS = ['High', 'Medium', 'Low'] as const;
 const OPPORTUNITY_STATUS_VALUES = ['Open', 'Acted', 'Dismissed'] as const;
@@ -238,10 +276,13 @@ const mapTestingFrameworkToDb = (framework: {
 
 import type {
   Attachment,
+  ContentPeak,
   ContentRequest,
+  ContentSeries,
   Entry,
   Idea,
   Opportunity,
+  RapidResponse,
   Guidelines,
   Influencer,
   PlatformProfile,
@@ -303,6 +344,21 @@ interface EntryRow {
   author: string;
   campaign: string;
   content_pillar: string;
+  content_category: string | null;
+  response_mode: string | null;
+  sign_off_route: string | null;
+  content_peak: string | null;
+  series_name: string | null;
+  episode_number: number | null;
+  origin_content_id: string | null;
+  partner_org: string | null;
+  alt_text_status: string | null;
+  subtitles_status: string | null;
+  utm_status: string | null;
+  source_verified: boolean | null;
+  seo_primary_query: string | null;
+  link_placement: string | null;
+  cta_type: string | null;
   preview_url: string;
   checklist: Record<string, boolean>;
   analytics: Record<string, unknown>;
@@ -369,6 +425,62 @@ interface ContentRequestRow {
   created_by: string;
   created_by_email: string;
   converted_entry_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ContentPeakRow {
+  id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  priority_tier: string | null;
+  owner: string | null;
+  campaign: string | null;
+  content_pillar: string | null;
+  response_mode: string | null;
+  required_platforms: string[];
+  required_asset_types: string[];
+  linked_entry_ids: string[];
+  description: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ContentSeriesRow {
+  id: string;
+  title: string;
+  owner: string | null;
+  status: string | null;
+  target_platforms: string[];
+  target_episode_count: number | null;
+  review_checkpoint: number | null;
+  campaign: string | null;
+  content_pillar: string | null;
+  response_mode: string | null;
+  linked_entry_ids: string[];
+  description: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface RapidResponseRow {
+  id: string;
+  title: string;
+  owner: string | null;
+  status: string | null;
+  response_mode: string | null;
+  trigger_date: string | null;
+  due_at: string | null;
+  sign_off_route: string | null;
+  source_opportunity_id: string | null;
+  linked_entry_id: string | null;
+  campaign: string | null;
+  content_pillar: string | null;
+  target_platforms: string[];
+  notes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -468,6 +580,12 @@ interface PlatformProfileRow {
   handle: string;
   profile_url: string;
 }
+
+const getCurrentUserEmail = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const email = window.__currentUserEmail?.trim();
+  return email ? email : null;
+};
 
 interface InfluencerRow {
   id: string;
@@ -906,6 +1024,322 @@ export const SUPABASE_API = {
     } catch (error) {
       Logger.error(error, 'updateContentRequest');
       return null;
+    }
+  },
+
+  // ==========================================
+  // CONTENT PEAKS
+  // ==========================================
+
+  fetchContentPeaks: async (): Promise<ContentPeak[]> => {
+    await initSupabase();
+    if (!supabase) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('content_peaks')
+        .select('*')
+        .order('start_date', { ascending: true });
+
+      if (error) {
+        Logger.error(error, 'fetchContentPeaks');
+        return [];
+      }
+
+      return ((data as ContentPeakRow[]) || []).map(SUPABASE_API.mapContentPeakToApp);
+    } catch (error) {
+      Logger.error(error, 'fetchContentPeaks');
+      return [];
+    }
+  },
+
+  createContentPeak: async (
+    peak: Omit<ContentPeak, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<ContentPeak | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    try {
+      const dbPeak = {
+        ...SUPABASE_API.mapContentPeakToDb(peak),
+        priority_tier: peak.priorityTier || 'High',
+        owner: peak.owner || getCurrentUserEmail() || '',
+      };
+
+      const { data, error } = await supabase.from('content_peaks').insert(dbPeak).select().single();
+
+      if (error) {
+        Logger.error(error, 'createContentPeak');
+        return null;
+      }
+
+      return data ? SUPABASE_API.mapContentPeakToApp(data as ContentPeakRow) : null;
+    } catch (error) {
+      Logger.error(error, 'createContentPeak');
+      return null;
+    }
+  },
+
+  updateContentPeak: async (
+    id: string,
+    updates: Partial<ContentPeak>,
+  ): Promise<ContentPeak | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    try {
+      const patch = SUPABASE_API.mapContentPeakToDb(updates);
+      if (Object.keys(patch).length === 0) return null;
+
+      const { data, error } = await supabase
+        .from('content_peaks')
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        Logger.error(error, 'updateContentPeak');
+        return null;
+      }
+
+      return data ? SUPABASE_API.mapContentPeakToApp(data as ContentPeakRow) : null;
+    } catch (error) {
+      Logger.error(error, 'updateContentPeak');
+      return null;
+    }
+  },
+
+  deleteContentPeak: async (id: string): Promise<boolean> => {
+    await initSupabase();
+    if (!supabase) return false;
+
+    try {
+      const { error } = await supabase.from('content_peaks').delete().eq('id', id);
+
+      if (error) {
+        Logger.error(error, 'deleteContentPeak');
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      Logger.error(error, 'deleteContentPeak');
+      return false;
+    }
+  },
+
+  // ==========================================
+  // CONTENT SERIES
+  // ==========================================
+
+  fetchContentSeries: async (): Promise<ContentSeries[]> => {
+    await initSupabase();
+    if (!supabase) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('content_series')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        Logger.error(error, 'fetchContentSeries');
+        return [];
+      }
+
+      return ((data as ContentSeriesRow[]) || []).map(SUPABASE_API.mapContentSeriesToApp);
+    } catch (error) {
+      Logger.error(error, 'fetchContentSeries');
+      return [];
+    }
+  },
+
+  createContentSeries: async (
+    series: Omit<ContentSeries, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<ContentSeries | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    try {
+      const dbSeries = {
+        ...SUPABASE_API.mapContentSeriesToDb(series),
+        owner: series.owner || getCurrentUserEmail() || '',
+        status: series.status || 'Active',
+        review_checkpoint: series.reviewCheckpoint ?? 3,
+      };
+
+      const { data, error } = await supabase
+        .from('content_series')
+        .insert(dbSeries)
+        .select()
+        .single();
+
+      if (error) {
+        Logger.error(error, 'createContentSeries');
+        return null;
+      }
+
+      return data ? SUPABASE_API.mapContentSeriesToApp(data as ContentSeriesRow) : null;
+    } catch (error) {
+      Logger.error(error, 'createContentSeries');
+      return null;
+    }
+  },
+
+  updateContentSeries: async (
+    id: string,
+    updates: Partial<ContentSeries>,
+  ): Promise<ContentSeries | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    try {
+      const patch = SUPABASE_API.mapContentSeriesToDb(updates);
+      if (Object.keys(patch).length === 0) return null;
+
+      const { data, error } = await supabase
+        .from('content_series')
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        Logger.error(error, 'updateContentSeries');
+        return null;
+      }
+
+      return data ? SUPABASE_API.mapContentSeriesToApp(data as ContentSeriesRow) : null;
+    } catch (error) {
+      Logger.error(error, 'updateContentSeries');
+      return null;
+    }
+  },
+
+  deleteContentSeries: async (id: string): Promise<boolean> => {
+    await initSupabase();
+    if (!supabase) return false;
+
+    try {
+      const { error } = await supabase.from('content_series').delete().eq('id', id);
+
+      if (error) {
+        Logger.error(error, 'deleteContentSeries');
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      Logger.error(error, 'deleteContentSeries');
+      return false;
+    }
+  },
+
+  // ==========================================
+  // RAPID RESPONSES
+  // ==========================================
+
+  fetchRapidResponses: async (): Promise<RapidResponse[]> => {
+    await initSupabase();
+    if (!supabase) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('rapid_responses')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        Logger.error(error, 'fetchRapidResponses');
+        return [];
+      }
+
+      return ((data as RapidResponseRow[]) || []).map(SUPABASE_API.mapRapidResponseToApp);
+    } catch (error) {
+      Logger.error(error, 'fetchRapidResponses');
+      return [];
+    }
+  },
+
+  createRapidResponse: async (
+    response: Omit<RapidResponse, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<RapidResponse | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    try {
+      const dbResponse = {
+        ...SUPABASE_API.mapRapidResponseToDb(response),
+        owner: response.owner || getCurrentUserEmail() || '',
+        status: response.status || 'New',
+        response_mode: response.responseMode || 'Reactive',
+      };
+
+      const { data, error } = await supabase
+        .from('rapid_responses')
+        .insert(dbResponse)
+        .select()
+        .single();
+
+      if (error) {
+        Logger.error(error, 'createRapidResponse');
+        return null;
+      }
+
+      return data ? SUPABASE_API.mapRapidResponseToApp(data as RapidResponseRow) : null;
+    } catch (error) {
+      Logger.error(error, 'createRapidResponse');
+      return null;
+    }
+  },
+
+  updateRapidResponse: async (
+    id: string,
+    updates: Partial<RapidResponse>,
+  ): Promise<RapidResponse | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    try {
+      const patch = SUPABASE_API.mapRapidResponseToDb(updates);
+      if (Object.keys(patch).length === 0) return null;
+
+      const { data, error } = await supabase
+        .from('rapid_responses')
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        Logger.error(error, 'updateRapidResponse');
+        return null;
+      }
+
+      return data ? SUPABASE_API.mapRapidResponseToApp(data as RapidResponseRow) : null;
+    } catch (error) {
+      Logger.error(error, 'updateRapidResponse');
+      return null;
+    }
+  },
+
+  deleteRapidResponse: async (id: string): Promise<boolean> => {
+    await initSupabase();
+    if (!supabase) return false;
+
+    try {
+      const { error } = await supabase.from('rapid_responses').delete().eq('id', id);
+
+      if (error) {
+        Logger.error(error, 'deleteRapidResponse');
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      Logger.error(error, 'deleteRapidResponse');
+      return false;
     }
   },
 
@@ -1634,6 +2068,21 @@ export const SUPABASE_API = {
     author: row.author,
     campaign: row.campaign,
     contentPillar: row.content_pillar,
+    contentCategory: mapContentCategoryFromDb(row.content_category),
+    responseMode: mapResponseModeFromDb(row.response_mode),
+    signOffRoute: mapSignOffRouteFromDb(row.sign_off_route),
+    contentPeak: row.content_peak || undefined,
+    seriesName: row.series_name || undefined,
+    episodeNumber: row.episode_number ?? undefined,
+    originContentId: row.origin_content_id || undefined,
+    partnerOrg: row.partner_org || undefined,
+    altTextStatus: mapExecutionStatusFromDb(row.alt_text_status),
+    subtitlesStatus: mapExecutionStatusFromDb(row.subtitles_status),
+    utmStatus: mapExecutionStatusFromDb(row.utm_status),
+    sourceVerified: typeof row.source_verified === 'boolean' ? row.source_verified : undefined,
+    seoPrimaryQuery: row.seo_primary_query || undefined,
+    linkPlacement: mapLinkPlacementFromDb(row.link_placement),
+    ctaType: mapCtaTypeFromDb(row.cta_type),
     previewUrl: row.preview_url,
     checklist: row.checklist || {},
     analytics: row.analytics || {},
@@ -1674,6 +2123,21 @@ export const SUPABASE_API = {
     author_email: userEmail,
     campaign: entry.campaign,
     content_pillar: entry.contentPillar,
+    content_category: entry.contentCategory || null,
+    response_mode: entry.responseMode || null,
+    sign_off_route: entry.signOffRoute || null,
+    content_peak: entry.contentPeak || null,
+    series_name: entry.seriesName || null,
+    episode_number: entry.episodeNumber ?? null,
+    origin_content_id: entry.originContentId || null,
+    partner_org: entry.partnerOrg || null,
+    alt_text_status: entry.altTextStatus || null,
+    subtitles_status: entry.subtitlesStatus || null,
+    utm_status: entry.utmStatus || null,
+    source_verified: typeof entry.sourceVerified === 'boolean' ? entry.sourceVerified : null,
+    seo_primary_query: entry.seoPrimaryQuery || null,
+    link_placement: entry.linkPlacement || null,
+    cta_type: entry.ctaType || null,
     preview_url: entry.previewUrl,
     checklist: entry.checklist || {},
     analytics: entry.analytics || {},
@@ -1796,6 +2260,132 @@ export const SUPABASE_API = {
       patch.converted_entry_id = request.convertedEntryId || null;
     }
     return patch;
+  },
+
+  mapContentPeakToApp: (row: ContentPeakRow): ContentPeak => ({
+    id: row.id,
+    title: row.title || '',
+    startDate: row.start_date || '',
+    endDate: row.end_date || '',
+    priorityTier:
+      PRIORITY_TIERS.find((tier) => tier === row.priority_tier) ??
+      ('High' as ContentPeak['priorityTier']),
+    owner: row.owner || '',
+    campaign: row.campaign || undefined,
+    contentPillar: row.content_pillar || undefined,
+    responseMode: mapResponseModeFromDb(row.response_mode),
+    requiredPlatforms: row.required_platforms || [],
+    requiredAssetTypes: row.required_asset_types || [],
+    linkedEntryIds: row.linked_entry_ids || [],
+    description: row.description || undefined,
+    notes: row.notes || undefined,
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || row.created_at || '',
+  }),
+
+  mapContentPeakToDb: (peak: Partial<ContentPeak>): Record<string, unknown> => {
+    const row: Record<string, unknown> = {};
+    if (peak.id !== undefined) row.id = peak.id;
+    if (peak.title !== undefined) row.title = peak.title;
+    if (peak.startDate !== undefined) row.start_date = dateOrNull(peak.startDate);
+    if (peak.endDate !== undefined) row.end_date = dateOrNull(peak.endDate);
+    if (peak.priorityTier !== undefined) row.priority_tier = mapPriorityTierToDb(peak.priorityTier);
+    if (peak.owner !== undefined) row.owner = peak.owner || null;
+    if (peak.campaign !== undefined) row.campaign = peak.campaign || null;
+    if (peak.contentPillar !== undefined) row.content_pillar = peak.contentPillar || null;
+    if (peak.responseMode !== undefined) row.response_mode = peak.responseMode || null;
+    if (peak.requiredPlatforms !== undefined) row.required_platforms = peak.requiredPlatforms;
+    if (peak.requiredAssetTypes !== undefined) row.required_asset_types = peak.requiredAssetTypes;
+    if (peak.linkedEntryIds !== undefined) row.linked_entry_ids = peak.linkedEntryIds;
+    if (peak.description !== undefined) row.description = peak.description || null;
+    if (peak.notes !== undefined) row.notes = peak.notes || null;
+    if (peak.createdAt !== undefined) row.created_at = peak.createdAt;
+    if (peak.updatedAt !== undefined) row.updated_at = peak.updatedAt;
+    return row;
+  },
+
+  mapContentSeriesToApp: (row: ContentSeriesRow): ContentSeries => ({
+    id: row.id,
+    title: row.title || '',
+    owner: row.owner || '',
+    status: (row.status as ContentSeries['status']) || 'Active',
+    targetPlatforms: row.target_platforms || [],
+    targetEpisodeCount: row.target_episode_count ?? undefined,
+    reviewCheckpoint: row.review_checkpoint ?? 3,
+    campaign: row.campaign || undefined,
+    contentPillar: row.content_pillar || undefined,
+    responseMode: mapResponseModeFromDb(row.response_mode),
+    linkedEntryIds: row.linked_entry_ids || [],
+    description: row.description || undefined,
+    notes: row.notes || undefined,
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || row.created_at || '',
+  }),
+
+  mapContentSeriesToDb: (series: Partial<ContentSeries>): Record<string, unknown> => {
+    const row: Record<string, unknown> = {};
+    if (series.id !== undefined) row.id = series.id;
+    if (series.title !== undefined) row.title = series.title;
+    if (series.owner !== undefined) row.owner = series.owner || null;
+    if (series.status !== undefined) row.status = series.status;
+    if (series.targetPlatforms !== undefined) row.target_platforms = series.targetPlatforms;
+    if (series.targetEpisodeCount !== undefined) {
+      row.target_episode_count = series.targetEpisodeCount ?? null;
+    }
+    if (series.reviewCheckpoint !== undefined) row.review_checkpoint = series.reviewCheckpoint;
+    if (series.campaign !== undefined) row.campaign = series.campaign || null;
+    if (series.contentPillar !== undefined) row.content_pillar = series.contentPillar || null;
+    if (series.responseMode !== undefined) row.response_mode = series.responseMode || null;
+    if (series.linkedEntryIds !== undefined) row.linked_entry_ids = series.linkedEntryIds;
+    if (series.description !== undefined) row.description = series.description || null;
+    if (series.notes !== undefined) row.notes = series.notes || null;
+    if (series.createdAt !== undefined) row.created_at = series.createdAt;
+    if (series.updatedAt !== undefined) row.updated_at = series.updatedAt;
+    return row;
+  },
+
+  mapRapidResponseToApp: (row: RapidResponseRow): RapidResponse => ({
+    id: row.id,
+    title: row.title || '',
+    owner: row.owner || '',
+    status: (row.status as RapidResponse['status']) || 'New',
+    responseMode:
+      (mapResponseModeFromDb(row.response_mode) as RapidResponse['responseMode'] | undefined) ??
+      'Reactive',
+    triggerDate: row.trigger_date || '',
+    dueAt: row.due_at || '',
+    signOffRoute: mapSignOffRouteFromDb(row.sign_off_route),
+    sourceOpportunityId: row.source_opportunity_id || undefined,
+    linkedEntryId: row.linked_entry_id || undefined,
+    campaign: row.campaign || undefined,
+    contentPillar: row.content_pillar || undefined,
+    targetPlatforms: row.target_platforms || [],
+    notes: row.notes || undefined,
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || row.created_at || '',
+  }),
+
+  mapRapidResponseToDb: (response: Partial<RapidResponse>): Record<string, unknown> => {
+    const row: Record<string, unknown> = {};
+    if (response.id !== undefined) row.id = response.id;
+    if (response.title !== undefined) row.title = response.title;
+    if (response.owner !== undefined) row.owner = response.owner || null;
+    if (response.status !== undefined) row.status = response.status;
+    if (response.responseMode !== undefined) row.response_mode = response.responseMode;
+    if (response.triggerDate !== undefined) row.trigger_date = dateOrNull(response.triggerDate);
+    if (response.dueAt !== undefined) row.due_at = response.dueAt || null;
+    if (response.signOffRoute !== undefined) row.sign_off_route = response.signOffRoute || null;
+    if (response.sourceOpportunityId !== undefined) {
+      row.source_opportunity_id = response.sourceOpportunityId || null;
+    }
+    if (response.linkedEntryId !== undefined) row.linked_entry_id = response.linkedEntryId || null;
+    if (response.campaign !== undefined) row.campaign = response.campaign || null;
+    if (response.contentPillar !== undefined) row.content_pillar = response.contentPillar || null;
+    if (response.targetPlatforms !== undefined) row.target_platforms = response.targetPlatforms;
+    if (response.notes !== undefined) row.notes = response.notes || null;
+    if (response.createdAt !== undefined) row.created_at = response.createdAt;
+    if (response.updatedAt !== undefined) row.updated_at = response.updatedAt;
+    return row;
   },
 
   mapReportingPeriodToApp: (row: ReportingPeriodRow): ReportingPeriod => ({

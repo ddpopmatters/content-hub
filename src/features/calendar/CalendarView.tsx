@@ -383,7 +383,7 @@ export function CalendarView({
       acc[entry.assetType] = (acc[entry.assetType] || 0) + 1;
       return acc;
     }, {});
-    const total = Object.values(counts).reduce((sum: number, value: number) => sum + value, 0);
+    const total = (Object.values(counts) as number[]).reduce((sum, value) => sum + value, 0);
     return { counts, total };
   }, [monthEntries]);
 

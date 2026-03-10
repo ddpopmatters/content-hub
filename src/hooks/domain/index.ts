@@ -13,3 +13,6 @@ export { useAdmin } from './useAdmin';
 export { useInfluencers } from './useInfluencers';
 export { useEntries } from './useEntries';
 export { useReporting } from './useReporting';
+export { useContentPeaks } from './useContentPeaks';
+export { useContentSeries } from './useContentSeries';
+export { useRapidResponses } from './useRapidResponses';

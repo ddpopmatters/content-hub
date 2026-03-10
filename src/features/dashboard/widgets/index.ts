@@ -8,3 +8,7 @@ export { PillarBalanceWidget } from './PillarBalanceWidget';
 export { PlatformCoverageWidget } from './PlatformCoverageWidget';
 export { AudienceSegmentWidget } from './AudienceSegmentWidget';
 export { UrgentOpportunitiesWidget } from './UrgentOpportunitiesWidget';
+export { StrategyMixWidget } from './StrategyMixWidget';
+export { ExecutionReadinessWidget } from './ExecutionReadinessWidget';
+export { UpcomingPeaksWidget } from './UpcomingPeaksWidget';
+export { SeriesHealthWidget } from './SeriesHealthWidget';

@@ -1,14 +1,22 @@
 import React from 'react';
 import { cx, ensureArray } from '../../lib/utils';
 import { selectBaseClasses, fileInputClasses } from '../../lib/styles';
-import { determineWorkflowStatus } from '../../lib/sanitizers';
+import { determineWorkflowStatus, getWorkflowBlockers } from '../../lib/sanitizers';
 import { FALLBACK_GUIDELINES } from '../../lib/guidelines';
 import {
   ALL_PLATFORMS,
   CAMPAIGNS,
+  CONTENT_CATEGORIES,
+  CTA_TYPES,
   CONTENT_PILLARS,
   DEFAULT_APPROVERS,
+  EXECUTION_STATUSES,
+  LINK_PLACEMENTS,
   PRIORITY_TIERS,
+  RESPONSE_MODES,
+  recommendApproversForRoute,
+  recommendSignOffRoute,
+  SIGN_OFF_ROUTES,
 } from '../../constants';
 import {
   Card,
@@ -30,7 +38,16 @@ import { PlatformGuidancePanel } from './PlatformGuidancePanel';
 import { TerminologyAlert } from './TerminologyAlert';
 import { checkTerminology } from '../../lib/terminology';
 
-const { useState, useMemo, useEffect } = React;
+const { useState, useMemo, useEffect, useRef } = React;
+
+const FIELD_ERROR_MESSAGES = {
+  date: 'Date is required.',
+  platforms: 'At least one platform is required.',
+  assetType: 'Asset type is required.',
+  script: 'Video script is required.',
+  designCopy: 'Design copy is required.',
+  carouselSlides: 'At least one carousel slide needs copy.',
+};
 
 const normalizeDateTimeLocal = (value) => {
   if (!value || typeof value !== 'string') return '';
@@ -48,7 +65,8 @@ export function EntryForm({
   approverOptions = DEFAULT_APPROVERS,
   influencers = [],
   onInfluencerChange,
-  teamsWebhookUrl: _teamsWebhookUrl = '',
+  teamsWebhookUrl = '',
+  pushSyncToast,
   initialValues = null,
 }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -66,8 +84,7 @@ export function EntryForm({
   const [assetType, setAssetType] = useState('No asset');
   const [script, setScript] = useState('');
   const [designCopy, setDesignCopy] = useState('');
-  const [slidesCount, setSlidesCount] = useState(2);
-  const [carouselSlides, setCarouselSlides] = useState(['', '']);
+  const [carouselSlides, setCarouselSlides] = useState(['']);
   const [firstComment, setFirstComment] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [overrideConflict, setOverrideConflict] = useState(false);
@@ -76,14 +93,33 @@ export function EntryForm({
   const [, setActivePreviewPlatform] = useState('Main');
   const [campaign, setCampaign] = useState('');
   const [contentPillar, setContentPillar] = useState('');
+  const [contentCategory, setContentCategory] = useState('');
+  const [responseMode, setResponseMode] = useState('Planned');
+  const [signOffRoute, setSignOffRoute] = useState('');
+  const [contentPeak, setContentPeak] = useState('');
+  const [seriesName, setSeriesName] = useState('');
+  const [episodeNumber, setEpisodeNumber] = useState('');
+  const [originContentId, setOriginContentId] = useState('');
+  const [partnerOrg, setPartnerOrg] = useState('');
+  const [altTextStatus, setAltTextStatus] = useState('Pending');
+  const [subtitlesStatus, setSubtitlesStatus] = useState('Pending');
+  const [utmStatus, setUtmStatus] = useState('Pending');
+  const [sourceVerified, setSourceVerified] = useState(false);
+  const [seoPrimaryQuery, setSeoPrimaryQuery] = useState('');
+  const [linkPlacement, setLinkPlacement] = useState('');
+  const [ctaType, setCtaType] = useState('');
   const [priorityTier, setPriorityTier] = useState('Medium');
   const [influencerId, setInfluencerId] = useState('');
   const [audienceSegments, setAudienceSegments] = useState([]);
   const [quickAssessment, setQuickAssessment] = useState({});
   const [goldenThread, setGoldenThread] = useState({});
   const [entryFormErrors, setEntryFormErrors] = useState([]);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [entryFormErrorFields, setEntryFormErrorFields] = useState([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [autoSignOffRoute, setAutoSignOffRoute] = useState(true);
+  const [autoApprovers, setAutoApprovers] = useState(true);
+  const errorSummaryRef = useRef(null);
+  const conflictWarningRef = useRef(null);
 
   useEffect(() => {
     if (!initialValues) return;
@@ -115,11 +151,9 @@ export function EntryForm({
     setScript(initialValues.script || '');
     setDesignCopy(initialValues.designCopy || '');
     if (nextSlides.length > 0) {
-      setSlidesCount(nextSlides.length);
       setCarouselSlides(nextSlides);
     } else {
-      setSlidesCount(3);
-      setCarouselSlides(['', '', '']);
+      setCarouselSlides(['']);
     }
     setFirstComment(initialValues.firstComment || '');
     setPreviewUrl(initialValues.previewUrl || '');
@@ -129,23 +163,85 @@ export function EntryForm({
     setActivePreviewPlatform(nextPlatforms[0] || 'Main');
     setCampaign(initialValues.campaign || '');
     setContentPillar(initialValues.contentPillar || '');
+    setContentCategory(initialValues.contentCategory || '');
+    setResponseMode(initialValues.responseMode || 'Planned');
+    setSignOffRoute(initialValues.signOffRoute || '');
+    setContentPeak(initialValues.contentPeak || '');
+    setSeriesName(initialValues.seriesName || '');
+    setEpisodeNumber(
+      initialValues.episodeNumber !== undefined && initialValues.episodeNumber !== null
+        ? String(initialValues.episodeNumber)
+        : '',
+    );
+    setOriginContentId(initialValues.originContentId || '');
+    setPartnerOrg(initialValues.partnerOrg || '');
+    setAltTextStatus(initialValues.altTextStatus || 'Pending');
+    setSubtitlesStatus(initialValues.subtitlesStatus || 'Pending');
+    setUtmStatus(initialValues.utmStatus || 'Pending');
+    setSourceVerified(initialValues.sourceVerified === true);
+    setSeoPrimaryQuery(initialValues.seoPrimaryQuery || '');
+    setLinkPlacement(initialValues.linkPlacement || '');
+    setCtaType(initialValues.ctaType || '');
     setPriorityTier(initialValues.priorityTier || 'Medium');
     setInfluencerId(initialValues.influencerId || '');
     setAudienceSegments(ensureArray(initialValues.audienceSegments));
     setQuickAssessment(initialValues.assessmentScores?.quick ?? {});
     setGoldenThread(initialValues.assessmentScores?.goldenThread ?? {});
     setEntryFormErrors([]);
+    setEntryFormErrorFields([]);
     const hasAdvancedValues = !!(
-      initialValues.campaign ||
-      initialValues.contentPillar ||
+      initialValues.contentCategory ||
+      (initialValues.responseMode && initialValues.responseMode !== 'Planned') ||
+      initialValues.signOffRoute ||
+      initialValues.contentPeak ||
+      initialValues.seriesName ||
+      initialValues.episodeNumber ||
+      initialValues.originContentId ||
+      initialValues.partnerOrg ||
+      (initialValues.altTextStatus && initialValues.altTextStatus !== 'Pending') ||
+      (initialValues.subtitlesStatus && initialValues.subtitlesStatus !== 'Pending') ||
+      (initialValues.utmStatus && initialValues.utmStatus !== 'Pending') ||
+      initialValues.sourceVerified ||
+      initialValues.seoPrimaryQuery ||
+      initialValues.linkPlacement ||
+      initialValues.ctaType ||
       (initialValues.priorityTier && initialValues.priorityTier !== 'Medium') ||
       ensureArray(initialValues.audienceSegments).length > 0 ||
       initialValues.influencerId ||
-      ensureArray(initialValues.approvers).length > 0 ||
-      initialValues.approvalDeadline
+      initialValues.url ||
+      initialValues.previewUrl ||
+      Object.keys(initialValues.assessmentScores?.quick ?? {}).length > 0 ||
+      Object.keys(initialValues.assessmentScores?.goldenThread ?? {}).length > 0
     );
     setShowAdvanced(hasAdvancedValues);
+    setAutoSignOffRoute(!initialValues.signOffRoute);
+    setAutoApprovers(ensureArray(initialValues.approvers).length === 0);
   }, [initialValues]);
+
+  const recommendedSignOffRoute = useMemo(
+    () =>
+      recommendSignOffRoute({
+        campaign,
+        contentCategory,
+        partnerOrg,
+        responseMode,
+      }),
+    [campaign, contentCategory, partnerOrg, responseMode],
+  );
+  const recommendedApprovers = useMemo(
+    () => recommendApproversForRoute(signOffRoute || recommendedSignOffRoute, approverOptions),
+    [approverOptions, recommendedSignOffRoute, signOffRoute],
+  );
+
+  useEffect(() => {
+    if (!autoSignOffRoute) return;
+    setSignOffRoute(recommendedSignOffRoute);
+  }, [autoSignOffRoute, recommendedSignOffRoute]);
+
+  useEffect(() => {
+    if (!autoApprovers) return;
+    setApprovers(recommendedApprovers);
+  }, [autoApprovers, recommendedApprovers]);
 
   useEffect(() => {
     if (allPlatforms) {
@@ -160,18 +256,6 @@ export function EntryForm({
   useEffect(() => {
     onPreviewAssetType?.(assetType === 'No asset' ? null : assetType);
   }, [assetType, onPreviewAssetType]);
-
-  useEffect(() => {
-    setCarouselSlides((prev) => {
-      if (slidesCount > prev.length) {
-        return [...prev, ...Array(slidesCount - prev.length).fill('')];
-      }
-      if (slidesCount < prev.length) {
-        return prev.slice(0, slidesCount);
-      }
-      return prev;
-    });
-  }, [slidesCount]);
 
   const conflicts = useMemo(
     () =>
@@ -191,6 +275,12 @@ export function EntryForm({
     setOverrideConflict(false);
     setEntryFormErrors((prev) => prev.filter((e) => !e.startsWith('Scheduling conflict')));
   }, [date, platforms]);
+
+  useEffect(() => {
+    if (!entryFormErrors.length || !errorSummaryRef.current) return;
+    if (entryFormErrors.every((error) => error.startsWith('Scheduling conflict'))) return;
+    errorSummaryRef.current.focus();
+  }, [entryFormErrors]);
 
   useEffect(() => {
     setActiveCaptionTab((prevTab) =>
@@ -219,8 +309,7 @@ export function EntryForm({
     setAssetType('No asset');
     setScript('');
     setDesignCopy('');
-    setSlidesCount(2);
-    setCarouselSlides(['', '']);
+    setCarouselSlides(['']);
     setFirstComment('');
     setOverrideConflict(false);
     setPlatformCaptions({});
@@ -228,36 +317,62 @@ export function EntryForm({
     setActivePreviewPlatform('Main');
     setCampaign('');
     setContentPillar('');
+    setContentCategory('');
+    setResponseMode('Planned');
+    setSignOffRoute('');
+    setContentPeak('');
+    setSeriesName('');
+    setEpisodeNumber('');
+    setOriginContentId('');
+    setPartnerOrg('');
+    setAltTextStatus('Pending');
+    setSubtitlesStatus('Pending');
+    setUtmStatus('Pending');
+    setSourceVerified(false);
+    setSeoPrimaryQuery('');
+    setLinkPlacement('');
+    setCtaType('');
     setPriorityTier('Medium');
     setInfluencerId('');
     setAudienceSegments([]);
     setQuickAssessment({});
     setGoldenThread({});
     setEntryFormErrors([]);
+    setEntryFormErrorFields([]);
+    setAutoSignOffRoute(true);
+    setAutoApprovers(true);
     onPreviewAssetType?.(null);
   };
 
   const validateEntry = () => {
     const errors = [];
-    if (!date) errors.push('Date is required.');
+    if (!date) errors.push({ field: 'date', message: FIELD_ERROR_MESSAGES.date });
     const resolvedPlatforms = allPlatforms ? [...ALL_PLATFORMS] : platforms;
-    if (!resolvedPlatforms.length) errors.push('At least one platform is required.');
-    if (!assetType) errors.push('Asset type is required.');
-    if (assetType === 'Video' && !script.trim()) errors.push('Video script is required.');
-    if (assetType === 'Design' && !designCopy.trim()) errors.push('Design copy is required.');
+    if (!resolvedPlatforms.length)
+      errors.push({ field: 'platforms', message: FIELD_ERROR_MESSAGES.platforms });
+    if (!assetType) errors.push({ field: 'assetType', message: FIELD_ERROR_MESSAGES.assetType });
+    if (assetType === 'Video' && !script.trim())
+      errors.push({ field: 'script', message: FIELD_ERROR_MESSAGES.script });
+    if (assetType === 'Design' && !designCopy.trim())
+      errors.push({ field: 'designCopy', message: FIELD_ERROR_MESSAGES.designCopy });
     if (
       assetType === 'Carousel' &&
       !carouselSlides.some((slide) => typeof slide === 'string' && slide.trim())
     )
-      errors.push('At least one carousel slide needs copy.');
+      errors.push({
+        field: 'carouselSlides',
+        message: FIELD_ERROR_MESSAGES.carouselSlides,
+      });
     return errors;
   };
 
   const derivedAuthor = currentAuthorName || currentUserEmail || '';
+  const resolvedPlatforms = allPlatforms ? [...ALL_PLATFORMS] : platforms;
 
   const submitEntry = () => {
+    const scheduledDate = date;
     const cleanedCaptions = {};
-    platforms.forEach((platform) => {
+    resolvedPlatforms.forEach((platform) => {
       const value = platformCaptions[platform];
       if (value && value.trim()) cleanedCaptions[platform] = value;
     });
@@ -267,7 +382,7 @@ export function EntryForm({
       sourceRequestId: initialValues?.sourceRequestId || undefined,
       sourceRequestTitle: initialValues?.sourceRequestTitle || undefined,
       author: derivedAuthor || undefined,
-      platforms: ensureArray(allPlatforms ? [...ALL_PLATFORMS] : platforms),
+      platforms: ensureArray(resolvedPlatforms),
       caption,
       url: url || undefined,
       approvalDeadline: approvalDeadline || undefined,
@@ -281,6 +396,21 @@ export function EntryForm({
       platformCaptions: cleanedCaptions,
       campaign: campaign || undefined,
       contentPillar: contentPillar || undefined,
+      contentCategory: contentCategory || undefined,
+      responseMode: responseMode || undefined,
+      signOffRoute: signOffRoute || undefined,
+      contentPeak: contentPeak || undefined,
+      seriesName: seriesName || undefined,
+      episodeNumber: episodeNumber ? Number(episodeNumber) : undefined,
+      originContentId: originContentId || undefined,
+      partnerOrg: partnerOrg || undefined,
+      altTextStatus: altTextStatus || undefined,
+      subtitlesStatus: subtitlesStatus || undefined,
+      utmStatus: utmStatus || undefined,
+      sourceVerified,
+      seoPrimaryQuery: seoPrimaryQuery || undefined,
+      linkPlacement: linkPlacement || undefined,
+      ctaType: ctaType || undefined,
       influencerId: influencerId || undefined,
       audienceSegments: audienceSegments.length > 0 ? audienceSegments : undefined,
       assessmentScores:
@@ -291,41 +421,58 @@ export function EntryForm({
         Object.keys(goldenThread).length === 4
           ? Object.values(goldenThread).every((v) => v === false)
           : undefined,
-      workflowStatus: determineWorkflowStatus({ approvers, assetType, previewUrl }),
+      workflowStatus: determineWorkflowStatus({
+        approvers,
+        assetType,
+        previewUrl,
+        platforms: resolvedPlatforms,
+        url,
+        firstComment,
+        altTextStatus,
+        subtitlesStatus,
+        utmStatus,
+        sourceVerified,
+        seoPrimaryQuery,
+        linkPlacement,
+        ctaType,
+      }),
     });
     reset();
-    setSubmitSuccess(true);
-    setTimeout(() => setSubmitSuccess(false), 2500);
+    pushSyncToast?.(`Scheduled for ${new Date(scheduledDate).toLocaleDateString()}`, 'success');
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
     const errors = validateEntry();
     if (errors.length) {
-      setEntryFormErrors(errors);
+      setEntryFormErrors(errors.map((error) => error.message));
+      setEntryFormErrorFields(errors.map((error) => error.field));
       return;
     }
     if (hasConflict && !overrideConflict) {
       setEntryFormErrors([
-        'Scheduling conflict on this date — use "Submit anyway" in the warning below, or pick a different date.',
+        'Scheduling conflict on this date — use "Submit anyway" below, or pick a different date.',
       ]);
-      document
-        .getElementById('conflict-warning')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setEntryFormErrorFields([]);
+      conflictWarningRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      conflictWarningRef.current?.focus();
       return;
     }
     setEntryFormErrors([]);
+    setEntryFormErrorFields([]);
     submitEntry();
   };
 
   const handleSubmitAnyway = () => {
     const errors = validateEntry();
     if (errors.length) {
-      setEntryFormErrors(errors);
+      setEntryFormErrors(errors.map((error) => error.message));
+      setEntryFormErrorFields(errors.map((error) => error.field));
       return;
     }
     setOverrideConflict(true);
     setEntryFormErrors([]);
+    setEntryFormErrorFields([]);
     submitEntry();
   };
 
@@ -333,15 +480,69 @@ export function EntryForm({
   const captionTabs = useMemo(() => ['Main', ...platforms], [platforms]);
   const currentCaptionValue =
     activeCaptionTab === 'Main' ? caption : (platformCaptions[activeCaptionTab] ?? caption);
+  const hasDateError = entryFormErrorFields.includes('date');
+  const hasPlatformError = entryFormErrorFields.includes('platforms');
+  const hasAssetTypeError = entryFormErrorFields.includes('assetType');
+  const hasScriptError = entryFormErrorFields.includes('script');
+  const hasDesignCopyError = entryFormErrorFields.includes('designCopy');
+  const hasCarouselSlidesError = entryFormErrorFields.includes('carouselSlides');
   const advancedFilledCount = [
-    campaign,
-    contentPillar,
+    contentCategory,
+    responseMode !== 'Planned',
+    signOffRoute,
+    contentPeak,
+    seriesName,
+    episodeNumber,
+    originContentId,
+    partnerOrg,
+    altTextStatus !== 'Pending',
+    subtitlesStatus !== 'Pending',
+    utmStatus !== 'Pending',
+    sourceVerified,
+    seoPrimaryQuery,
+    linkPlacement,
+    ctaType,
     priorityTier !== 'Medium',
     audienceSegments.length > 0,
     influencerId,
-    approvers.length > 0,
-    !!approvalDeadline,
+    !!url,
+    !!previewUrl,
+    Object.keys(quickAssessment).length > 0,
+    Object.keys(goldenThread).length > 0,
   ].filter(Boolean).length;
+  const workflowBlockers = useMemo(
+    () =>
+      getWorkflowBlockers({
+        approvers,
+        assetType,
+        previewUrl,
+        platforms: resolvedPlatforms,
+        url,
+        firstComment,
+        altTextStatus,
+        subtitlesStatus,
+        utmStatus,
+        sourceVerified,
+        seoPrimaryQuery,
+        linkPlacement,
+        ctaType,
+      }),
+    [
+      approvers,
+      assetType,
+      previewUrl,
+      resolvedPlatforms,
+      url,
+      firstComment,
+      altTextStatus,
+      subtitlesStatus,
+      utmStatus,
+      sourceVerified,
+      seoPrimaryQuery,
+      linkPlacement,
+      ctaType,
+    ],
+  );
 
   const handleCaptionChange = (value) => {
     if (activeCaptionTab === 'Main') {
@@ -378,6 +579,23 @@ export function EntryForm({
     });
   };
 
+  const handleAddSlide = () => {
+    setCarouselSlides((prev) => (prev.length >= 10 ? prev : [...prev, '']));
+  };
+
+  const handleRemoveSlide = (indexToRemove) => {
+    setCarouselSlides((prev) => {
+      if (prev.length === 1) return [''];
+      return prev.filter((_, index) => index !== indexToRemove);
+    });
+  };
+
+  const handleSlideChange = (indexToUpdate, value) => {
+    setCarouselSlides((prev) =>
+      prev.map((slide, index) => (index === indexToUpdate ? value : slide)),
+    );
+  };
+
   return (
     <Card className="shadow-xl">
       <CardHeader>
@@ -385,7 +603,12 @@ export function EntryForm({
       </CardHeader>
       <CardContent>
         {entryFormErrors.length ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <div
+            ref={errorSummaryRef}
+            tabIndex={-1}
+            role="alert"
+            className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
+          >
             <div className="text-xs font-semibold uppercase tracking-wide text-rose-600">
               Please fix before saving
             </div>
@@ -397,22 +620,18 @@ export function EntryForm({
           </div>
         ) : null}
         <form className="space-y-6" onSubmit={handleSubmit}>
-          <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+          <div
+            className={cx('grid gap-6', resolvedPlatforms.length > 0 && 'lg:grid-cols-[2fr,1fr]')}
+          >
             <div className="space-y-6">
               {/* ── Core fields ─────────────────────────────────────────── */}
 
-              <div className="space-y-2">
-                <Label htmlFor="entry-date">Date</Label>
-                <Input
-                  id="entry-date"
-                  type="date"
-                  value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Platforms</Label>
+              <fieldset
+                className="space-y-2"
+                aria-invalid={hasPlatformError}
+                aria-describedby={hasPlatformError ? 'platforms-error' : undefined}
+              >
+                <legend className="block text-sm font-medium text-graystone-700">Platforms</legend>
                 <div className="flex items-center gap-3">
                   <Toggle
                     id="all-platforms"
@@ -441,51 +660,48 @@ export function EntryForm({
                     ))}
                   </div>
                 )}
-              </div>
-
-              {hasConflict && (
-                <div
-                  id="conflict-warning"
-                  className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-3 text-sm text-amber-800"
-                >
-                  <div className="font-semibold">
-                    Heads up: {conflicts.length} post{conflicts.length === 1 ? '' : 's'} already
-                    scheduled on this date.
-                  </div>
-                  <p className="mt-1 text-xs text-amber-700">
-                    You can continue, or pick a different date above.
+                {hasPlatformError ? (
+                  <p id="platforms-error" className="text-xs text-rose-600">
+                    {FIELD_ERROR_MESSAGES.platforms}
                   </p>
-                  <div className="mt-3">
-                    <Button size="sm" onClick={handleSubmitAnyway}>
-                      Submit anyway
-                    </Button>
-                  </div>
-                </div>
-              )}
+                ) : null}
+              </fieldset>
 
               <div className="space-y-3">
-                <Label>Captions</Label>
+                <Label htmlFor="caption-input">Captions</Label>
                 {captionTabs.length > 1 && (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2" role="tablist" aria-label="Caption tabs">
                     {captionTabs.map((tab) => (
                       <Button
                         key={tab}
+                        id={`caption-tab-${tab}`}
                         type="button"
                         size="sm"
-                        variant={activeCaptionTab === tab ? 'solid' : 'outline'}
+                        variant={activeCaptionTab === tab ? 'default' : 'outline'}
                         onClick={() => setActiveCaptionTab(tab)}
+                        role="tab"
+                        aria-selected={activeCaptionTab === tab}
+                        aria-controls="caption-panel"
+                        tabIndex={activeCaptionTab === tab ? 0 : -1}
                       >
                         {tab === 'Main' ? 'Main caption' : tab}
                       </Button>
                     ))}
                   </div>
                 )}
-                <Textarea
-                  value={currentCaptionValue}
-                  onChange={(event) => handleCaptionChange(event.target.value)}
-                  rows={4}
-                  placeholder="Primary post caption"
-                />
+                <div
+                  id="caption-panel"
+                  role="tabpanel"
+                  aria-labelledby={`caption-tab-${activeCaptionTab}`}
+                >
+                  <Textarea
+                    id="caption-input"
+                    value={currentCaptionValue}
+                    onChange={(event) => handleCaptionChange(event.target.value)}
+                    rows={4}
+                    placeholder="Primary post caption"
+                  />
+                </div>
                 <p className="text-xs text-graystone-500">
                   {activeCaptionTab === 'Main'
                     ? 'Changes here apply to every platform unless you customise a specific tab.'
@@ -495,60 +711,13 @@ export function EntryForm({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="url">URL (optional)</Label>
-                <Input
-                  id="url"
-                  type="url"
-                  value={url}
-                  onChange={(event) => setUrl(event.target.value)}
-                  placeholder="https://example.org/article"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label>Preview asset</Label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => {
-                      const file = event.target.files && event.target.files[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        if (typeof reader.result === 'string') {
-                          setPreviewUrl(reader.result);
-                        }
-                      };
-                      reader.readAsDataURL(file);
-                    }}
-                    className={cx(fileInputClasses, 'text-xs')}
-                  />
-                  {previewUrl && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setPreviewUrl('')}
-                    >
-                      Clear
-                    </Button>
-                  )}
-                </div>
-                <Input
-                  id="previewUrl"
-                  type="url"
-                  value={previewUrl}
-                  onChange={(event) => setPreviewUrl(event.target.value)}
-                  placeholder="Or paste an image URL"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Asset type</Label>
+                <Label htmlFor="asset-type">Asset type</Label>
                 <select
+                  id="asset-type"
                   value={assetType}
                   onChange={(event) => setAssetType(event.target.value)}
+                  aria-invalid={hasAssetTypeError}
+                  aria-describedby={hasAssetTypeError ? 'asset-type-error' : undefined}
                   className={cx(selectBaseClasses, 'w-full')}
                 >
                   <option value="No asset">No asset</option>
@@ -556,6 +725,11 @@ export function EntryForm({
                   <option value="Design">Design</option>
                   <option value="Carousel">Carousel</option>
                 </select>
+                {hasAssetTypeError ? (
+                  <p id="asset-type-error" className="text-xs text-rose-600">
+                    {FIELD_ERROR_MESSAGES.assetType}
+                  </p>
+                ) : null}
               </div>
 
               {assetType === 'Video' && (
@@ -566,7 +740,14 @@ export function EntryForm({
                     value={script}
                     onChange={(event) => setScript(event.target.value)}
                     rows={4}
+                    aria-invalid={hasScriptError}
+                    aria-describedby={hasScriptError ? 'script-error' : undefined}
                   />
+                  {hasScriptError ? (
+                    <p id="script-error" className="text-xs text-rose-600">
+                      {FIELD_ERROR_MESSAGES.script}
+                    </p>
+                  ) : null}
                 </div>
               )}
 
@@ -578,44 +759,71 @@ export function EntryForm({
                     value={designCopy}
                     onChange={(event) => setDesignCopy(event.target.value)}
                     rows={4}
+                    aria-invalid={hasDesignCopyError}
+                    aria-describedby={hasDesignCopyError ? 'design-copy-error' : undefined}
                   />
+                  {hasDesignCopyError ? (
+                    <p id="design-copy-error" className="text-xs text-rose-600">
+                      {FIELD_ERROR_MESSAGES.designCopy}
+                    </p>
+                  ) : null}
                 </div>
               )}
 
               {assetType === 'Carousel' && (
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label>Number of slides</Label>
-                    <select
-                      value={String(slidesCount)}
-                      onChange={(event) => setSlidesCount(Number(event.target.value))}
-                      className={cx(selectBaseClasses, 'w-full')}
+                <div
+                  className="space-y-3"
+                  aria-invalid={hasCarouselSlidesError}
+                  aria-describedby={hasCarouselSlidesError ? 'carousel-slides-error' : undefined}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <Label htmlFor="carousel-slide-0">Carousel slides</Label>
+                      <p className="text-xs text-graystone-500">
+                        Add up to 10 slides and remove any you do not need.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleAddSlide}
+                      disabled={carouselSlides.length >= 10}
                     >
-                      {Array.from({ length: 9 }, (_, index) => (
-                        <option key={index + 2} value={index + 2}>
-                          {index + 2}
-                        </option>
-                      ))}
-                    </select>
+                      Add slide
+                    </Button>
                   </div>
                   <div className="space-y-3">
                     {carouselSlides.map((val, idx) => (
-                      <div key={idx} className="space-y-2">
-                        <Label>Slide {idx + 1} copy</Label>
+                      <div
+                        key={idx}
+                        className="space-y-2 rounded-2xl border border-graystone-200 p-3"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <Label>Slide {idx + 1} copy</Label>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleRemoveSlide(idx)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
                         <Textarea
+                          id={`carousel-slide-${idx}`}
                           value={val}
-                          onChange={(event) =>
-                            setCarouselSlides((prev) =>
-                              prev.map((slide, slideIndex) =>
-                                slideIndex === idx ? event.target.value : slide,
-                              ),
-                            )
-                          }
+                          onChange={(event) => handleSlideChange(idx, event.target.value)}
                           placeholder={`Copy for slide ${idx + 1}`}
                         />
                       </div>
                     ))}
                   </div>
+                  {hasCarouselSlidesError ? (
+                    <p id="carousel-slides-error" className="text-xs text-rose-600">
+                      {FIELD_ERROR_MESSAGES.carouselSlides}
+                    </p>
+                  ) : null}
                 </div>
               )}
 
@@ -630,6 +838,111 @@ export function EntryForm({
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="entry-date">Date</Label>
+                <Input
+                  id="entry-date"
+                  type="date"
+                  value={date}
+                  onChange={(event) => setDate(event.target.value)}
+                  aria-invalid={hasDateError}
+                  aria-describedby={hasDateError ? 'entry-date-error' : undefined}
+                />
+                {hasDateError ? (
+                  <p id="entry-date-error" className="text-xs text-rose-600">
+                    {FIELD_ERROR_MESSAGES.date}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="approvalDeadline">Approval deadline</Label>
+                <Input
+                  id="approvalDeadline"
+                  type="datetime-local"
+                  value={approvalDeadline}
+                  onChange={(event) => setApprovalDeadline(event.target.value)}
+                  className="w-full"
+                />
+                <p className="text-xs text-graystone-500">
+                  {teamsWebhookUrl
+                    ? 'Use this when approvers and Teams reminders need a clear decision deadline.'
+                    : 'Let approvers know when you need a decision by (optional).'}
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="campaign">Campaign</Label>
+                  <select
+                    id="campaign"
+                    value={campaign}
+                    onChange={(event) => setCampaign(event.target.value)}
+                    className={cx(selectBaseClasses, 'w-full')}
+                  >
+                    <option value="">No campaign</option>
+                    {CAMPAIGNS.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="content-pillar">Content pillar</Label>
+                  <select
+                    id="content-pillar"
+                    value={contentPillar}
+                    onChange={(event) => setContentPillar(event.target.value)}
+                    className={cx(selectBaseClasses, 'w-full')}
+                  >
+                    <option value="">Not tagged</option>
+                    {CONTENT_PILLARS.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label id="entry-approvers-label" htmlFor="entry-approvers">
+                  Approvers
+                </Label>
+                <ApproverMulti
+                  value={approvers}
+                  onChange={(value) => {
+                    setAutoApprovers(false);
+                    setApprovers(value);
+                  }}
+                  options={approverOptions}
+                  buttonId="entry-approvers"
+                  labelledBy="entry-approvers-label"
+                />
+                <div className="flex items-center justify-between gap-3 text-xs text-graystone-500">
+                  <span>
+                    Recommended for this route:{' '}
+                    {recommendedApprovers.length
+                      ? recommendedApprovers.join(', ')
+                      : 'No approvers suggested'}
+                  </span>
+                  {!autoApprovers ? (
+                    <button
+                      type="button"
+                      className="font-medium text-ocean-700 underline-offset-2 hover:underline"
+                      onClick={() => {
+                        setAutoApprovers(true);
+                        setApprovers(recommendedApprovers);
+                      }}
+                    >
+                      Use template
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
               {/* ── Advanced options ─────────────────────────────────────── */}
 
               <div className="rounded-xl border border-graystone-200">
@@ -642,7 +955,7 @@ export function EntryForm({
                   )}
                 >
                   <span className="flex items-center gap-2">
-                    Advanced options
+                    Advanced
                     {advancedFilledCount > 0 && (
                       <span className="inline-flex items-center rounded-full bg-ocean-100 px-2 py-0.5 text-xs font-semibold text-ocean-700">
                         {advancedFilledCount} set
@@ -671,55 +984,63 @@ export function EntryForm({
                 {showAdvanced && (
                   <div className="space-y-5 border-t border-graystone-100 px-4 pb-5 pt-4">
                     <div className="space-y-2">
-                      <Label>Campaign</Label>
-                      <select
-                        value={campaign}
-                        onChange={(event) => setCampaign(event.target.value)}
-                        className={cx(selectBaseClasses, 'w-full')}
-                      >
-                        <option value="">No campaign</option>
-                        {CAMPAIGNS.map((name) => (
-                          <option key={name} value={name}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
+                      <Label htmlFor="url">URL (optional)</Label>
+                      <Input
+                        id="url"
+                        type="url"
+                        value={url}
+                        onChange={(event) => setUrl(event.target.value)}
+                        placeholder="https://example.org/article"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label htmlFor="preview-file">Preview asset</Label>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <input
+                          id="preview-file"
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => {
+                            const file = event.target.files && event.target.files[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              if (typeof reader.result === 'string') {
+                                setPreviewUrl(reader.result);
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }}
+                          className={cx(fileInputClasses, 'text-xs')}
+                        />
+                        {previewUrl && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setPreviewUrl('')}
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                      <Input
+                        id="previewUrl"
+                        type="url"
+                        value={previewUrl}
+                        onChange={(event) => setPreviewUrl(event.target.value)}
+                        placeholder="Or paste an image URL"
+                      />
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Content pillar</Label>
-                      <select
-                        value={contentPillar}
-                        onChange={(event) => setContentPillar(event.target.value)}
-                        className={cx(selectBaseClasses, 'w-full')}
-                      >
-                        <option value="">Not tagged</option>
-                        {CONTENT_PILLARS.map((name) => (
-                          <option key={name} value={name}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Priority</Label>
-                      <select
-                        value={priorityTier}
-                        onChange={(event) => setPriorityTier(event.target.value)}
-                        className={cx(selectBaseClasses, 'w-full sm:w-auto sm:min-w-[180px]')}
-                      >
-                        {PRIORITY_TIERS.map((tier) => (
-                          <option key={tier} value={tier}>
-                            {tier}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Audience segments</Label>
-                      <AudienceSelector value={audienceSegments} onChange={setAudienceSegments} />
+                      <Label id="audience-segments-label">Audience segments</Label>
+                      <AudienceSelector
+                        value={audienceSegments}
+                        onChange={setAudienceSegments}
+                        labelledBy="audience-segments-label"
+                      />
                     </div>
 
                     {influencers.length > 0 && (
@@ -736,59 +1057,327 @@ export function EntryForm({
                     )}
 
                     <div className="space-y-2">
-                      <Label>Approvers</Label>
-                      <ApproverMulti
-                        value={approvers}
-                        onChange={setApprovers}
-                        options={approverOptions}
+                      <Label htmlFor="content-category">Content category</Label>
+                      <select
+                        id="content-category"
+                        value={contentCategory}
+                        onChange={(event) => setContentCategory(event.target.value)}
+                        className={cx(selectBaseClasses, 'w-full')}
+                      >
+                        <option value="">Not tagged</option>
+                        {CONTENT_CATEGORIES.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="response-mode">Response mode</Label>
+                      <select
+                        id="response-mode"
+                        value={responseMode}
+                        onChange={(event) => setResponseMode(event.target.value)}
+                        className={cx(selectBaseClasses, 'w-full')}
+                      >
+                        {RESPONSE_MODES.map((mode) => (
+                          <option key={mode} value={mode}>
+                            {mode}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="sign-off-route">Sign-off route</Label>
+                      <select
+                        id="sign-off-route"
+                        value={signOffRoute}
+                        onChange={(event) => {
+                          setAutoSignOffRoute(false);
+                          setSignOffRoute(event.target.value);
+                        }}
+                        className={cx(selectBaseClasses, 'w-full')}
+                      >
+                        <option value="">Use manual approvers only</option>
+                        {SIGN_OFF_ROUTES.map((route) => (
+                          <option key={route} value={route}>
+                            {route}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex items-center justify-between gap-3 text-xs text-graystone-500">
+                        <span>
+                          Recommended from strategy metadata: {recommendedSignOffRoute || 'None'}
+                        </span>
+                        {!autoSignOffRoute && signOffRoute !== recommendedSignOffRoute ? (
+                          <button
+                            type="button"
+                            className="font-medium text-ocean-700 underline-offset-2 hover:underline"
+                            onClick={() => {
+                              setAutoSignOffRoute(true);
+                              setSignOffRoute(recommendedSignOffRoute);
+                            }}
+                          >
+                            Use recommendation
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="contentPeak">Content peak / moment</Label>
+                        <Input
+                          id="contentPeak"
+                          value={contentPeak}
+                          onChange={(event) => setContentPeak(event.target.value)}
+                          placeholder="World Population Day, COP, budget, research launch..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="partnerOrg">Partner organisation</Label>
+                        <Input
+                          id="partnerOrg"
+                          value={partnerOrg}
+                          onChange={(event) => setPartnerOrg(event.target.value)}
+                          placeholder="Partner, coalition, or programme lead"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="seriesName">Series</Label>
+                        <Input
+                          id="seriesName"
+                          value={seriesName}
+                          onChange={(event) => setSeriesName(event.target.value)}
+                          placeholder="Rights in practice, Myth-bust Monday..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="episodeNumber">Episode number</Label>
+                        <Input
+                          id="episodeNumber"
+                          type="number"
+                          min="1"
+                          value={episodeNumber}
+                          onChange={(event) => setEpisodeNumber(event.target.value)}
+                          placeholder="1"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="originContentId">Origin content ID</Label>
+                      <Input
+                        id="originContentId"
+                        value={originContentId}
+                        onChange={(event) => setOriginContentId(event.target.value)}
+                        placeholder="Use when adapting an existing hub-and-spoke entry"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="approvalDeadline">Approval deadline</Label>
-                      <Input
-                        id="approvalDeadline"
-                        type="datetime-local"
-                        value={approvalDeadline}
-                        onChange={(event) => setApprovalDeadline(event.target.value)}
-                        className="w-full"
-                      />
-                      <p className="text-xs text-graystone-500">
-                        Let approvers know when you need a decision by (optional).
-                      </p>
+                      <Label htmlFor="priority-tier">Priority</Label>
+                      <select
+                        id="priority-tier"
+                        value={priorityTier}
+                        onChange={(event) => setPriorityTier(event.target.value)}
+                        className={cx(selectBaseClasses, 'w-full sm:w-auto sm:min-w-[180px]')}
+                      >
+                        {PRIORITY_TIERS.map((tier) => (
+                          <option key={tier} value={tier}>
+                            {tier}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-4 rounded-2xl border border-graystone-200 bg-graystone-50 p-4">
+                      <div>
+                        <div className="text-sm font-semibold text-ocean-900">
+                          Execution quality
+                        </div>
+                        <p className="mt-1 text-xs text-graystone-500">
+                          These fields drive review readiness for links, accessibility, source
+                          checking, and search intent.
+                        </p>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="alt-text-status">Alt text</Label>
+                          <select
+                            id="alt-text-status"
+                            value={altTextStatus}
+                            onChange={(event) => setAltTextStatus(event.target.value)}
+                            className={cx(selectBaseClasses, 'w-full')}
+                          >
+                            {EXECUTION_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="subtitles-status">Subtitles / transcript</Label>
+                          <select
+                            id="subtitles-status"
+                            value={subtitlesStatus}
+                            onChange={(event) => setSubtitlesStatus(event.target.value)}
+                            className={cx(selectBaseClasses, 'w-full')}
+                          >
+                            {EXECUTION_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="utm-status">UTM plan</Label>
+                          <select
+                            id="utm-status"
+                            value={utmStatus}
+                            onChange={(event) => setUtmStatus(event.target.value)}
+                            className={cx(selectBaseClasses, 'w-full')}
+                          >
+                            {EXECUTION_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="link-placement">Link placement</Label>
+                          <select
+                            id="link-placement"
+                            value={linkPlacement}
+                            onChange={(event) => setLinkPlacement(event.target.value)}
+                            className={cx(selectBaseClasses, 'w-full')}
+                          >
+                            <option value="">Not set</option>
+                            {LINK_PLACEMENTS.map((placement) => (
+                              <option key={placement} value={placement}>
+                                {placement}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="cta-type">CTA type</Label>
+                          <select
+                            id="cta-type"
+                            value={ctaType}
+                            onChange={(event) => setCtaType(event.target.value)}
+                            className={cx(selectBaseClasses, 'w-full')}
+                          >
+                            <option value="">Select CTA</option>
+                            {CTA_TYPES.map((type) => (
+                              <option key={type} value={type}>
+                                {type}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="seoPrimaryQuery">SEO primary query</Label>
+                          <Input
+                            id="seoPrimaryQuery"
+                            value={seoPrimaryQuery}
+                            onChange={(event) => setSeoPrimaryQuery(event.target.value)}
+                            placeholder="e.g. population decline myth, reproductive rights UK"
+                          />
+                        </div>
+                      </div>
+
+                      <label className="flex items-start gap-3 rounded-xl border border-graystone-200 bg-white px-3 py-3 text-sm text-graystone-700">
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 rounded border-graystone-300 text-ocean-600 focus:ring-ocean-500"
+                          checked={sourceVerified}
+                          onChange={(event) => setSourceVerified(event.target.checked)}
+                        />
+                        <span>
+                          Source verified
+                          <span className="block text-xs text-graystone-500">
+                            Confirms facts, evidence source, and usage rights have been checked.
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+
+                    <div className="space-y-4">
+                      <QuickAssessment values={quickAssessment} onChange={setQuickAssessment} />
+                      <GoldenThreadCheck values={goldenThread} onChange={setGoldenThread} />
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
-            <PlatformGuidancePanel platforms={platforms} contentPillar={contentPillar} />
+            {resolvedPlatforms.length > 0 ? (
+              <PlatformGuidancePanel platforms={resolvedPlatforms} contentPillar={contentPillar} />
+            ) : null}
           </div>
 
-          <div className="space-y-4">
-            <QuickAssessment values={quickAssessment} onChange={setQuickAssessment} />
-            <GoldenThreadCheck values={goldenThread} onChange={setGoldenThread} />
-          </div>
-
-          {submitSuccess && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-              Post added to the plan
+          {hasConflict && !overrideConflict ? (
+            <div
+              id="conflict-warning"
+              ref={conflictWarningRef}
+              tabIndex={-1}
+              className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+            >
+              <div className="font-semibold">
+                Heads up: {conflicts.length} post{conflicts.length === 1 ? '' : 's'} already
+                scheduled on this date.
+              </div>
+              <p className="mt-1 text-xs text-amber-700">
+                Change the date above, or use the conflict override to keep this slot.
+              </p>
             </div>
-          )}
+          ) : null}
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" className="gap-2">
-              <PlusIcon className="h-4 w-4" />
-              Submit to plan
-            </Button>
+            {hasConflict && !overrideConflict ? (
+              <Button type="button" className="gap-2" onClick={handleSubmitAnyway}>
+                <PlusIcon className="h-4 w-4" />
+                Submit anyway
+              </Button>
+            ) : (
+              <Button type="submit" className="gap-2">
+                <PlusIcon className="h-4 w-4" />
+                Submit to plan
+              </Button>
+            )}
             <Button type="button" variant="outline" onClick={reset}>
               Reset
             </Button>
           </div>
           {hasConflict && !overrideConflict && (
             <p className="text-xs text-amber-700">
-              Resolve the scheduling conflict above before submitting.
+              The main submit action is now the explicit conflict override for this entry.
             </p>
+          )}
+          {approvers.length > 0 && workflowBlockers.length > 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <div className="font-medium">Review blockers</div>
+              <p className="mt-1 text-xs text-amber-700">
+                This entry can be saved, but it will stay in Draft until these are completed.
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
+                {workflowBlockers.map((item) => (
+                  <li key={item.key}>{item.label}</li>
+                ))}
+              </ul>
+            </div>
           )}
         </form>
       </CardContent>

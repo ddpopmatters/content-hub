@@ -4,17 +4,23 @@
 import { STORAGE_KEYS, storageAvailable, isOlderThanDays } from './utils';
 import { sanitizeEntry, sanitizeIdea, computeStatusDetail } from './sanitizers';
 import type {
+  ContentPeak,
+  ContentSeries,
   Entry,
   Idea,
   Influencer,
   InfluencerStatus,
   PlatformProfile,
+  RapidResponse,
   ReportingPeriod,
 } from '../types/models';
 
 const ENTRIES_STORAGE_KEY = STORAGE_KEYS.ENTRIES;
 const IDEAS_STORAGE_KEY = STORAGE_KEYS.IDEAS;
 const REPORTING_STORAGE_KEY = STORAGE_KEYS.REPORTING;
+const CONTENT_PEAKS_STORAGE_KEY = STORAGE_KEYS.CONTENT_PEAKS;
+const CONTENT_SERIES_STORAGE_KEY = STORAGE_KEYS.CONTENT_SERIES;
+const RAPID_RESPONSES_STORAGE_KEY = STORAGE_KEYS.RAPID_RESPONSES;
 const INFLUENCERS_STORAGE_KEY = STORAGE_KEYS.INFLUENCERS;
 
 const VALID_INFLUENCER_STATUSES: InfluencerStatus[] = [
@@ -194,6 +200,92 @@ export const saveReportingPeriods = (periods: ReportingPeriod[]): void => {
     window.localStorage.setItem(REPORTING_STORAGE_KEY, JSON.stringify(periods));
   } catch (error) {
     console.warn('Failed to persist reporting periods', error);
+  }
+};
+
+/**
+ * Loads content peaks from localStorage
+ */
+export const loadContentPeaks = (): ContentPeak[] => {
+  if (!storageAvailable) return [];
+  try {
+    const raw = window.localStorage.getItem(CONTENT_PEAKS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? (parsed as ContentPeak[]).sort((a, b) =>
+          (a.startDate || '').localeCompare(b.startDate || ''),
+        )
+      : [];
+  } catch (error) {
+    console.warn('Failed to load content peaks', error);
+    return [];
+  }
+};
+
+/**
+ * Saves content peaks to localStorage
+ */
+export const saveContentPeaks = (peaks: ContentPeak[]): void => {
+  if (!storageAvailable) return;
+  try {
+    window.localStorage.setItem(CONTENT_PEAKS_STORAGE_KEY, JSON.stringify(peaks));
+  } catch (error) {
+    console.warn('Failed to persist content peaks', error);
+  }
+};
+
+/**
+ * Loads content series from localStorage
+ */
+export const loadContentSeries = (): ContentSeries[] => {
+  if (!storageAvailable) return [];
+  try {
+    const raw = window.localStorage.getItem(CONTENT_SERIES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? (parsed as ContentSeries[]).sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+      : [];
+  } catch (error) {
+    console.warn('Failed to load content series', error);
+    return [];
+  }
+};
+
+/**
+ * Saves content series to localStorage
+ */
+export const saveContentSeries = (series: ContentSeries[]): void => {
+  if (!storageAvailable) return;
+  try {
+    window.localStorage.setItem(CONTENT_SERIES_STORAGE_KEY, JSON.stringify(series));
+  } catch (error) {
+    console.warn('Failed to persist content series', error);
+  }
+};
+
+export const loadRapidResponses = (): RapidResponse[] => {
+  if (!storageAvailable) return [];
+  try {
+    const raw = window.localStorage.getItem(RAPID_RESPONSES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? (parsed as RapidResponse[]).sort((a, b) => (a.dueAt || '').localeCompare(b.dueAt || ''))
+      : [];
+  } catch (error) {
+    console.warn('Failed to load rapid responses', error);
+    return [];
+  }
+};
+
+export const saveRapidResponses = (responses: RapidResponse[]): void => {
+  if (!storageAvailable) return;
+  try {
+    window.localStorage.setItem(RAPID_RESPONSES_STORAGE_KEY, JSON.stringify(responses));
+  } catch (error) {
+    console.warn('Failed to persist rapid responses', error);
   }
 };
 

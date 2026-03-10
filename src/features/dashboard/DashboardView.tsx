@@ -9,9 +9,19 @@ import { PillarBalanceWidget } from './widgets/PillarBalanceWidget';
 import { PlatformCoverageWidget } from './widgets/PlatformCoverageWidget';
 import { AudienceSegmentWidget } from './widgets/AudienceSegmentWidget';
 import { UrgentOpportunitiesWidget } from './widgets/UrgentOpportunitiesWidget';
+import { StrategyMixWidget } from './widgets/StrategyMixWidget';
+import { ExecutionReadinessWidget } from './widgets/ExecutionReadinessWidget';
+import { UpcomingPeaksWidget } from './widgets/UpcomingPeaksWidget';
+import { SeriesHealthWidget } from './widgets/SeriesHealthWidget';
 import { UpcomingDeadlines } from '../calendar/UpcomingDeadlines';
 import { MiniCalendar } from '../calendar/MiniCalendar';
-import type { Entry, EngagementActivity, EngagementGoals } from '../../types/models';
+import type {
+  ContentPeak,
+  ContentSeries,
+  Entry,
+  EngagementActivity,
+  EngagementGoals,
+} from '../../types/models';
 
 const WIDGET_DEFS = [
   { id: 'quickActions', label: 'Quick Actions' },
@@ -23,6 +33,10 @@ const WIDGET_DEFS = [
   { id: 'pillarBalance', label: 'Pillar Balance' },
   { id: 'platformCoverage', label: 'Platform Coverage' },
   { id: 'audienceSegment', label: 'Audience Segment' },
+  { id: 'strategyMix', label: 'Strategy Mix' },
+  { id: 'executionReadiness', label: 'Execution Readiness' },
+  { id: 'upcomingPeaks', label: 'Upcoming Peaks' },
+  { id: 'seriesHealth', label: 'Series Health' },
   { id: 'assetMix', label: 'Asset Mix' },
   { id: 'engagementProgress', label: 'Engagement Progress' },
   { id: 'calendarGlance', label: 'Calendar at a Glance' },
@@ -55,6 +69,8 @@ export interface DashboardViewProps {
   assetGoals: Record<string, number>;
   engagementActivities: EngagementActivity[];
   engagementGoals: EngagementGoals;
+  contentPeaks: ContentPeak[];
+  contentSeries: ContentSeries[];
   pendingApprovalCount: number;
   urgentOpportunityCount?: number;
   onOpenEntry: (id: string) => void;
@@ -70,6 +86,8 @@ export function DashboardView({
   assetGoals,
   engagementActivities,
   engagementGoals,
+  contentPeaks,
+  contentSeries,
   pendingApprovalCount,
   urgentOpportunityCount = 0,
   onOpenEntry,
@@ -223,6 +241,22 @@ export function DashboardView({
           {show('pillarBalance') && <PillarBalanceWidget entries={entries} />}
           {show('platformCoverage') && <PlatformCoverageWidget entries={entries} />}
           {show('audienceSegment') && <AudienceSegmentWidget entries={entries} />}
+          {show('strategyMix') && <StrategyMixWidget entries={entries} />}
+          {show('executionReadiness') && <ExecutionReadinessWidget entries={entries} />}
+          {show('upcomingPeaks') && (
+            <UpcomingPeaksWidget
+              contentPeaks={contentPeaks}
+              entries={entries}
+              onOpenPeaks={() => onNavigate('plan', 'peaks')}
+            />
+          )}
+          {show('seriesHealth') && (
+            <SeriesHealthWidget
+              contentSeries={contentSeries}
+              entries={entries}
+              onOpenSeries={() => onNavigate('plan', 'series')}
+            />
+          )}
           {show('assetMix') && <AssetMixWidget entries={entries} assetGoals={assetGoals} />}
           {show('engagementProgress') && (
             <EngagementProgressWidget

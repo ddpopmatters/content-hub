@@ -84,6 +84,10 @@ export function QuickAssessment({
               disabled={readOnly}
               onClick={() => toggle(q.key)}
               title={q.description}
+              aria-label={`${q.label}: ${
+                val === true ? 'Passed' : val === false ? 'Needs revision' : 'Not checked'
+              }`}
+              aria-pressed={val === true}
               className={cx(
                 'rounded-full px-3 py-1 text-xs font-medium transition-colors',
                 val === true && 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300',

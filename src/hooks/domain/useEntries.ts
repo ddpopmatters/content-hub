@@ -5,6 +5,7 @@ import {
   computeStatusDetail,
   createEmptyChecklist,
   entrySignature,
+  getWorkflowBlockers,
   hasApproverRelevantChanges,
 } from '../../lib/sanitizers';
 import { buildEntryEmailPayload } from '../../lib/email';
@@ -12,6 +13,7 @@ import { appendAudit } from '../../lib/audit';
 import { loadEntries, saveEntries } from '../../lib/storage';
 import { triggerPublish, initializePublishStatus, canPublish } from '../../features/publishing';
 import { KANBAN_STATUSES } from '../../constants';
+import type { Entry } from '../../types/models';
 
 interface UseEntriesDeps {
   runSyncTask: (label: string, fn: () => Promise<unknown>) => Promise<unknown>;
@@ -265,6 +267,10 @@ export function useEntries({
             caption: entry.caption,
             platformCaptions: entry.platformCaptions,
             firstComment: entry.firstComment,
+            audienceSegments: entry.audienceSegments,
+            goldenThreadPass: entry.goldenThreadPass,
+            assessmentScores: entry.assessmentScores,
+            influencerId: entry.influencerId,
             status: entry.status,
             priorityTier: entry.priorityTier,
             approvers: entry.approvers,
@@ -272,6 +278,10 @@ export function useEntries({
             campaign: entry.campaign,
             contentPillar: entry.contentPillar,
             previewUrl: entry.previewUrl,
+            script: entry.script,
+            designCopy: entry.designCopy,
+            carouselSlides: entry.carouselSlides,
+            url: entry.url,
             approvalDeadline: entry.approvalDeadline,
             checklist: entry.checklist,
             analytics: entry.analytics,
@@ -405,6 +415,7 @@ export function useEntries({
                   updatedAt: timestamp,
                 };
                 const sanitized = sanitizeEntry(merged);
+                if (!sanitized) return entry;
                 const previousApprovers = ensurePeopleArray(entry.approvers);
                 const nextApprovers = ensurePeopleArray(sanitized.approvers);
                 const newApprovers = nextApprovers.filter(
@@ -517,6 +528,18 @@ export function useEntries({
   const toggleApprove = useCallback(
     (id: string) => {
       const entryRecord = entries.find((entry) => entry.id === id) || null;
+      const approving = entryRecord?.status !== 'Approved';
+      const blockers = approving ? getWorkflowBlockers(entryRecord as Partial<Entry>) : [];
+      if (approving && blockers.length) {
+        pushSyncToast(
+          `Approval blocked: ${blockers
+            .map((item) => item.label)
+            .slice(0, 3)
+            .join(', ')}`,
+          'warning',
+        );
+        return;
+      }
       const timestamp = new Date().toISOString();
       let nextStatusForServer: string | null = null;
       let nextWorkflowStatusForServer: string | null = null;

@@ -3,6 +3,7 @@ import { Card, CardHeader, CardContent, CardTitle, Badge, Button } from '../../c
 import { CheckCircleIcon, LoaderIcon, PlusIcon } from '../../components/common';
 import { cx } from '../../lib/utils';
 import { getChecklistItemsForEntry } from '../../constants';
+import { getWorkflowBlockers } from '../../lib/sanitizers';
 import type { Entry } from '../../types/models';
 
 interface ApprovalEntryCardProps {
@@ -15,6 +16,8 @@ interface ApprovalEntryCardProps {
  * ApprovalEntryCard - Displays a single approval entry with actions
  */
 const ApprovalEntryCard: React.FC<ApprovalEntryCardProps> = ({ entry, onApprove, onOpenEntry }) => {
+  const workflowBlockers = getWorkflowBlockers(entry);
+  const canApprove = workflowBlockers.length === 0;
   return (
     <div
       key={entry.id}
@@ -42,7 +45,11 @@ const ApprovalEntryCard: React.FC<ApprovalEntryCardProps> = ({ entry, onApprove,
           {entry.caption && (
             <p className="line-clamp-3 text-sm text-graystone-700">{entry.caption}</p>
           )}
-          {(entry.campaign || entry.contentPillar || entry.testingFrameworkName) && (
+          {(entry.campaign ||
+            entry.contentPillar ||
+            entry.contentCategory ||
+            entry.responseMode ||
+            entry.testingFrameworkName) && (
             <div className="flex flex-wrap items-center gap-1 text-[11px] text-graystone-500">
               {entry.campaign ? (
                 <span className="max-w-[140px] truncate rounded-full bg-aqua-100 px-2 py-0.5 text-ocean-700">
@@ -52,6 +59,16 @@ const ApprovalEntryCard: React.FC<ApprovalEntryCardProps> = ({ entry, onApprove,
               {entry.contentPillar ? (
                 <span className="rounded-full bg-graystone-100 px-2 py-0.5 text-graystone-700">
                   {entry.contentPillar}
+                </span>
+              ) : null}
+              {entry.contentCategory ? (
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">
+                  {entry.contentCategory}
+                </span>
+              ) : null}
+              {entry.responseMode ? (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">
+                  {entry.responseMode}
                 </span>
               ) : null}
               {entry.testingFrameworkName ? (
@@ -86,6 +103,12 @@ const ApprovalEntryCard: React.FC<ApprovalEntryCardProps> = ({ entry, onApprove,
               })}
             </div>
           )}
+          {!canApprove ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <div className="font-medium">Approval blocked</div>
+              <div className="mt-1">{workflowBlockers.map((item) => item.label).join(', ')}</div>
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-col items-end gap-2">
           <Button
@@ -93,6 +116,7 @@ const ApprovalEntryCard: React.FC<ApprovalEntryCardProps> = ({ entry, onApprove,
             variant="outline"
             onClick={() => onApprove?.(entry.id)}
             className="gap-2"
+            disabled={!canApprove}
           >
             <CheckCircleIcon className="h-4 w-4 text-emerald-600" />
             Mark approved

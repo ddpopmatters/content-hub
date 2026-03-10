@@ -2,6 +2,18 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useEntries } from '../useEntries';
 
+const { mockGetWorkflowBlockers } = vi.hoisted(() => ({
+  mockGetWorkflowBlockers: vi.fn<
+    () => Array<{
+      key: string;
+      label: string;
+      detail: string;
+      required: boolean;
+      complete: boolean;
+    }>
+  >(() => []),
+}));
+
 // Mock all external dependencies
 vi.mock('../../../lib/utils', () => ({
   uuid: () => 'test-uuid-' + Math.random().toString(36).slice(2, 8),
@@ -21,6 +33,7 @@ vi.mock('../../../lib/sanitizers', () => ({
   computeStatusDetail: () => 'ok',
   createEmptyChecklist: () => ({ items: [] }),
   entrySignature: () => 'sig',
+  getWorkflowBlockers: mockGetWorkflowBlockers,
   hasApproverRelevantChanges: () => false,
 }));
 
@@ -70,6 +83,7 @@ function mockDeps(overrides: Partial<Parameters<typeof useEntries>[0]> = {}) {
 describe('useEntries', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetWorkflowBlockers.mockReturnValue([]);
   });
 
   describe('addEntry', () => {
@@ -315,6 +329,39 @@ describe('useEntries', () => {
       const entry = result.current.entries.find((e) => e.id === id);
       expect(entry?.status).toBe('Pending');
       expect(entry?.approvedAt).toBeFalsy();
+    });
+
+    it('blocks approval when workflow blockers remain', () => {
+      mockGetWorkflowBlockers.mockReturnValue([
+        {
+          key: 'sourceVerified',
+          label: 'Source verified',
+          detail: 'Verify sources',
+          required: true,
+          complete: false,
+        },
+      ]);
+      const deps = mockDeps();
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.addEntry({
+          date: '2026-03-15',
+          assetType: 'Blog',
+          approvers: ['Jane Doe'],
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      act(() => {
+        result.current.toggleApprove(id);
+      });
+
+      expect(result.current.entries.find((e) => e.id === id)?.status).toBe('Pending');
+      expect(deps.pushSyncToast).toHaveBeenCalledWith(
+        'Approval blocked: Source verified',
+        'warning',
+      );
     });
   });
 

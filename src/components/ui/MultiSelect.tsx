@@ -17,6 +17,10 @@ export interface MultiSelectProps {
   onChange: (values: string[]) => void;
   /** Available options */
   options: MultiSelectOption[];
+  /** Optional button id for label association */
+  buttonId?: string;
+  /** Optional accessible label reference */
+  labelledBy?: string;
 }
 
 const MULTI_OPTION_BASE =
@@ -33,6 +37,8 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
   value,
   onChange,
   options,
+  buttonId,
+  labelledBy,
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -44,9 +50,13 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
   return (
     <div className="relative">
       <Button
+        id={buttonId}
         variant="outline"
         className="dropdown-font w-full justify-between px-4 py-2"
         onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-labelledby={labelledBy}
       >
         <span className="dropdown-font text-sm">
           {value.length ? `${value.length} selected` : placeholder}
@@ -55,9 +65,14 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
       </Button>
       {open && (
         <div className="absolute left-0 top-12 z-30 w-full rounded-3xl border border-black bg-white text-black shadow-[0_0_25px_rgba(15,157,222,0.3)]">
-          <div className="max-h-52 overflow-y-auto py-2">
+          <div className="max-h-52 overflow-y-auto py-2" role="listbox" aria-multiselectable="true">
             {options.map((option) => (
-              <label key={option.value} className={MULTI_OPTION_BASE}>
+              <label
+                key={option.value}
+                className={MULTI_OPTION_BASE}
+                role="option"
+                aria-selected={value.includes(option.value)}
+              >
                 <input
                   type="checkbox"
                   className={checklistCheckboxClass}
