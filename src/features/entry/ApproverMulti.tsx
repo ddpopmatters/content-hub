@@ -9,6 +9,10 @@ export interface ApproverMultiProps {
   onChange: (value: string[]) => void;
   /** Available approver options */
   options?: readonly string[];
+  /** Optional button id for label association */
+  buttonId?: string;
+  /** Optional accessible label reference */
+  labelledBy?: string;
 }
 
 /**
@@ -18,11 +22,15 @@ export const ApproverMulti: React.FC<ApproverMultiProps> = ({
   value,
   onChange,
   options = DEFAULT_APPROVERS,
+  buttonId,
+  labelledBy,
 }) => (
   <MultiSelect
     placeholder="Select approvers"
     value={value}
     onChange={onChange}
+    buttonId={buttonId}
+    labelledBy={labelledBy}
     options={options.map((name) => ({
       value: name,
       label: name,

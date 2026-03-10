@@ -3,7 +3,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useEntries } from '../useEntries';
 
 const { mockGetWorkflowBlockers } = vi.hoisted(() => ({
-  mockGetWorkflowBlockers: vi.fn(() => []),
+  mockGetWorkflowBlockers: vi.fn<
+    () => Array<{
+      key: string;
+      label: string;
+      detail: string;
+      required: boolean;
+      complete: boolean;
+    }>
+  >(() => []),
 }));
 
 // Mock all external dependencies

@@ -38,7 +38,16 @@ import { PlatformGuidancePanel } from './PlatformGuidancePanel';
 import { TerminologyAlert } from './TerminologyAlert';
 import { checkTerminology } from '../../lib/terminology';
 
-const { useState, useMemo, useEffect } = React;
+const { useState, useMemo, useEffect, useRef } = React;
+
+const FIELD_ERROR_MESSAGES = {
+  date: 'Date is required.',
+  platforms: 'At least one platform is required.',
+  assetType: 'Asset type is required.',
+  script: 'Video script is required.',
+  designCopy: 'Design copy is required.',
+  carouselSlides: 'At least one carousel slide needs copy.',
+};
 
 const normalizeDateTimeLocal = (value) => {
   if (!value || typeof value !== 'string') return '';
@@ -105,9 +114,12 @@ export function EntryForm({
   const [quickAssessment, setQuickAssessment] = useState({});
   const [goldenThread, setGoldenThread] = useState({});
   const [entryFormErrors, setEntryFormErrors] = useState([]);
+  const [entryFormErrorFields, setEntryFormErrorFields] = useState([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [autoSignOffRoute, setAutoSignOffRoute] = useState(true);
   const [autoApprovers, setAutoApprovers] = useState(true);
+  const errorSummaryRef = useRef(null);
+  const conflictWarningRef = useRef(null);
 
   useEffect(() => {
     if (!initialValues) return;
@@ -176,6 +188,7 @@ export function EntryForm({
     setQuickAssessment(initialValues.assessmentScores?.quick ?? {});
     setGoldenThread(initialValues.assessmentScores?.goldenThread ?? {});
     setEntryFormErrors([]);
+    setEntryFormErrorFields([]);
     const hasAdvancedValues = !!(
       initialValues.contentCategory ||
       (initialValues.responseMode && initialValues.responseMode !== 'Planned') ||
@@ -264,6 +277,12 @@ export function EntryForm({
   }, [date, platforms]);
 
   useEffect(() => {
+    if (!entryFormErrors.length || !errorSummaryRef.current) return;
+    if (entryFormErrors.every((error) => error.startsWith('Scheduling conflict'))) return;
+    errorSummaryRef.current.focus();
+  }, [entryFormErrors]);
+
+  useEffect(() => {
     setActiveCaptionTab((prevTab) =>
       prevTab === 'Main' || platforms.includes(prevTab) ? prevTab : 'Main',
     );
@@ -319,6 +338,7 @@ export function EntryForm({
     setQuickAssessment({});
     setGoldenThread({});
     setEntryFormErrors([]);
+    setEntryFormErrorFields([]);
     setAutoSignOffRoute(true);
     setAutoApprovers(true);
     onPreviewAssetType?.(null);
@@ -326,26 +346,33 @@ export function EntryForm({
 
   const validateEntry = () => {
     const errors = [];
-    if (!date) errors.push('Date is required.');
+    if (!date) errors.push({ field: 'date', message: FIELD_ERROR_MESSAGES.date });
     const resolvedPlatforms = allPlatforms ? [...ALL_PLATFORMS] : platforms;
-    if (!resolvedPlatforms.length) errors.push('At least one platform is required.');
-    if (!assetType) errors.push('Asset type is required.');
-    if (assetType === 'Video' && !script.trim()) errors.push('Video script is required.');
-    if (assetType === 'Design' && !designCopy.trim()) errors.push('Design copy is required.');
+    if (!resolvedPlatforms.length)
+      errors.push({ field: 'platforms', message: FIELD_ERROR_MESSAGES.platforms });
+    if (!assetType) errors.push({ field: 'assetType', message: FIELD_ERROR_MESSAGES.assetType });
+    if (assetType === 'Video' && !script.trim())
+      errors.push({ field: 'script', message: FIELD_ERROR_MESSAGES.script });
+    if (assetType === 'Design' && !designCopy.trim())
+      errors.push({ field: 'designCopy', message: FIELD_ERROR_MESSAGES.designCopy });
     if (
       assetType === 'Carousel' &&
       !carouselSlides.some((slide) => typeof slide === 'string' && slide.trim())
     )
-      errors.push('At least one carousel slide needs copy.');
+      errors.push({
+        field: 'carouselSlides',
+        message: FIELD_ERROR_MESSAGES.carouselSlides,
+      });
     return errors;
   };
 
   const derivedAuthor = currentAuthorName || currentUserEmail || '';
+  const resolvedPlatforms = allPlatforms ? [...ALL_PLATFORMS] : platforms;
 
   const submitEntry = () => {
     const scheduledDate = date;
     const cleanedCaptions = {};
-    platforms.forEach((platform) => {
+    resolvedPlatforms.forEach((platform) => {
       const value = platformCaptions[platform];
       if (value && value.trim()) cleanedCaptions[platform] = value;
     });
@@ -355,7 +382,7 @@ export function EntryForm({
       sourceRequestId: initialValues?.sourceRequestId || undefined,
       sourceRequestTitle: initialValues?.sourceRequestTitle || undefined,
       author: derivedAuthor || undefined,
-      platforms: ensureArray(allPlatforms ? [...ALL_PLATFORMS] : platforms),
+      platforms: ensureArray(resolvedPlatforms),
       caption,
       url: url || undefined,
       approvalDeadline: approvalDeadline || undefined,
@@ -398,7 +425,7 @@ export function EntryForm({
         approvers,
         assetType,
         previewUrl,
-        platforms,
+        platforms: resolvedPlatforms,
         url,
         firstComment,
         altTextStatus,
@@ -418,30 +445,34 @@ export function EntryForm({
     event.preventDefault();
     const errors = validateEntry();
     if (errors.length) {
-      setEntryFormErrors(errors);
+      setEntryFormErrors(errors.map((error) => error.message));
+      setEntryFormErrorFields(errors.map((error) => error.field));
       return;
     }
     if (hasConflict && !overrideConflict) {
       setEntryFormErrors([
-        'Scheduling conflict on this date — use "Submit anyway" in the warning below, or pick a different date.',
+        'Scheduling conflict on this date — use "Submit anyway" below, or pick a different date.',
       ]);
-      document
-        .getElementById('conflict-warning')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setEntryFormErrorFields([]);
+      conflictWarningRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      conflictWarningRef.current?.focus();
       return;
     }
     setEntryFormErrors([]);
+    setEntryFormErrorFields([]);
     submitEntry();
   };
 
   const handleSubmitAnyway = () => {
     const errors = validateEntry();
     if (errors.length) {
-      setEntryFormErrors(errors);
+      setEntryFormErrors(errors.map((error) => error.message));
+      setEntryFormErrorFields(errors.map((error) => error.field));
       return;
     }
     setOverrideConflict(true);
     setEntryFormErrors([]);
+    setEntryFormErrorFields([]);
     submitEntry();
   };
 
@@ -449,6 +480,12 @@ export function EntryForm({
   const captionTabs = useMemo(() => ['Main', ...platforms], [platforms]);
   const currentCaptionValue =
     activeCaptionTab === 'Main' ? caption : (platformCaptions[activeCaptionTab] ?? caption);
+  const hasDateError = entryFormErrorFields.includes('date');
+  const hasPlatformError = entryFormErrorFields.includes('platforms');
+  const hasAssetTypeError = entryFormErrorFields.includes('assetType');
+  const hasScriptError = entryFormErrorFields.includes('script');
+  const hasDesignCopyError = entryFormErrorFields.includes('designCopy');
+  const hasCarouselSlidesError = entryFormErrorFields.includes('carouselSlides');
   const advancedFilledCount = [
     contentCategory,
     responseMode !== 'Planned',
@@ -479,7 +516,7 @@ export function EntryForm({
         approvers,
         assetType,
         previewUrl,
-        platforms,
+        platforms: resolvedPlatforms,
         url,
         firstComment,
         altTextStatus,
@@ -494,7 +531,7 @@ export function EntryForm({
       approvers,
       assetType,
       previewUrl,
-      platforms,
+      resolvedPlatforms,
       url,
       firstComment,
       altTextStatus,
@@ -566,7 +603,12 @@ export function EntryForm({
       </CardHeader>
       <CardContent>
         {entryFormErrors.length ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <div
+            ref={errorSummaryRef}
+            tabIndex={-1}
+            role="alert"
+            className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
+          >
             <div className="text-xs font-semibold uppercase tracking-wide text-rose-600">
               Please fix before saving
             </div>
@@ -578,12 +620,18 @@ export function EntryForm({
           </div>
         ) : null}
         <form className="space-y-6" onSubmit={handleSubmit}>
-          <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+          <div
+            className={cx('grid gap-6', resolvedPlatforms.length > 0 && 'lg:grid-cols-[2fr,1fr]')}
+          >
             <div className="space-y-6">
               {/* ── Core fields ─────────────────────────────────────────── */}
 
-              <div className="space-y-2">
-                <Label>Platforms</Label>
+              <fieldset
+                className="space-y-2"
+                aria-invalid={hasPlatformError}
+                aria-describedby={hasPlatformError ? 'platforms-error' : undefined}
+              >
+                <legend className="block text-sm font-medium text-graystone-700">Platforms</legend>
                 <div className="flex items-center gap-3">
                   <Toggle
                     id="all-platforms"
@@ -612,51 +660,48 @@ export function EntryForm({
                     ))}
                   </div>
                 )}
-              </div>
-
-              {hasConflict && (
-                <div
-                  id="conflict-warning"
-                  className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-3 text-sm text-amber-800"
-                >
-                  <div className="font-semibold">
-                    Heads up: {conflicts.length} post{conflicts.length === 1 ? '' : 's'} already
-                    scheduled on this date.
-                  </div>
-                  <p className="mt-1 text-xs text-amber-700">
-                    You can continue, or pick a different date above.
+                {hasPlatformError ? (
+                  <p id="platforms-error" className="text-xs text-rose-600">
+                    {FIELD_ERROR_MESSAGES.platforms}
                   </p>
-                  <div className="mt-3">
-                    <Button size="sm" onClick={handleSubmitAnyway}>
-                      Submit anyway
-                    </Button>
-                  </div>
-                </div>
-              )}
+                ) : null}
+              </fieldset>
 
               <div className="space-y-3">
-                <Label>Captions</Label>
+                <Label htmlFor="caption-input">Captions</Label>
                 {captionTabs.length > 1 && (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2" role="tablist" aria-label="Caption tabs">
                     {captionTabs.map((tab) => (
                       <Button
                         key={tab}
+                        id={`caption-tab-${tab}`}
                         type="button"
                         size="sm"
-                        variant={activeCaptionTab === tab ? 'solid' : 'outline'}
+                        variant={activeCaptionTab === tab ? 'default' : 'outline'}
                         onClick={() => setActiveCaptionTab(tab)}
+                        role="tab"
+                        aria-selected={activeCaptionTab === tab}
+                        aria-controls="caption-panel"
+                        tabIndex={activeCaptionTab === tab ? 0 : -1}
                       >
                         {tab === 'Main' ? 'Main caption' : tab}
                       </Button>
                     ))}
                   </div>
                 )}
-                <Textarea
-                  value={currentCaptionValue}
-                  onChange={(event) => handleCaptionChange(event.target.value)}
-                  rows={4}
-                  placeholder="Primary post caption"
-                />
+                <div
+                  id="caption-panel"
+                  role="tabpanel"
+                  aria-labelledby={`caption-tab-${activeCaptionTab}`}
+                >
+                  <Textarea
+                    id="caption-input"
+                    value={currentCaptionValue}
+                    onChange={(event) => handleCaptionChange(event.target.value)}
+                    rows={4}
+                    placeholder="Primary post caption"
+                  />
+                </div>
                 <p className="text-xs text-graystone-500">
                   {activeCaptionTab === 'Main'
                     ? 'Changes here apply to every platform unless you customise a specific tab.'
@@ -671,6 +716,8 @@ export function EntryForm({
                   id="asset-type"
                   value={assetType}
                   onChange={(event) => setAssetType(event.target.value)}
+                  aria-invalid={hasAssetTypeError}
+                  aria-describedby={hasAssetTypeError ? 'asset-type-error' : undefined}
                   className={cx(selectBaseClasses, 'w-full')}
                 >
                   <option value="No asset">No asset</option>
@@ -678,6 +725,11 @@ export function EntryForm({
                   <option value="Design">Design</option>
                   <option value="Carousel">Carousel</option>
                 </select>
+                {hasAssetTypeError ? (
+                  <p id="asset-type-error" className="text-xs text-rose-600">
+                    {FIELD_ERROR_MESSAGES.assetType}
+                  </p>
+                ) : null}
               </div>
 
               {assetType === 'Video' && (
@@ -688,7 +740,14 @@ export function EntryForm({
                     value={script}
                     onChange={(event) => setScript(event.target.value)}
                     rows={4}
+                    aria-invalid={hasScriptError}
+                    aria-describedby={hasScriptError ? 'script-error' : undefined}
                   />
+                  {hasScriptError ? (
+                    <p id="script-error" className="text-xs text-rose-600">
+                      {FIELD_ERROR_MESSAGES.script}
+                    </p>
+                  ) : null}
                 </div>
               )}
 
@@ -700,15 +759,26 @@ export function EntryForm({
                     value={designCopy}
                     onChange={(event) => setDesignCopy(event.target.value)}
                     rows={4}
+                    aria-invalid={hasDesignCopyError}
+                    aria-describedby={hasDesignCopyError ? 'design-copy-error' : undefined}
                   />
+                  {hasDesignCopyError ? (
+                    <p id="design-copy-error" className="text-xs text-rose-600">
+                      {FIELD_ERROR_MESSAGES.designCopy}
+                    </p>
+                  ) : null}
                 </div>
               )}
 
               {assetType === 'Carousel' && (
-                <div className="space-y-3">
+                <div
+                  className="space-y-3"
+                  aria-invalid={hasCarouselSlidesError}
+                  aria-describedby={hasCarouselSlidesError ? 'carousel-slides-error' : undefined}
+                >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <Label>Carousel slides</Label>
+                      <Label htmlFor="carousel-slide-0">Carousel slides</Label>
                       <p className="text-xs text-graystone-500">
                         Add up to 10 slides and remove any you do not need.
                       </p>
@@ -741,6 +811,7 @@ export function EntryForm({
                           </Button>
                         </div>
                         <Textarea
+                          id={`carousel-slide-${idx}`}
                           value={val}
                           onChange={(event) => handleSlideChange(idx, event.target.value)}
                           placeholder={`Copy for slide ${idx + 1}`}
@@ -748,6 +819,11 @@ export function EntryForm({
                       </div>
                     ))}
                   </div>
+                  {hasCarouselSlidesError ? (
+                    <p id="carousel-slides-error" className="text-xs text-rose-600">
+                      {FIELD_ERROR_MESSAGES.carouselSlides}
+                    </p>
+                  ) : null}
                 </div>
               )}
 
@@ -769,7 +845,14 @@ export function EntryForm({
                   type="date"
                   value={date}
                   onChange={(event) => setDate(event.target.value)}
+                  aria-invalid={hasDateError}
+                  aria-describedby={hasDateError ? 'entry-date-error' : undefined}
                 />
+                {hasDateError ? (
+                  <p id="entry-date-error" className="text-xs text-rose-600">
+                    {FIELD_ERROR_MESSAGES.date}
+                  </p>
+                ) : null}
               </div>
 
               <div className="space-y-2">
@@ -825,7 +908,9 @@ export function EntryForm({
               </div>
 
               <div className="space-y-2">
-                <Label>Approvers</Label>
+                <Label id="entry-approvers-label" htmlFor="entry-approvers">
+                  Approvers
+                </Label>
                 <ApproverMulti
                   value={approvers}
                   onChange={(value) => {
@@ -833,6 +918,8 @@ export function EntryForm({
                     setApprovers(value);
                   }}
                   options={approverOptions}
+                  buttonId="entry-approvers"
+                  labelledBy="entry-approvers-label"
                 />
                 <div className="flex items-center justify-between gap-3 text-xs text-graystone-500">
                   <span>
@@ -908,9 +995,10 @@ export function EntryForm({
                     </div>
 
                     <div className="space-y-3">
-                      <Label>Preview asset</Label>
+                      <Label htmlFor="preview-file">Preview asset</Label>
                       <div className="flex flex-wrap items-center gap-3">
                         <input
+                          id="preview-file"
                           type="file"
                           accept="image/*"
                           onChange={(event) => {
@@ -947,13 +1035,12 @@ export function EntryForm({
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Audience segments</Label>
-                      <AudienceSelector value={audienceSegments} onChange={setAudienceSegments} />
-                    </div>
-
-                    <div className="space-y-4">
-                      <QuickAssessment values={quickAssessment} onChange={setQuickAssessment} />
-                      <GoldenThreadCheck values={goldenThread} onChange={setGoldenThread} />
+                      <Label id="audience-segments-label">Audience segments</Label>
+                      <AudienceSelector
+                        value={audienceSegments}
+                        onChange={setAudienceSegments}
+                        labelledBy="audience-segments-label"
+                      />
                     </div>
 
                     {influencers.length > 0 && (
@@ -970,8 +1057,9 @@ export function EntryForm({
                     )}
 
                     <div className="space-y-2">
-                      <Label>Content category</Label>
+                      <Label htmlFor="content-category">Content category</Label>
                       <select
+                        id="content-category"
                         value={contentCategory}
                         onChange={(event) => setContentCategory(event.target.value)}
                         className={cx(selectBaseClasses, 'w-full')}
@@ -986,8 +1074,9 @@ export function EntryForm({
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Response mode</Label>
+                      <Label htmlFor="response-mode">Response mode</Label>
                       <select
+                        id="response-mode"
                         value={responseMode}
                         onChange={(event) => setResponseMode(event.target.value)}
                         className={cx(selectBaseClasses, 'w-full')}
@@ -1001,8 +1090,9 @@ export function EntryForm({
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Sign-off route</Label>
+                      <Label htmlFor="sign-off-route">Sign-off route</Label>
                       <select
+                        id="sign-off-route"
                         value={signOffRoute}
                         onChange={(event) => {
                           setAutoSignOffRoute(false);
@@ -1088,8 +1178,9 @@ export function EntryForm({
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Priority</Label>
+                      <Label htmlFor="priority-tier">Priority</Label>
                       <select
+                        id="priority-tier"
                         value={priorityTier}
                         onChange={(event) => setPriorityTier(event.target.value)}
                         className={cx(selectBaseClasses, 'w-full sm:w-auto sm:min-w-[180px]')}
@@ -1115,8 +1206,9 @@ export function EntryForm({
 
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
-                          <Label>Alt text</Label>
+                          <Label htmlFor="alt-text-status">Alt text</Label>
                           <select
+                            id="alt-text-status"
                             value={altTextStatus}
                             onChange={(event) => setAltTextStatus(event.target.value)}
                             className={cx(selectBaseClasses, 'w-full')}
@@ -1130,8 +1222,9 @@ export function EntryForm({
                         </div>
 
                         <div className="space-y-2">
-                          <Label>Subtitles / transcript</Label>
+                          <Label htmlFor="subtitles-status">Subtitles / transcript</Label>
                           <select
+                            id="subtitles-status"
                             value={subtitlesStatus}
                             onChange={(event) => setSubtitlesStatus(event.target.value)}
                             className={cx(selectBaseClasses, 'w-full')}
@@ -1145,8 +1238,9 @@ export function EntryForm({
                         </div>
 
                         <div className="space-y-2">
-                          <Label>UTM plan</Label>
+                          <Label htmlFor="utm-status">UTM plan</Label>
                           <select
+                            id="utm-status"
                             value={utmStatus}
                             onChange={(event) => setUtmStatus(event.target.value)}
                             className={cx(selectBaseClasses, 'w-full')}
@@ -1160,8 +1254,9 @@ export function EntryForm({
                         </div>
 
                         <div className="space-y-2">
-                          <Label>Link placement</Label>
+                          <Label htmlFor="link-placement">Link placement</Label>
                           <select
+                            id="link-placement"
                             value={linkPlacement}
                             onChange={(event) => setLinkPlacement(event.target.value)}
                             className={cx(selectBaseClasses, 'w-full')}
@@ -1176,8 +1271,9 @@ export function EntryForm({
                         </div>
 
                         <div className="space-y-2">
-                          <Label>CTA type</Label>
+                          <Label htmlFor="cta-type">CTA type</Label>
                           <select
+                            id="cta-type"
                             value={ctaType}
                             onChange={(event) => setCtaType(event.target.value)}
                             className={cx(selectBaseClasses, 'w-full')}
@@ -1217,26 +1313,57 @@ export function EntryForm({
                         </span>
                       </label>
                     </div>
+
+                    <div className="space-y-4">
+                      <QuickAssessment values={quickAssessment} onChange={setQuickAssessment} />
+                      <GoldenThreadCheck values={goldenThread} onChange={setGoldenThread} />
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
-            <PlatformGuidancePanel platforms={platforms} contentPillar={contentPillar} />
+            {resolvedPlatforms.length > 0 ? (
+              <PlatformGuidancePanel platforms={resolvedPlatforms} contentPillar={contentPillar} />
+            ) : null}
           </div>
 
+          {hasConflict && !overrideConflict ? (
+            <div
+              id="conflict-warning"
+              ref={conflictWarningRef}
+              tabIndex={-1}
+              className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+            >
+              <div className="font-semibold">
+                Heads up: {conflicts.length} post{conflicts.length === 1 ? '' : 's'} already
+                scheduled on this date.
+              </div>
+              <p className="mt-1 text-xs text-amber-700">
+                Change the date above, or use the conflict override to keep this slot.
+              </p>
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" className="gap-2">
-              <PlusIcon className="h-4 w-4" />
-              Submit to plan
-            </Button>
+            {hasConflict && !overrideConflict ? (
+              <Button type="button" className="gap-2" onClick={handleSubmitAnyway}>
+                <PlusIcon className="h-4 w-4" />
+                Submit anyway
+              </Button>
+            ) : (
+              <Button type="submit" className="gap-2">
+                <PlusIcon className="h-4 w-4" />
+                Submit to plan
+              </Button>
+            )}
             <Button type="button" variant="outline" onClick={reset}>
               Reset
             </Button>
           </div>
           {hasConflict && !overrideConflict && (
             <p className="text-xs text-amber-700">
-              Resolve the scheduling conflict above before submitting.
+              The main submit action is now the explicit conflict override for this entry.
             </p>
           )}
           {approvers.length > 0 && workflowBlockers.length > 0 && (

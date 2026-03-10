@@ -91,6 +91,7 @@ export function GoldenThreadCheck({
                     type="button"
                     disabled={readOnly}
                     onClick={() => setAnswer(q.key, true)}
+                    aria-pressed={val === true}
                     className={cx(
                       'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
                       val === true
@@ -105,6 +106,7 @@ export function GoldenThreadCheck({
                     type="button"
                     disabled={readOnly}
                     onClick={() => setAnswer(q.key, false)}
+                    aria-pressed={val === false}
                     className={cx(
                       'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
                       val === false

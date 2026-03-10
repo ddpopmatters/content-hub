@@ -37,6 +37,7 @@ export function useIdeas({ currentUser, runSyncTask, pushSyncToast }: UseIdeasDe
         createdBy: idea.createdBy || currentUser || 'Unknown',
         createdAt: timestamp,
       });
+      if (!sanitized) return;
       setIdeas((prev) => [sanitized, ...prev]);
       runSyncTask(`Create idea (${sanitized.id})`, () =>
         (window.api as Record<string, (...args: unknown[]) => Promise<unknown>>).createIdea(

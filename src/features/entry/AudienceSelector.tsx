@@ -7,12 +7,14 @@ export interface AudienceSelectorProps {
   value: string[];
   onChange: (segments: string[]) => void;
   readOnly?: boolean;
+  labelledBy?: string;
 }
 
 export function AudienceSelector({
   value,
   onChange,
   readOnly = false,
+  labelledBy,
 }: AudienceSelectorProps): React.ReactElement {
   const toggle = (segment: AudienceSegment) => {
     if (readOnly) return;
@@ -24,7 +26,7 @@ export function AudienceSelector({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" role="group" aria-labelledby={labelledBy}>
       <div className="flex flex-wrap gap-1.5">
         {AUDIENCE_SEGMENTS.map((segment) => {
           const selected = value.includes(segment);
@@ -35,6 +37,7 @@ export function AudienceSelector({
               disabled={readOnly}
               onClick={() => toggle(segment)}
               title={AUDIENCE_SEGMENT_DESCRIPTIONS[segment]}
+              aria-pressed={selected}
               className={cx(
                 'rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
                 selected

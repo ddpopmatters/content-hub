@@ -33,6 +33,7 @@ import {
   DEFAULT_APPROVERS,
   DEFAULT_USERS,
   EXECUTION_STATUSES,
+  GOLDEN_THREAD_QUESTIONS,
   getChecklistItemsForEntry,
   KANBAN_STATUSES,
   LINK_PLACEMENTS,
@@ -624,7 +625,34 @@ export function EntryModal({
   ).length;
   const checklistTotal = entryChecklistItems.length;
   const workflowBlockers = getWorkflowBlockers(draft);
-  const canApproveReadiness = workflowBlockers.length === 0;
+  const goldenThreadValues = draft.assessmentScores?.goldenThread || {};
+  const allGoldenThreadAnswered = GOLDEN_THREAD_QUESTIONS.every(
+    (question) => goldenThreadValues[question.key] !== undefined,
+  );
+  const goldenThreadPassed = GOLDEN_THREAD_QUESTIONS.every(
+    (question) => goldenThreadValues[question.key] === false,
+  );
+  const approvalBlockers = [
+    ...workflowBlockers,
+    ...(!allGoldenThreadAnswered
+      ? [
+          {
+            key: 'goldenThreadIncomplete',
+            label: 'Golden Thread completed',
+            detail: 'Answer all four Golden Thread questions before approving this entry.',
+          },
+        ]
+      : goldenThreadPassed
+        ? []
+        : [
+            {
+              key: 'goldenThreadFailed',
+              label: 'Golden Thread passed',
+              detail: 'Revise the flagged Golden Thread issues before approving this entry.',
+            },
+          ]),
+  ];
+  const canApproveReadiness = approvalBlockers.length === 0;
   const formatFriendlyDate = (value) => {
     if (!value) return 'Not set';
     const parsed = new Date(value);
@@ -776,7 +804,7 @@ export function EntryModal({
       <div className="space-y-3">
         <div className="text-sm font-semibold text-graystone-800">Execution readiness</div>
         <div className="rounded-2xl border border-graystone-200 bg-white p-4 shadow-sm">
-          {workflowBlockers.length === 0 ? (
+          {approvalBlockers.length === 0 ? (
             <p className="text-sm text-emerald-700">This entry is ready for review and approval.</p>
           ) : (
             <>
@@ -784,7 +812,7 @@ export function EntryModal({
                 Approval is blocked until the following items are complete.
               </p>
               <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-graystone-700">
-                {workflowBlockers.map((item) => (
+                {approvalBlockers.map((item) => (
                   <li key={item.key}>
                     <span className="font-medium text-graystone-800">{item.label}:</span>{' '}
                     {item.detail}
@@ -1237,11 +1265,11 @@ export function EntryModal({
                       </span>
                     </label>
 
-                    {workflowBlockers.length > 0 ? (
+                    {approvalBlockers.length > 0 ? (
                       <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
                         <div className="font-medium">Still blocking review</div>
                         <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
-                          {workflowBlockers.map((item) => (
+                          {approvalBlockers.map((item) => (
                             <li key={item.key}>{item.label}</li>
                           ))}
                         </ul>
@@ -1720,7 +1748,7 @@ export function EntryModal({
             <div className="flex items-center gap-3">
               {!canApproveReadiness && isApproverView && draft.status !== 'Approved' ? (
                 <span className="text-xs text-amber-700">
-                  Approval blocked until execution readiness is complete.
+                  Approval blocked until review readiness is complete.
                 </span>
               ) : null}
               <Button variant="ghost" onClick={onClose}>

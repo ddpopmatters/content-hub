@@ -415,6 +415,7 @@ export function useEntries({
                   updatedAt: timestamp,
                 };
                 const sanitized = sanitizeEntry(merged);
+                if (!sanitized) return entry;
                 const previousApprovers = ensurePeopleArray(entry.approvers);
                 const nextApprovers = ensurePeopleArray(sanitized.approvers);
                 const newApprovers = nextApprovers.filter(

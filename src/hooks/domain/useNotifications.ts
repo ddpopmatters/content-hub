@@ -72,15 +72,16 @@ export function useNotifications({ currentUser, runSyncTask, apiPost }: UseNotif
 
   const addNotifications = useCallback((items: NotificationItem[] = []) => {
     if (!items || !items.length) return;
+    const resolveNotificationKey = (item: NotificationItem) => {
+      if (typeof item.key === 'string' && item.key.length > 0) return item.key;
+      if (!item.type || !item.entryId || !item.user) return undefined;
+      return notificationKey(item.type, item.entryId, item.user, item.meta);
+    };
     setNotifications((prev) => {
-      const existing = new Set(
-        prev.map(
-          (item) => item.key || notificationKey(item.type, item.entryId, item.user, item.meta),
-        ),
-      );
+      const existing = new Set(prev.map((item) => resolveNotificationKey(item)).filter(Boolean));
       const additions = items
         .map((item) => {
-          const key = item.key || notificationKey(item.type, item.entryId, item.user, item.meta);
+          const key = resolveNotificationKey(item);
           return {
             id: uuid(),
             entryId: item.entryId,
@@ -95,7 +96,12 @@ export function useNotifications({ currentUser, runSyncTask, apiPost }: UseNotif
         })
         .filter(
           (item) =>
-            item.entryId && item.user && item.type && item.message && !existing.has(item.key),
+            item.entryId &&
+            item.user &&
+            item.type &&
+            item.message &&
+            typeof item.key === 'string' &&
+            !existing.has(item.key),
         );
       if (!additions.length) return prev;
       return [...additions, ...prev];

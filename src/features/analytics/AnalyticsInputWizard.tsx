@@ -127,7 +127,8 @@ export const AnalyticsInputWizard: React.FC<AnalyticsInputWizardProps> = ({
     const merged: Record<string, Record<string, number>> = {
       ...(selectedEntry.analytics as Record<string, Record<string, number>>),
     };
-    Object.entries(draft).forEach(([platform, metrics]) => {
+    const draftEntries = Object.entries(draft) as Array<[string, Record<string, string>]>;
+    draftEntries.forEach(([platform, metrics]) => {
       const nums: Record<string, number> = { ...(merged[platform] ?? {}) };
       Object.entries(metrics).forEach(([key, val]) => {
         const n = parseFloat(val);
