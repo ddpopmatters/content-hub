@@ -135,6 +135,11 @@ export interface Entry {
       instrumentalisation?: boolean;
       cooption?: boolean;
     };
+    visualIntegrity?: {
+      victimImagery?: boolean;
+      anonWithoutContext?: boolean;
+      recipientFraming?: boolean;
+    };
   } | null;
   // Influencer attribution
   influencerId?: string;
