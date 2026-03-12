@@ -7,7 +7,7 @@ import { ApprovalsView } from './features/approvals';
 import { AnalyticsView } from './features/analytics/AnalyticsView';
 import { DashboardView } from './features/dashboard';
 import { EngagementView } from './features/engagement/EngagementView';
-import { ReportingWorkspace } from './features/reporting';
+import { ReportingView, ReportingWorkspace } from './features/reporting';
 import { ContentPeaksView } from './features/peaks';
 import { ContentSeriesView } from './features/series';
 import { RapidResponsesView } from './features/responses';
@@ -1543,44 +1543,7 @@ function ContentDashboard() {
           )}
 
           {currentView === 'reporting' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h1 className="heading-font text-2xl font-bold text-ocean-900">Reporting</h1>
-                  <p className="text-sm text-graystone-500">
-                    Turn entry analytics and period notes into leadership-ready reports.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setCurrentView('insights');
-                      setPlanTab('analytics');
-                    }}
-                  >
-                    Open analytics
-                  </Button>
-                  <Button variant="outline" onClick={() => setPerformanceImportOpen(true)}>
-                    Import performance
-                  </Button>
-                </div>
-              </div>
-              <ReportingWorkspace
-                entries={entries}
-                reportingPeriods={reportingPeriods}
-                onCreateReport={createReport}
-                onUpdateReport={updateReport}
-                onRecalculateReport={recalculateReport}
-                onUpdateStatus={updateReportStatus}
-                onDeleteReport={deleteReport}
-                onOpenAnalytics={() => {
-                  setCurrentView('insights');
-                  setPlanTab('analytics');
-                }}
-                onOpenImport={() => setPerformanceImportOpen(true)}
-              />
-            </div>
+            <ReportingView currentUser={currentUser} currentUserEmail={currentUserEmail} />
           )}
 
           {currentView === 'influencers' && canUseInfluencers && (
