@@ -6,3 +6,4 @@ export { ReportNarrativeForm } from './ReportNarrativeForm';
 export { ReportPrintView } from './ReportPrintView';
 export { ReportingView } from './ReportingView';
 export { ReportFinalView } from './ReportFinalView';
+export { ReportInsightsView } from './ReportInsightsView';

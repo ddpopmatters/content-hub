@@ -4,10 +4,9 @@ import { LoginScreen } from './components/auth/LoginScreen';
 import { Sidebar } from './components/layout';
 import { CalendarView } from './features/calendar/CalendarView';
 import { ApprovalsView } from './features/approvals';
-import { AnalyticsView } from './features/analytics/AnalyticsView';
 import { DashboardView } from './features/dashboard';
 import { EngagementView } from './features/engagement/EngagementView';
-import { ReportingView, ReportingWorkspace } from './features/reporting';
+import { ReportingView, ReportingWorkspace, ReportInsightsView } from './features/reporting';
 import { ContentPeaksView } from './features/peaks';
 import { ContentSeriesView } from './features/series';
 import { RapidResponsesView } from './features/responses';
@@ -1494,13 +1493,7 @@ function ContentDashboard() {
                   </Button>
                 </div>
               </div>
-              {planTab === 'analytics' && (
-                <AnalyticsView
-                  entries={entries}
-                  onUpdateEntry={(id, updates) => upsert({ id, ...updates })}
-                  onOpenImport={() => setPerformanceImportOpen(true)}
-                />
-              )}
+              {planTab === 'analytics' && <ReportInsightsView />}
               {planTab === 'engagement' && (
                 <EngagementView
                   activities={engagementActivities}
