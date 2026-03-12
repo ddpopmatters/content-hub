@@ -288,6 +288,44 @@ export const DEFAULT_MANAGERS: ManagerEntry[] = [
   },
 ];
 
+export const PLATFORM_METRICS: Record<string, { key: string; label: string }[]> = {
+  Instagram: [
+    { key: 'impressions', label: 'Impressions' },
+    { key: 'reach', label: 'Reach' },
+    { key: 'likes', label: 'Likes' },
+    { key: 'comments', label: 'Comments' },
+    { key: 'shares', label: 'Shares' },
+    { key: 'saves', label: 'Saves' },
+  ],
+  LinkedIn: [
+    { key: 'impressions', label: 'Impressions' },
+    { key: 'likes', label: 'Likes' },
+    { key: 'comments', label: 'Comments' },
+    { key: 'shares', label: 'Shares' },
+  ],
+  YouTube: [
+    { key: 'impressions', label: 'Impressions' },
+    { key: 'views', label: 'Views' },
+    { key: 'likes', label: 'Likes' },
+    { key: 'comments', label: 'Comments' },
+    { key: 'shares', label: 'Shares' },
+  ],
+  Facebook: [
+    { key: 'impressions', label: 'Impressions' },
+    { key: 'reach', label: 'Reach' },
+    { key: 'likes', label: 'Likes' },
+    { key: 'comments', label: 'Comments' },
+    { key: 'shares', label: 'Shares' },
+  ],
+  BlueSky: [
+    { key: 'impressions', label: 'Impressions' },
+    { key: 'likes', label: 'Likes' },
+    { key: 'shares', label: 'Reposts' },
+    { key: 'quotePosts', label: 'Quote posts' },
+    { key: 'comments', label: 'Replies' },
+  ],
+};
+
 export const INFLUENCER_STATUSES = [
   'Follow & Observe',
   'Engage Publicly',
