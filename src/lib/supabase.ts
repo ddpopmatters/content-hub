@@ -898,6 +898,13 @@ export const SUPABASE_API = {
     }
   },
 
+  sendNotification: async (payload: Record<string, unknown>): Promise<void> => {
+    await initSupabase();
+    if (!supabase) return;
+    const { error } = await supabase.functions.invoke('send-notification', { body: payload });
+    if (error) Logger.error(error, 'sendNotification');
+  },
+
   // ==========================================
   // IDEAS
   // ==========================================

@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { uuid, ensurePeopleArray, escapeHtml } from '../../lib/utils';
 import { notificationKey, loadNotifications, saveNotifications } from '../../lib/notifications';
 import { entryDescriptor, entryReviewLink } from '../../lib/email';
+import { SUPABASE_API } from '../../lib/supabase';
 
 interface UseNotificationsDeps {
   currentUser: string;
@@ -63,11 +64,11 @@ export function useNotifications({ currentUser, runSyncTask, apiPost }: UseNotif
             payload,
           );
         }
-        return apiPost('/api/notify', payload);
+        return SUPABASE_API.sendNotification(payload);
       };
       runSyncTask(label, action, { requiresApi: false });
     },
-    [runSyncTask, apiPost],
+    [runSyncTask],
   );
 
   const addNotifications = useCallback((items: NotificationItem[] = []) => {
