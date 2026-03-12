@@ -288,6 +288,7 @@ export const DEFAULT_MANAGERS: ManagerEntry[] = [
   },
 ];
 
+/** Metric fields logged per platform. Used by AnalyticsInputWizard and analytics views. */
 export const PLATFORM_METRICS: Record<string, { key: string; label: string }[]> = {
   Instagram: [
     { key: 'impressions', label: 'Impressions' },

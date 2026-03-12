@@ -33,7 +33,6 @@ export function WeeklyStatsWidget({ entries }: WeeklyStatsWidgetProps): React.Re
     let totalEngagements = 0;
     let totalShares = 0;
     let totalSaves = 0;
-    let postsWithAnalytics = 0;
 
     thisWeekEntries.forEach((entry) => {
       if (!entry.analytics) return;
@@ -47,7 +46,6 @@ export function WeeklyStatsWidget({ entries }: WeeklyStatsWidgetProps): React.Re
           const saves = s.saves || 0;
 
           if (likes || comments || shares || saves) {
-            postsWithAnalytics++;
             totalEngagements += likes + comments + shares;
             totalShares += shares;
             totalSaves += saves;
