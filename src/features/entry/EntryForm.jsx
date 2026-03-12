@@ -411,7 +411,7 @@ export function EntryForm({
                       id="partnerConsentStatus"
                       value={partnerConsentStatus}
                       onChange={(e) => setPartnerConsentStatus(e.target.value)}
-                      className="w-full rounded-lg border border-graystone-200 px-3 py-2 text-sm focus:border-ocean-400 focus:outline-none focus:ring-2 focus:ring-ocean-200"
+                      className={cx(selectBaseClasses, 'w-full')}
                     >
                       <option value="">— select —</option>
                       <option value="confirmed">Consent confirmed</option>

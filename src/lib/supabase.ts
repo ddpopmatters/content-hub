@@ -249,6 +249,9 @@ interface EntryRow {
   updated_at: string;
   approved_at: string | null;
   deleted_at: string | null;
+  partner_individual_name: string | null;
+  partner_consent_status: string | null;
+  partner_capture_context: string | null;
 }
 
 interface IdeaRow {
@@ -1257,6 +1260,11 @@ export const SUPABASE_API = {
     updatedAt: row.updated_at,
     approvedAt: row.approved_at,
     deletedAt: row.deleted_at,
+    partnerIndividualName: row.partner_individual_name ?? undefined,
+    partnerConsentStatus:
+      (row.partner_consent_status as 'confirmed' | 'pending' | 'not-required' | undefined) ??
+      undefined,
+    partnerCaptureContext: row.partner_capture_context ?? undefined,
   }),
 
   mapEntryToDb: (entry: Partial<Entry>, userEmail: string) => ({
@@ -1283,6 +1291,9 @@ export const SUPABASE_API = {
     ai_score: entry.aiScore || {},
     testing_framework_id: entry.testingFrameworkId,
     testing_framework_name: entry.testingFrameworkName,
+    partner_individual_name: entry.partnerIndividualName ?? null,
+    partner_consent_status: entry.partnerConsentStatus ?? null,
+    partner_capture_context: entry.partnerCaptureContext ?? null,
   }),
 
   mapIdeaToApp: (row: IdeaRow): Idea => ({
