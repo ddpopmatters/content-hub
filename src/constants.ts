@@ -307,14 +307,19 @@ export const PLATFORM_METRICS: Record<Platform, PlatformMetricField[]> = {
 // De-prioritised signals (likes, raw impressions) are intentionally excluded.
 export const REPORTING_PLATFORM_METRICS: Record<Platform, PlatformMetricField[]> = {
   Instagram: [
-    { key: 'reach', label: 'Reach' },
-    { key: 'shares', label: 'Shares' },
+    { key: 'views', label: 'Views' },
+    { key: 'followerNonFollowerRatio', label: 'Follower / Non-follower ratio (%)' },
+    { key: 'accountsReached', label: 'Accounts reached' },
+    { key: 'profileVisits', label: 'Profile visits' },
+    { key: 'likes', label: 'Likes' },
     { key: 'saves', label: 'Saves' },
+    { key: 'reposts', label: 'Reposts' },
+    { key: 'sharesToStory', label: 'Shares to story' },
     { key: 'comments', label: 'Comments' },
     { key: 'dmSends', label: 'DM sends', hint: '#1 algorithm signal (Mosseri, Jan 2026)' },
-    { key: 'reelCompletionRate', label: 'Reel completion rate (%)', hint: 'Target: 50%+' },
-    { key: 'storyCompletionRate', label: 'Story completion rate (%)', hint: 'Target: 70%+' },
-    { key: 'websiteClicks', label: 'Website clicks from profile' },
+    { key: 'reelViews', label: 'Reel views' },
+    { key: 'storyViews', label: 'Story views' },
+    { key: 'externalLinkClicks', label: 'External link clicks' },
   ],
   LinkedIn: [
     { key: 'reach', label: 'Reach (company page)' },
