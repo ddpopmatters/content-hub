@@ -141,6 +141,11 @@ export interface Entry {
       recipientFraming?: boolean;
     };
   } | null;
+  // Partner content provenance
+  partnerOrg?: string;
+  partnerIndividualName?: string;
+  partnerConsentStatus?: 'confirmed' | 'pending' | 'not-required';
+  partnerCaptureContext?: string;
   // Influencer attribution
   influencerId?: string;
   // UI-specific fields (not in database)
