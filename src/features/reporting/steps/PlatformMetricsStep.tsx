@@ -11,6 +11,15 @@ interface PlatformMetricsStepProps {
   onBack: () => void;
 }
 
+const COUNT_KEYS = new Set(['numberOfPosts', 'numberOfStories']);
+
+function formatPerPost(value: number, divisor: number): string {
+  if (divisor <= 0 || !Number.isFinite(value) || value === 0) return '';
+  const avg = value / divisor;
+  const formatted = avg >= 100 ? avg.toFixed(0) : avg >= 10 ? avg.toFixed(1) : avg.toFixed(2);
+  return `${formatted} per post`;
+}
+
 export function PlatformMetricsStep({
   metrics,
   periodLabel,
@@ -30,49 +39,72 @@ export function PlatformMetricsStep({
       </div>
 
       <div className="space-y-4">
-        {Object.keys(REPORTING_PLATFORM_METRICS).map((platform) => (
-          <Card key={platform} className="shadow-md">
-            <CardHeader>
-              <CardTitle>{platform}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {REPORTING_PLATFORM_METRICS[platform].map((metric) => {
-                  const inputId = `${platform}-${metric.key}`;
+        {Object.keys(REPORTING_PLATFORM_METRICS).map((platform) => {
+          const platformMetrics = metrics[platform] ?? {};
+          const postCount = Number.isFinite(platformMetrics['numberOfPosts'])
+            ? platformMetrics['numberOfPosts']
+            : 0;
+          const storyCount = Number.isFinite(platformMetrics['numberOfStories'])
+            ? platformMetrics['numberOfStories']
+            : 0;
 
-                  return (
-                    <div key={metric.key} className="space-y-2">
-                      <Label htmlFor={inputId}>{metric.label}</Label>
-                      <input
-                        id={inputId}
-                        type="number"
-                        min="0"
-                        inputMode="numeric"
-                        value={metrics[platform]?.[metric.key] ?? ''}
-                        onChange={(event) => {
-                          const nextValue = event.target.value;
-                          onChange(
-                            platform,
-                            metric.key,
-                            nextValue === '' ? Number.NaN : Number(nextValue),
-                          );
-                        }}
-                        className={inputBaseClasses}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+          return (
+            <Card key={platform} className="shadow-md">
+              <CardHeader>
+                <CardTitle>{platform}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {REPORTING_PLATFORM_METRICS[platform].map((metric) => {
+                    const inputId = `${platform}-${metric.key}`;
+                    const rawValue = platformMetrics[metric.key];
+                    const value = Number.isFinite(rawValue) ? rawValue : 0;
+
+                    const perPostLabel =
+                      !metric.isRate && !COUNT_KEYS.has(metric.key)
+                        ? formatPerPost(value, metric.key === 'storyViews' ? storyCount : postCount)
+                        : '';
+
+                    return (
+                      <div key={metric.key} className="space-y-1">
+                        <Label htmlFor={inputId}>{metric.label}</Label>
+                        {metric.hint ? (
+                          <p className="text-xs text-graystone-500">{metric.hint}</p>
+                        ) : null}
+                        <input
+                          id={inputId}
+                          type="number"
+                          min="0"
+                          inputMode="numeric"
+                          value={metrics[platform]?.[metric.key] ?? ''}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            onChange(
+                              platform,
+                              metric.key,
+                              nextValue === '' ? Number.NaN : Number(nextValue),
+                            );
+                          }}
+                          className={inputBaseClasses}
+                        />
+                        {perPostLabel ? (
+                          <p className="text-xs font-medium text-ocean-600">{perPostLabel}</p>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
         <Button variant="outline" onClick={onBack}>
           &larr; Back
         </Button>
-        <Button onClick={onNext}>Next -&gt;</Button>
+        <Button onClick={onNext}>Next &rarr;</Button>
       </div>
     </div>
   );

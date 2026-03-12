@@ -259,6 +259,7 @@ export interface PlatformMetricField {
   key: string;
   label: string;
   hint?: string;
+  isRate?: boolean; // true for %, ratio, or rate fields — excluded from per-post calculation
 }
 
 export const PLATFORM_METRICS: Record<Platform, PlatformMetricField[]> = {
@@ -307,8 +308,10 @@ export const PLATFORM_METRICS: Record<Platform, PlatformMetricField[]> = {
 // De-prioritised signals (likes, raw impressions) are intentionally excluded.
 export const REPORTING_PLATFORM_METRICS: Record<Platform, PlatformMetricField[]> = {
   Instagram: [
+    { key: 'numberOfPosts', label: 'Posts published' },
+    { key: 'numberOfStories', label: 'Stories published' },
     { key: 'views', label: 'Views' },
-    { key: 'followerNonFollowerRatio', label: 'Follower / Non-follower ratio (%)' },
+    { key: 'followerNonFollowerRatio', label: 'Follower / Non-follower ratio (%)', isRate: true },
     { key: 'accountsReached', label: 'Accounts reached' },
     { key: 'profileVisits', label: 'Profile visits' },
     { key: 'likes', label: 'Likes' },
@@ -322,42 +325,37 @@ export const REPORTING_PLATFORM_METRICS: Record<Platform, PlatformMetricField[]>
     { key: 'externalLinkClicks', label: 'External link clicks' },
   ],
   LinkedIn: [
-    { key: 'reach', label: 'Reach (company page)' },
+    { key: 'numberOfPosts', label: 'Posts published' },
+    { key: 'impressions', label: 'Impressions' },
+    { key: 'reactions', label: 'Reactions' },
     { key: 'comments', label: 'Comments' },
-    { key: 'shares', label: 'Reposts / Shares' },
-    { key: 'clicks', label: 'Link click-throughs', hint: 'Target: 1%+ organic' },
-    {
-      key: 'employeeAdvocacyReach',
-      label: 'Employee advocacy reach',
-      hint: 'Target: 5× company page reach',
-    },
-    {
-      key: 'carouselEngagement',
-      label: 'Document carousel engagement (%)',
-      hint: 'Target: 5%+ (avg 6.10%)',
-    },
+    { key: 'reposts', label: 'Reposts' },
+    { key: 'engagements', label: 'Engagements' },
+    { key: 'engagementRate', label: 'Engagement rate (%)', isRate: true },
+    { key: 'ctr', label: 'CTR (%)', isRate: true },
+    { key: 'membersReached', label: 'Members reached' },
+    { key: 'clicks', label: 'Clicks' },
   ],
   YouTube: [
-    { key: 'views', label: 'Views (long-form)' },
-    { key: 'shortsViews', label: 'Shorts views' },
+    { key: 'numberOfPosts', label: 'Videos published' },
+    { key: 'views', label: 'Views' },
     { key: 'watchTimeHours', label: 'Watch time (hours)' },
-    {
-      key: 'avgViewDuration',
-      label: 'Avg view duration (%)',
-      hint: 'Target: 50%+ for long-form',
-    },
-    { key: 'searchImpressionsCtr', label: 'Search impressions CTR (%)', hint: 'Target: 5%+' },
-    { key: 'websiteClicks', label: 'Website clicks from YouTube' },
+    { key: 'subscribers', label: 'Subscribers gained' },
+    { key: 'comments', label: 'Comments' },
+    { key: 'likes', label: 'Likes' },
+    { key: 'shares', label: 'Shares' },
   ],
   Facebook: [
-    { key: 'reach', label: 'Reach' },
-    { key: 'shares', label: 'Shares', hint: 'Most meaningful organic signal on Facebook' },
-    { key: 'clicks', label: 'Link clicks (website / donate)' },
-    {
-      key: 'reelCompletionRate',
-      label: 'Reel completion rate (%)',
-      hint: 'All Page videos are now auto-Reels. Target: 50%+',
-    },
+    { key: 'numberOfPosts', label: 'Posts published' },
+    { key: 'views', label: 'Views' },
+    { key: 'viewers', label: 'Viewers' },
+    { key: 'contentInteractions', label: 'Content interactions' },
+    { key: 'threeSecondViews', label: '3-second views' },
+    { key: 'oneMinuteViews', label: '1-minute views' },
+    { key: 'shares', label: 'Shares' },
+    { key: 'comments', label: 'Comments' },
+    { key: 'saves', label: 'Saves' },
+    { key: 'totalWatchTime', label: 'Total watch time (mins)' },
     { key: 'reactionLove', label: 'Love reactions' },
     { key: 'reactionCare', label: 'Care reactions' },
     {
@@ -367,19 +365,11 @@ export const REPORTING_PLATFORM_METRICS: Record<Platform, PlatformMetricField[]>
     },
   ],
   BlueSky: [
-    { key: 'shares', label: 'Reposts' },
-    { key: 'quotePosts', label: 'Quote posts from journalists / researchers' },
-    { key: 'comments', label: 'Replies' },
-    {
-      key: 'clicks',
-      label: 'Link click-throughs',
-      hint: 'No link throttling — uniquely reliable signal',
-    },
-    {
-      key: 'journalistEngagements',
-      label: 'Engagements from target accounts',
-      hint: 'Media, researchers, policymakers',
-    },
+    { key: 'numberOfPosts', label: 'Posts published' },
+    { key: 'replies', label: 'Replies' },
+    { key: 'quotePosts', label: 'Quotes' },
+    { key: 'likes', label: 'Likes' },
+    { key: 'reposts', label: 'Reposts' },
   ],
 };
 
