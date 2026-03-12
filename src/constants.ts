@@ -422,6 +422,33 @@ export const GOLDEN_THREAD_QUESTIONS: GoldenThreadQuestion[] = [
   },
 ];
 
+export interface VisualIntegrityQuestion {
+  key: string;
+  label: string;
+  description: string;
+}
+
+export const VISUAL_INTEGRITY_QUESTIONS: VisualIntegrityQuestion[] = [
+  {
+    key: 'victimImagery',
+    label: 'Victim imagery',
+    description:
+      'Does this image show suffering, passivity, or disempowerment — rather than agency, strength, or leadership?',
+  },
+  {
+    key: 'anonWithoutContext',
+    label: 'Anonymous without context',
+    description:
+      "Is this an uncredited stock photo or anonymous image where a named individual from PM's partner network could be used instead?",
+  },
+  {
+    key: 'recipientFraming',
+    label: 'Recipient framing',
+    description:
+      "Does this image position our partners as recipients of PM's help, rather than as leaders of their own work?",
+  },
+];
+
 export interface TerminologyEntry {
   neverUse: string;
   useInstead: string;
