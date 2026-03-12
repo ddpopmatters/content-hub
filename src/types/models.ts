@@ -160,6 +160,26 @@ export interface Entry {
   attachments?: Attachment[];
 }
 
+export interface QualitativeInsights {
+  whatWorked: string;
+  whatDidnt: string;
+  themes: string;
+  nextMonthFocus: string;
+  highlights: string;
+}
+
+export interface MonthlyReport {
+  id: string;
+  periodMonth: number;
+  periodYear: number;
+  platformMetrics: Record<string, Record<string, number>>;
+  qualitative: QualitativeInsights;
+  createdBy: string;
+  createdByEmail: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /**
  * Idea model - represents an idea in the ideas bank
  */

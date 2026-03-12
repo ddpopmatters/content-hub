@@ -36,6 +36,25 @@ const iconMap: Record<string, React.ReactNode> = {
       <rect x="17" y="3" width="4" height="18" rx="1" strokeWidth="2" />
     </svg>
   ),
+  'file-chart': (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <polyline
+        points="14 2 14 8 20 8"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <line x1="16" y1="13" x2="8" y2="13" strokeWidth="2" strokeLinecap="round" />
+      <line x1="16" y1="17" x2="8" y2="17" strokeWidth="2" strokeLinecap="round" />
+      <polyline points="10 9 9 9 8 9" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
   users: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
@@ -151,6 +170,7 @@ export function Sidebar({
   const getActiveItem = () => {
     if (currentView === 'dashboard' || currentView === 'menu') return 'dashboard';
     if (currentView === 'analytics') return 'analytics';
+    if (currentView === 'reporting') return 'reporting';
     if (currentView === 'engagement') return 'engagement';
     if (currentView === 'admin') return 'admin';
     if (currentView === 'influencers') return 'influencers';
@@ -168,6 +188,7 @@ export function Sidebar({
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard', enabled: true },
     { id: 'analytics', label: 'Analytics', icon: 'bar-chart', enabled: true },
+    { id: 'reporting', label: 'Reporting', icon: 'file-chart', enabled: true },
     { id: 'engagement', label: 'Engagement', icon: 'users', enabled: true },
     {
       id: 'content',

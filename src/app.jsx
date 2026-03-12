@@ -8,6 +8,7 @@ import { KanbanView } from './features/kanban';
 import { AnalyticsView } from './features/analytics/AnalyticsView';
 import { DashboardView } from './features/dashboard';
 import { EngagementView } from './features/engagement/EngagementView';
+import { ReportingView } from './features/reporting';
 import { PublishSettingsPanel } from './features/publishing';
 import { useApi } from './hooks/useApi';
 import {
@@ -841,6 +842,7 @@ function ContentDashboard() {
       const viewMap = {
         dashboard: { view: 'dashboard', tab: 'plan' },
         analytics: { view: 'analytics', tab: 'plan' },
+        reporting: { view: 'reporting', tab: 'plan' },
         engagement: { view: 'engagement', tab: 'plan' },
         content: { view: 'plan', tab: 'plan' },
         ideas: { view: 'plan', tab: 'ideas' },
@@ -1474,7 +1476,17 @@ function ContentDashboard() {
 
           {currentView === 'analytics' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <AnalyticsView entries={entries} />
+              <AnalyticsView
+                entries={entries}
+                currentUser={currentUser}
+                currentUserEmail={currentUserEmail}
+              />
+            </div>
+          )}
+
+          {currentView === 'reporting' && (
+            <div className="p-6">
+              <ReportingView currentUser={currentUser} currentUserEmail={currentUserEmail} />
             </div>
           )}
 
