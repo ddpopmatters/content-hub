@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactElement } from 'react';
-import { PLATFORM_METRICS } from '../../constants';
+import { REPORTING_PLATFORM_METRICS } from '../../constants';
 import { SUPABASE_API } from '../../lib/supabase';
-import type { MonthlyReport, QualitativeInsights } from '../../types/models';
+import type { MonthlyReport, QualitativeInsights, ReportType } from '../../types/models';
 import { ReportFinalView } from './ReportFinalView';
-import { PeriodStep } from './steps/PeriodStep';
+import { PeriodStep, type PeriodSelection } from './steps/PeriodStep';
 import { PlatformMetricsStep } from './steps/PlatformMetricsStep';
 import { QualitativeStep } from './steps/QualitativeStep';
 
@@ -25,40 +25,61 @@ const MONTH_NAMES = [
   'December',
 ];
 
+const QUARTER_NAMES = ['Q1 (Jan–Mar)', 'Q2 (Apr–Jun)', 'Q3 (Jul–Sep)', 'Q4 (Oct–Dec)'];
+
 const EMPTY_QUALITATIVE: QualitativeInsights = {
   whatWorked: '',
   whatDidnt: '',
   themes: '',
-  nextMonthFocus: '',
+  nextPeriodFocus: '',
   highlights: '',
 };
 
 const STEP_LABELS = [
-  '1 of 3 - Reporting Period',
-  '2 of 3 - Platform Metrics',
-  '3 of 3 - Insights',
+  '1 of 3 — Reporting Period',
+  '2 of 3 — Platform Metrics',
+  '3 of 3 — Insights',
   'Report Ready',
 ] as const;
 
-const getDefaultReportingPeriod = (): { month: number; year: number } => {
-  const previousMonth = new Date();
-  previousMonth.setDate(1);
-  previousMonth.setMonth(previousMonth.getMonth() - 1);
-
+const getDefaultPeriod = (): PeriodSelection => {
+  const prev = new Date();
+  prev.setDate(1);
+  prev.setMonth(prev.getMonth() - 1);
   return {
-    month: previousMonth.getMonth() + 1,
-    year: previousMonth.getFullYear(),
+    reportType: 'monthly',
+    month: prev.getMonth() + 1,
+    quarter: Math.floor(prev.getMonth() / 3) + 1,
+    year: prev.getFullYear(),
+    campaignName: '',
+    dateFrom: '',
+    dateTo: '',
   };
 };
 
-const buildPeriodLabel = (month: number, year: number): string =>
-  `${MONTH_NAMES[month - 1] ?? 'Unknown'} ${year}`;
+const buildPeriodLabel = (period: PeriodSelection): string => {
+  const { reportType, month, quarter, year, campaignName } = period;
+  if (reportType === 'monthly') return `${MONTH_NAMES[month - 1] ?? 'Unknown'} ${year}`;
+  if (reportType === 'quarterly') return `${QUARTER_NAMES[quarter - 1] ?? 'Q?'} ${year}`;
+  if (reportType === 'annual') return `${year} Annual`;
+  return campaignName || 'Campaign';
+};
+
+const buildReportTypeLabel = (type: ReportType): string => {
+  const labels: Record<ReportType, string> = {
+    monthly: 'Monthly Report',
+    quarterly: 'Quarterly Deep Dive',
+    annual: 'Annual Review',
+    campaign: 'Campaign Report',
+  };
+  return labels[type];
+};
 
 const normalizePlatformMetrics = (
   metrics: Record<string, Record<string, number>>,
 ): Record<string, Record<string, number>> =>
   Object.fromEntries(
-    Object.entries(PLATFORM_METRICS).map(([platform, definitions]) => [
+    Object.entries(REPORTING_PLATFORM_METRICS).map(([platform, definitions]) => [
       platform,
       Object.fromEntries(
         definitions.map((metric) => [
@@ -75,11 +96,9 @@ interface ReportingViewProps {
 }
 
 export function ReportingView({ currentUser, currentUserEmail }: ReportingViewProps): ReactElement {
-  const defaultPeriod = getDefaultReportingPeriod();
   const [step, setStep] = useState<WizardStep>(0);
   const [slideDir, setSlideDir] = useState<SlideDirection>('forward');
-  const [selectedMonth, setSelectedMonth] = useState<number>(defaultPeriod.month);
-  const [selectedYear, setSelectedYear] = useState<number>(defaultPeriod.year);
+  const [period, setPeriod] = useState<PeriodSelection>(getDefaultPeriod);
   const [platformMetrics, setPlatformMetrics] = useState<Record<string, Record<string, number>>>(
     {},
   );
@@ -89,20 +108,22 @@ export function ReportingView({ currentUser, currentUserEmail }: ReportingViewPr
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Load an existing monthly report when period changes (monthly only for now)
   useEffect(() => {
+    if (period.reportType !== 'monthly') {
+      setExistingReportId(undefined);
+      setPlatformMetrics({});
+      setQualitative(EMPTY_QUALITATIVE);
+      return;
+    }
+
     let cancelled = false;
+    setLoading(true);
+    setErrorMessage(null);
 
-    const loadMonthlyReport = async () => {
-      setLoading(true);
-      setErrorMessage(null);
-
-      try {
-        const report = await SUPABASE_API.getMonthlyReport(selectedYear, selectedMonth);
-
-        if (cancelled) {
-          return;
-        }
-
+    SUPABASE_API.getMonthlyReport(period.year, period.month)
+      .then((report) => {
+        if (cancelled) return;
         if (report) {
           setExistingReportId(report.id);
           setPlatformMetrics(report.platformMetrics || {});
@@ -112,60 +133,45 @@ export function ReportingView({ currentUser, currentUserEmail }: ReportingViewPr
           setPlatformMetrics({});
           setQualitative(EMPTY_QUALITATIVE);
         }
-      } catch (error) {
+      })
+      .catch(() => {
         if (!cancelled) {
           setErrorMessage('Unable to load an existing report for that period.');
           setExistingReportId(undefined);
-          setPlatformMetrics({});
-          setQualitative(EMPTY_QUALITATIVE);
         }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void loadMonthlyReport();
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [selectedMonth, selectedYear]);
+  }, [period.reportType, period.month, period.year]);
 
   const goNext = () => {
     setSlideDir('forward');
-    setStep((current) => (current < 3 ? ((current + 1) as WizardStep) : current));
+    setStep((s) => (s < 3 ? ((s + 1) as WizardStep) : s));
   };
 
   const goBack = () => {
     setSlideDir('back');
-    setStep((current) => (current > 0 ? ((current - 1) as WizardStep) : current));
+    setStep((s) => (s > 0 ? ((s - 1) as WizardStep) : s));
   };
 
-  const handlePeriodChange = (month: number, year: number) => {
-    setSelectedMonth(month);
-    setSelectedYear(year);
+  const handlePeriodChange = (next: Partial<PeriodSelection>) => {
+    setPeriod((current) => ({ ...current, ...next }));
     setSavedReport(undefined);
   };
 
   const handleMetricChange = (platform: string, key: string, value: number) => {
     setPlatformMetrics((current) => {
-      const next = {
-        ...current,
-        [platform]: {
-          ...(current[platform] || {}),
-        },
-      };
-
+      const next = { ...current, [platform]: { ...(current[platform] || {}) } };
       if (!Number.isFinite(value)) {
         delete next[platform][key];
-        if (Object.keys(next[platform]).length === 0) {
-          delete next[platform];
-        }
+        if (Object.keys(next[platform]).length === 0) delete next[platform];
         return next;
       }
-
       next[platform][key] = value;
       return next;
     });
@@ -182,8 +188,13 @@ export function ReportingView({ currentUser, currentUserEmail }: ReportingViewPr
     try {
       const report = await SUPABASE_API.saveMonthlyReport(
         {
-          periodMonth: selectedMonth,
-          periodYear: selectedYear,
+          reportType: period.reportType,
+          periodMonth: period.reportType === 'monthly' ? period.month : undefined,
+          periodQuarter: period.reportType === 'quarterly' ? period.quarter : undefined,
+          periodYear: period.year,
+          campaignName: period.reportType === 'campaign' ? period.campaignName : undefined,
+          dateFrom: period.reportType === 'campaign' ? period.dateFrom : undefined,
+          dateTo: period.reportType === 'campaign' ? period.dateTo : undefined,
           platformMetrics: normalizePlatformMetrics(platformMetrics),
           qualitative,
           createdBy: currentUser,
@@ -196,8 +207,8 @@ export function ReportingView({ currentUser, currentUserEmail }: ReportingViewPr
       setSavedReport(report);
       setSlideDir('forward');
       setStep(3);
-    } catch (error) {
-      setErrorMessage('Unable to save the monthly report. Please try again.');
+    } catch {
+      setErrorMessage('Unable to save the report. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -209,7 +220,7 @@ export function ReportingView({ currentUser, currentUserEmail }: ReportingViewPr
     setStep(0);
   };
 
-  const periodLabel = buildPeriodLabel(selectedMonth, selectedYear);
+  const periodLabel = buildPeriodLabel(period);
   const animationClass = slideDir === 'forward' ? 'slide-in-right' : 'slide-in-left';
 
   return (
@@ -217,7 +228,9 @@ export function ReportingView({ currentUser, currentUserEmail }: ReportingViewPr
       <div className="gradient-header rounded-2xl p-8 text-white shadow-xl">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="heading-font text-3xl font-bold">Monthly Reporting</h1>
+            <h1 className="heading-font text-3xl font-bold">
+              {buildReportTypeLabel(period.reportType)}
+            </h1>
             <p className="mt-2 text-ocean-100">{STEP_LABELS[step]}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -243,8 +256,7 @@ export function ReportingView({ currentUser, currentUserEmail }: ReportingViewPr
         <div key={step} className={animationClass}>
           {step === 0 ? (
             <PeriodStep
-              month={selectedMonth}
-              year={selectedYear}
+              period={period}
               onChange={handlePeriodChange}
               existingReportId={existingReportId}
               onNext={goNext}
@@ -263,6 +275,7 @@ export function ReportingView({ currentUser, currentUserEmail }: ReportingViewPr
 
           {step === 2 ? (
             <QualitativeStep
+              reportType={period.reportType}
               values={qualitative}
               onChange={handleQualitativeChange}
               onBack={goBack}

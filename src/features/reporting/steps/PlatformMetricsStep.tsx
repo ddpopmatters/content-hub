@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { Button, Card, CardContent, CardHeader, CardTitle, Label } from '../../../components/ui';
-import { PLATFORM_METRICS } from '../../../constants';
+import { REPORTING_PLATFORM_METRICS } from '../../../constants';
 import { inputBaseClasses } from '../../../lib/styles';
 
 interface PlatformMetricsStepProps {
@@ -30,14 +30,14 @@ export function PlatformMetricsStep({
       </div>
 
       <div className="space-y-4">
-        {Object.keys(PLATFORM_METRICS).map((platform) => (
+        {Object.keys(REPORTING_PLATFORM_METRICS).map((platform) => (
           <Card key={platform} className="shadow-md">
             <CardHeader>
               <CardTitle>{platform}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {PLATFORM_METRICS[platform].map((metric) => {
+                {REPORTING_PLATFORM_METRICS[platform].map((metric) => {
                   const inputId = `${platform}-${metric.key}`;
 
                   return (

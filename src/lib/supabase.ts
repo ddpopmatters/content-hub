@@ -390,8 +390,13 @@ interface EntryRow {
 
 interface MonthlyReportRow {
   id: string;
-  period_month: number;
+  report_type: string | null;
+  period_month: number | null;
+  period_quarter: number | null;
   period_year: number;
+  campaign_name: string | null;
+  date_from: string | null;
+  date_to: string | null;
   platform_metrics: Record<string, Record<string, number>> | null;
   qualitative: Partial<QualitativeInsights> | null;
   created_by: string | null;
@@ -875,7 +880,9 @@ export const SUPABASE_API = {
 
       const { data, error } = await supabase
         .from('monthly_reports')
-        .upsert(dbReport, { onConflict: 'period_year,period_month' })
+        .upsert(dbReport, {
+          onConflict: 'report_type,period_year,period_month,period_quarter,campaign_name',
+        })
         .select()
         .single();
 
@@ -2266,15 +2273,25 @@ export const SUPABASE_API = {
 
   mapMonthlyReportToApp: (row: MonthlyReportRow): MonthlyReport => ({
     id: row.id,
-    periodMonth: row.period_month,
+    reportType: (row.report_type as MonthlyReport['reportType']) || 'monthly',
+    periodMonth: row.period_month ?? undefined,
+    periodQuarter: row.period_quarter ?? undefined,
     periodYear: row.period_year,
+    campaignName: row.campaign_name ?? undefined,
+    dateFrom: row.date_from ?? undefined,
+    dateTo: row.date_to ?? undefined,
     platformMetrics: row.platform_metrics || {},
     qualitative: {
       whatWorked: row.qualitative?.whatWorked || '',
       whatDidnt: row.qualitative?.whatDidnt || '',
       themes: row.qualitative?.themes || '',
-      nextMonthFocus: row.qualitative?.nextMonthFocus || '',
+      nextPeriodFocus: row.qualitative?.nextPeriodFocus || '',
       highlights: row.qualitative?.highlights || '',
+      audienceQuality: row.qualitative?.audienceQuality,
+      coalitionSignals: row.qualitative?.coalitionSignals,
+      narrativeUptake: row.qualitative?.narrativeUptake,
+      pillarPerformance: row.qualitative?.pillarPerformance,
+      platformTierReview: row.qualitative?.platformTierReview,
     },
     createdBy: row.created_by || '',
     createdByEmail: row.created_by_email || '',
@@ -2287,15 +2304,25 @@ export const SUPABASE_API = {
     existingId?: string,
   ) => ({
     id: existingId || undefined,
-    period_month: report.periodMonth,
+    report_type: report.reportType || 'monthly',
+    period_month: report.periodMonth ?? null,
+    period_quarter: report.periodQuarter ?? null,
     period_year: report.periodYear,
+    campaign_name: report.campaignName ?? null,
+    date_from: report.dateFrom ?? null,
+    date_to: report.dateTo ?? null,
     platform_metrics: report.platformMetrics || {},
     qualitative: {
       whatWorked: report.qualitative.whatWorked || '',
       whatDidnt: report.qualitative.whatDidnt || '',
       themes: report.qualitative.themes || '',
-      nextMonthFocus: report.qualitative.nextMonthFocus || '',
+      nextPeriodFocus: report.qualitative.nextPeriodFocus || '',
       highlights: report.qualitative.highlights || '',
+      audienceQuality: report.qualitative.audienceQuality || '',
+      coalitionSignals: report.qualitative.coalitionSignals || '',
+      narrativeUptake: report.qualitative.narrativeUptake || '',
+      pillarPerformance: report.qualitative.pillarPerformance || '',
+      platformTierReview: report.qualitative.platformTierReview || '',
     },
     created_by: report.createdBy || '',
     created_by_email: report.createdByEmail || '',

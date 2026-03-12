@@ -302,6 +302,82 @@ export const PLATFORM_METRICS: Record<Platform, PlatformMetricField[]> = {
   ],
 };
 
+// Reporting-specific metrics aligned to the Analytics & Optimisation Framework.
+// Separate from PLATFORM_METRICS (which covers per-post analytics entry).
+// De-prioritised signals (likes, raw impressions) are intentionally excluded.
+export const REPORTING_PLATFORM_METRICS: Record<Platform, PlatformMetricField[]> = {
+  Instagram: [
+    { key: 'reach', label: 'Reach' },
+    { key: 'shares', label: 'Shares' },
+    { key: 'saves', label: 'Saves' },
+    { key: 'comments', label: 'Comments' },
+    { key: 'dmSends', label: 'DM sends', hint: '#1 algorithm signal (Mosseri, Jan 2026)' },
+    { key: 'reelCompletionRate', label: 'Reel completion rate (%)', hint: 'Target: 50%+' },
+    { key: 'storyCompletionRate', label: 'Story completion rate (%)', hint: 'Target: 70%+' },
+    { key: 'websiteClicks', label: 'Website clicks from profile' },
+  ],
+  LinkedIn: [
+    { key: 'reach', label: 'Reach (company page)' },
+    { key: 'comments', label: 'Comments' },
+    { key: 'shares', label: 'Reposts / Shares' },
+    { key: 'clicks', label: 'Link click-throughs', hint: 'Target: 1%+ organic' },
+    {
+      key: 'employeeAdvocacyReach',
+      label: 'Employee advocacy reach',
+      hint: 'Target: 5× company page reach',
+    },
+    {
+      key: 'carouselEngagement',
+      label: 'Document carousel engagement (%)',
+      hint: 'Target: 5%+ (avg 6.10%)',
+    },
+  ],
+  YouTube: [
+    { key: 'views', label: 'Views (long-form)' },
+    { key: 'shortsViews', label: 'Shorts views' },
+    { key: 'watchTimeHours', label: 'Watch time (hours)' },
+    {
+      key: 'avgViewDuration',
+      label: 'Avg view duration (%)',
+      hint: 'Target: 50%+ for long-form',
+    },
+    { key: 'searchImpressionsCtr', label: 'Search impressions CTR (%)', hint: 'Target: 5%+' },
+    { key: 'websiteClicks', label: 'Website clicks from YouTube' },
+  ],
+  Facebook: [
+    { key: 'reach', label: 'Reach' },
+    { key: 'shares', label: 'Shares', hint: 'Most meaningful organic signal on Facebook' },
+    { key: 'clicks', label: 'Link clicks (website / donate)' },
+    {
+      key: 'reelCompletionRate',
+      label: 'Reel completion rate (%)',
+      hint: 'All Page videos are now auto-Reels. Target: 50%+',
+    },
+    { key: 'reactionLove', label: 'Love reactions' },
+    { key: 'reactionCare', label: 'Care reactions' },
+    {
+      key: 'reactionAngry',
+      label: 'Angry reactions',
+      hint: 'Leading indicator of discomfort on sensitive content',
+    },
+  ],
+  BlueSky: [
+    { key: 'shares', label: 'Reposts' },
+    { key: 'quotePosts', label: 'Quote posts from journalists / researchers' },
+    { key: 'comments', label: 'Replies' },
+    {
+      key: 'clicks',
+      label: 'Link click-throughs',
+      hint: 'No link throttling — uniquely reliable signal',
+    },
+    {
+      key: 'journalistEngagements',
+      label: 'Engagements from target accounts',
+      hint: 'Media, researchers, policymakers',
+    },
+  ],
+};
+
 export const DEFAULT_APPROVERS = [
   'Jameen Kaur',
   'Emma Lewendon-Strutt',

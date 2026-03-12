@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '../../components/ui';
-import { PLATFORM_METRICS } from '../../constants';
+import { REPORTING_PLATFORM_METRICS } from '../../constants';
 import type { MonthlyReport } from '../../types/models';
 import { generateMonthlyReportPdf } from './reportPdf';
 
@@ -19,16 +19,43 @@ const MONTH_NAMES = [
   'December',
 ];
 
-const QUALITATIVE_SECTIONS: Array<{
+const QUARTER_NAMES = ['Q1 (Jan–Mar)', 'Q2 (Apr–Jun)', 'Q3 (Jul–Sep)', 'Q4 (Oct–Dec)'];
+
+const CORE_QUALITATIVE_SECTIONS: Array<{
   field: keyof MonthlyReport['qualitative'];
   heading: string;
 }> = [
   { field: 'whatWorked', heading: 'What Worked' },
   { field: 'whatDidnt', heading: 'Challenges' },
   { field: 'themes', heading: 'Audience Themes' },
-  { field: 'nextMonthFocus', heading: 'Focus for Next Month' },
+  { field: 'nextPeriodFocus', heading: 'Focus for Next Period' },
   { field: 'highlights', heading: 'Highlights' },
 ];
+
+const DEEP_DIVE_SECTIONS: Array<{
+  field: keyof MonthlyReport['qualitative'];
+  heading: string;
+}> = [
+  { field: 'audienceQuality', heading: 'Audience Quality Check' },
+  { field: 'coalitionSignals', heading: 'Coalition Signals' },
+  { field: 'narrativeUptake', heading: 'Narrative Uptake' },
+  { field: 'pillarPerformance', heading: 'Content Pillar Performance' },
+  { field: 'platformTierReview', heading: 'Platform Tier Review' },
+];
+
+const buildReportHeading = (report: MonthlyReport): string => {
+  const type = report.reportType ?? 'monthly';
+  if (type === 'monthly') {
+    const month = MONTH_NAMES[(report.periodMonth ?? 1) - 1] ?? 'Unknown';
+    return `${month} ${report.periodYear} — Monthly Social Media Report`;
+  }
+  if (type === 'quarterly') {
+    const quarter = QUARTER_NAMES[(report.periodQuarter ?? 1) - 1] ?? 'Q?';
+    return `${quarter} ${report.periodYear} — Quarterly Deep Dive`;
+  }
+  if (type === 'annual') return `${report.periodYear} — Annual Review`;
+  return `${report.campaignName ?? 'Campaign'} — Campaign Report`;
+};
 
 interface ReportFinalViewProps {
   report: MonthlyReport;
@@ -36,12 +63,22 @@ interface ReportFinalViewProps {
 }
 
 export function ReportFinalView({ report, onNewReport }: ReportFinalViewProps): ReactElement {
-  const monthName = MONTH_NAMES[report.periodMonth - 1] ?? 'Unknown';
+  const heading = buildReportHeading(report);
   const generatedDate = new Date(report.updatedAt || report.createdAt).toLocaleDateString();
-  const platformsWithData = Object.keys(PLATFORM_METRICS).filter((platform) =>
-    PLATFORM_METRICS[platform].some(
+  const isDeepDive = report.reportType === 'quarterly' || report.reportType === 'annual';
+
+  const platformsWithData = Object.keys(REPORTING_PLATFORM_METRICS).filter((platform) =>
+    REPORTING_PLATFORM_METRICS[platform].some(
       (metric) => (report.platformMetrics[platform]?.[metric.key] ?? 0) > 0,
     ),
+  );
+
+  const allQualSections = isDeepDive
+    ? [...CORE_QUALITATIVE_SECTIONS, ...DEEP_DIVE_SECTIONS]
+    : CORE_QUALITATIVE_SECTIONS;
+
+  const populatedQualSections = allQualSections.filter(
+    ({ field }) => (report.qualitative[field] ?? '').trim().length > 0,
   );
 
   return (
@@ -51,9 +88,7 @@ export function ReportFinalView({ report, onNewReport }: ReportFinalViewProps): 
       </div>
 
       <div className="space-y-2">
-        <h2 className="text-3xl font-semibold text-ocean-900">
-          {monthName} {report.periodYear} - Monthly Social Media Report
-        </h2>
+        <h2 className="text-3xl font-semibold text-ocean-900">{heading}</h2>
         <p className="text-sm text-graystone-600">
           Generated {generatedDate} by {report.createdBy}
         </p>
@@ -71,7 +106,7 @@ export function ReportFinalView({ report, onNewReport }: ReportFinalViewProps): 
                 <CardContent>
                   <table className="w-full text-sm">
                     <tbody>
-                      {PLATFORM_METRICS[platform]
+                      {REPORTING_PLATFORM_METRICS[platform]
                         .map((metric) => ({
                           ...metric,
                           value: report.platformMetrics[platform]?.[metric.key] ?? 0,
@@ -97,17 +132,15 @@ export function ReportFinalView({ report, onNewReport }: ReportFinalViewProps): 
         </section>
       ) : null}
 
-      {QUALITATIVE_SECTIONS.some(({ field }) => report.qualitative[field].trim().length > 0) ? (
+      {populatedQualSections.length > 0 ? (
         <section className="space-y-4">
           <h3 className="text-xl font-semibold text-ocean-900">Qualitative Insights</h3>
           <Card className="shadow-md">
             <CardContent className="space-y-5 pt-6">
-              {QUALITATIVE_SECTIONS.filter(
-                ({ field }) => report.qualitative[field].trim().length > 0,
-              ).map(({ field, heading }) => (
+              {populatedQualSections.map(({ field, heading: sectionHeading }) => (
                 <div key={field} className="space-y-1">
                   <h4 className="text-sm font-semibold uppercase tracking-wide text-ocean-700">
-                    {heading}
+                    {sectionHeading}
                   </h4>
                   <p className="whitespace-pre-wrap text-sm leading-6 text-graystone-700">
                     {report.qualitative[field]}

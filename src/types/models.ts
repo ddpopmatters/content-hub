@@ -556,18 +556,31 @@ export interface Influencer {
   status: InfluencerStatus;
 }
 
+export type ReportType = 'monthly' | 'quarterly' | 'annual' | 'campaign';
+
 export interface QualitativeInsights {
   whatWorked: string;
   whatDidnt: string;
   themes: string;
-  nextMonthFocus: string;
+  nextPeriodFocus: string;
   highlights: string;
+  // Quarterly / annual only
+  audienceQuality?: string;
+  coalitionSignals?: string;
+  narrativeUptake?: string;
+  pillarPerformance?: string;
+  platformTierReview?: string;
 }
 
 export interface MonthlyReport {
   id: string;
-  periodMonth: number;
+  reportType: ReportType;
+  periodMonth?: number;
+  periodQuarter?: number;
   periodYear: number;
+  campaignName?: string;
+  dateFrom?: string;
+  dateTo?: string;
   platformMetrics: Record<string, Record<string, number>>;
   qualitative: QualitativeInsights;
   createdBy: string;

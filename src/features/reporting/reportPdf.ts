@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { PLATFORM_METRICS } from '../../constants';
+import { REPORTING_PLATFORM_METRICS } from '../../constants';
 import type { MonthlyReport } from '../../types/models';
 
 const MONTH_NAMES = [
@@ -18,22 +18,66 @@ const MONTH_NAMES = [
   'December',
 ];
 
-const QUALITATIVE_SECTIONS: Array<{
+const QUARTER_NAMES = ['Q1 (Jan–Mar)', 'Q2 (Apr–Jun)', 'Q3 (Jul–Sep)', 'Q4 (Oct–Dec)'];
+
+const CORE_QUALITATIVE_SECTIONS: Array<{
   field: keyof MonthlyReport['qualitative'];
   heading: string;
 }> = [
   { field: 'whatWorked', heading: 'What Worked' },
   { field: 'whatDidnt', heading: 'Challenges' },
   { field: 'themes', heading: 'Audience Themes' },
-  { field: 'nextMonthFocus', heading: 'Focus for Next Month' },
+  { field: 'nextPeriodFocus', heading: 'Focus for Next Period' },
   { field: 'highlights', heading: 'Highlights' },
 ];
+
+const DEEP_DIVE_SECTIONS: Array<{
+  field: keyof MonthlyReport['qualitative'];
+  heading: string;
+}> = [
+  { field: 'audienceQuality', heading: 'Audience Quality Check' },
+  { field: 'coalitionSignals', heading: 'Coalition Signals' },
+  { field: 'narrativeUptake', heading: 'Narrative Uptake' },
+  { field: 'pillarPerformance', heading: 'Content Pillar Performance' },
+  { field: 'platformTierReview', heading: 'Platform Tier Review' },
+];
+
+const buildReportTitle = (report: MonthlyReport): string => {
+  const type = report.reportType ?? 'monthly';
+  if (type === 'monthly') {
+    const monthName = MONTH_NAMES[(report.periodMonth ?? 1) - 1] ?? 'Unknown';
+    return `${monthName} ${report.periodYear} — Monthly Social Media Report`;
+  }
+  if (type === 'quarterly') {
+    const quarterName = QUARTER_NAMES[(report.periodQuarter ?? 1) - 1] ?? 'Q?';
+    return `${quarterName} ${report.periodYear} — Quarterly Deep Dive`;
+  }
+  if (type === 'annual') {
+    return `${report.periodYear} — Annual Review`;
+  }
+  return `${report.campaignName ?? 'Campaign'} — Campaign Report`;
+};
+
+const buildFilename = (report: MonthlyReport): string => {
+  const type = report.reportType ?? 'monthly';
+  if (type === 'monthly') {
+    return `pm-report-${report.periodYear}-${String(report.periodMonth).padStart(2, '0')}.pdf`;
+  }
+  if (type === 'quarterly') {
+    return `pm-report-${report.periodYear}-q${report.periodQuarter}.pdf`;
+  }
+  if (type === 'annual') {
+    return `pm-report-${report.periodYear}-annual.pdf`;
+  }
+  const slug = (report.campaignName ?? 'campaign').toLowerCase().replace(/\s+/g, '-');
+  return `pm-report-campaign-${slug}.pdf`;
+};
 
 export function generateMonthlyReportPdf(report: MonthlyReport): void {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pdfDoc = doc as jsPDF & { lastAutoTable?: { finalY: number } };
-  const monthName = MONTH_NAMES[report.periodMonth - 1] ?? 'Unknown';
-  const title = `${monthName} ${report.periodYear} - Monthly Social Media Report`;
+  const title = buildReportTitle(report);
+  const isDeepDive = report.reportType === 'quarterly' || report.reportType === 'annual';
   let cursorY = 20;
 
   const ensureSpace = (requiredHeight: number) => {
@@ -57,18 +101,16 @@ export function generateMonthlyReportPdf(report: MonthlyReport): void {
   doc.line(20, cursorY, 190, cursorY);
   cursorY += 8;
 
-  Object.keys(PLATFORM_METRICS).forEach((platform) => {
-    const rows = PLATFORM_METRICS[platform]
+  Object.keys(REPORTING_PLATFORM_METRICS).forEach((platform) => {
+    const rows = REPORTING_PLATFORM_METRICS[platform]
       .map((metric) => ({
         label: metric.label,
         value: report.platformMetrics[platform]?.[metric.key] ?? 0,
       }))
-      .filter((metric) => metric.value > 0)
-      .map((metric) => [metric.label, metric.value.toLocaleString()]);
+      .filter((m) => m.value > 0)
+      .map((m) => [m.label, m.value.toLocaleString()]);
 
-    if (rows.length === 0) {
-      return;
-    }
+    if (rows.length === 0) return;
 
     ensureSpace(24);
     doc.setFont('helvetica', 'bold');
@@ -89,8 +131,12 @@ export function generateMonthlyReportPdf(report: MonthlyReport): void {
     cursorY = (pdfDoc.lastAutoTable?.finalY ?? cursorY) + 8;
   });
 
-  const qualitativeRows = QUALITATIVE_SECTIONS.filter(
-    ({ field }) => report.qualitative[field]?.trim().length > 0,
+  const allQualSections = isDeepDive
+    ? [...CORE_QUALITATIVE_SECTIONS, ...DEEP_DIVE_SECTIONS]
+    : CORE_QUALITATIVE_SECTIONS;
+
+  const qualitativeRows = allQualSections.filter(
+    ({ field }) => (report.qualitative[field] ?? '').trim().length > 0,
   );
 
   if (qualitativeRows.length > 0) {
@@ -101,7 +147,7 @@ export function generateMonthlyReportPdf(report: MonthlyReport): void {
     cursorY += 7;
 
     qualitativeRows.forEach(({ field, heading }) => {
-      const body = report.qualitative[field].trim();
+      const body = (report.qualitative[field] ?? '').trim();
       const wrapped = doc.splitTextToSize(body, 170);
 
       ensureSpace(12 + wrapped.length * 5);
@@ -117,7 +163,5 @@ export function generateMonthlyReportPdf(report: MonthlyReport): void {
     });
   }
 
-  doc.save(
-    `pm-social-report-${report.periodYear}-${String(report.periodMonth).padStart(2, '0')}.pdf`,
-  );
+  doc.save(buildFilename(report));
 }
