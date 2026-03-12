@@ -45,5 +45,8 @@ describe('VisualIntegrityCheck', () => {
     screen.getAllByRole('button', { name: 'Yes' }).forEach((btn) => {
       expect(btn).toBeDisabled();
     });
+    screen.getAllByRole('button', { name: 'No' }).forEach((btn) => {
+      expect(btn).toBeDisabled();
+    });
   });
 });
