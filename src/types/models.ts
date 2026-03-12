@@ -139,6 +139,9 @@ export interface Entry {
   episodeNumber?: number;
   originContentId?: string;
   partnerOrg?: string;
+  partnerIndividualName?: string;
+  partnerConsentStatus?: 'confirmed' | 'pending' | 'not-required';
+  partnerCaptureContext?: string;
   altTextStatus?: ExecutionStatus;
   subtitlesStatus?: ExecutionStatus;
   utmStatus?: ExecutionStatus;
@@ -168,6 +171,11 @@ export interface Entry {
       blame?: boolean;
       instrumentalisation?: boolean;
       cooption?: boolean;
+    };
+    visualIntegrity?: {
+      victimImagery?: boolean;
+      anonWithoutContext?: boolean;
+      recipientFraming?: boolean;
     };
   } | null;
   // Influencer attribution
@@ -546,4 +554,24 @@ export interface Influencer {
 
   // Pipeline
   status: InfluencerStatus;
+}
+
+export interface QualitativeInsights {
+  whatWorked: string;
+  whatDidnt: string;
+  themes: string;
+  nextMonthFocus: string;
+  highlights: string;
+}
+
+export interface MonthlyReport {
+  id: string;
+  periodMonth: number;
+  periodYear: number;
+  platformMetrics: Record<string, Record<string, number>>;
+  qualitative: QualitativeInsights;
+  createdBy: string;
+  createdByEmail: string;
+  createdAt: string;
+  updatedAt: string;
 }

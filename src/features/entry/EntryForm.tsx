@@ -138,6 +138,11 @@ export function EntryForm({
   const [episodeNumber, setEpisodeNumber] = useState<string>('');
   const [originContentId, setOriginContentId] = useState<string>('');
   const [partnerOrg, setPartnerOrg] = useState<string>('');
+  const [partnerIndividualName, setPartnerIndividualName] = useState<string>('');
+  const [partnerConsentStatus, setPartnerConsentStatus] = useState<
+    'confirmed' | 'pending' | 'not-required' | ''
+  >('');
+  const [partnerCaptureContext, setPartnerCaptureContext] = useState<string>('');
   const [altTextStatus, setAltTextStatus] = useState<string>('Pending');
   const [subtitlesStatus, setSubtitlesStatus] = useState<string>('Pending');
   const [utmStatus, setUtmStatus] = useState<string>('Pending');
@@ -214,6 +219,9 @@ export function EntryForm({
     );
     setOriginContentId(initialValues.originContentId || '');
     setPartnerOrg(initialValues.partnerOrg || '');
+    setPartnerIndividualName(initialValues.partnerIndividualName || '');
+    setPartnerConsentStatus(initialValues.partnerConsentStatus || '');
+    setPartnerCaptureContext(initialValues.partnerCaptureContext || '');
     setAltTextStatus(initialValues.altTextStatus || 'Pending');
     setSubtitlesStatus(initialValues.subtitlesStatus || 'Pending');
     setUtmStatus(initialValues.utmStatus || 'Pending');
@@ -366,6 +374,9 @@ export function EntryForm({
     setEpisodeNumber('');
     setOriginContentId('');
     setPartnerOrg('');
+    setPartnerIndividualName('');
+    setPartnerConsentStatus('');
+    setPartnerCaptureContext('');
     setAltTextStatus('Pending');
     setSubtitlesStatus('Pending');
     setUtmStatus('Pending');
@@ -449,6 +460,9 @@ export function EntryForm({
       episodeNumber: episodeNumber ? Number(episodeNumber) : undefined,
       originContentId: originContentId || undefined,
       partnerOrg: partnerOrg || undefined,
+      partnerIndividualName: partnerIndividualName || undefined,
+      partnerConsentStatus: partnerConsentStatus || undefined,
+      partnerCaptureContext: partnerCaptureContext || undefined,
       altTextStatus: altTextStatus ? (altTextStatus as ExecutionStatus) : undefined,
       subtitlesStatus: subtitlesStatus ? (subtitlesStatus as ExecutionStatus) : undefined,
       utmStatus: utmStatus ? (utmStatus as ExecutionStatus) : undefined,
@@ -1196,6 +1210,46 @@ export function EntryForm({
                           placeholder="Partner, coalition, or programme lead"
                         />
                       </div>
+                      {partnerOrg && (
+                        <>
+                          <div className="space-y-2">
+                            <Label htmlFor="partnerIndividualName">Individual name</Label>
+                            <Input
+                              id="partnerIndividualName"
+                              value={partnerIndividualName}
+                              onChange={(e) => setPartnerIndividualName(e.target.value)}
+                              placeholder="Name of the person featured or credited"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="partnerConsentStatus">Consent status</Label>
+                            <select
+                              id="partnerConsentStatus"
+                              value={partnerConsentStatus}
+                              onChange={(e) =>
+                                setPartnerConsentStatus(
+                                  e.target.value as 'confirmed' | 'pending' | 'not-required' | '',
+                                )
+                              }
+                              className="w-full rounded-lg border border-graystone-300 px-3 py-2 text-sm"
+                            >
+                              <option value="">Select status</option>
+                              <option value="confirmed">Confirmed</option>
+                              <option value="pending">Pending</option>
+                              <option value="not-required">Not required</option>
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="partnerCaptureContext">Capture context</Label>
+                            <Input
+                              id="partnerCaptureContext"
+                              value={partnerCaptureContext}
+                              onChange={(e) => setPartnerCaptureContext(e.target.value)}
+                              placeholder="Where and how this image/content was captured"
+                            />
+                          </div>
+                        </>
+                      )}
                       <div className="space-y-2">
                         <Label htmlFor="seriesName">Series</Label>
                         <Input

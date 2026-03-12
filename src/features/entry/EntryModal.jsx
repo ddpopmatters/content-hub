@@ -65,7 +65,12 @@ import {
 import { SocialPreview } from '../social';
 import { ApproverMulti } from './ApproverMulti';
 import { canPublish, canPostAgain } from '../publishing';
-import { QuickAssessment, FullAssessment, GoldenThreadCheck } from '../assessment';
+import {
+  QuickAssessment,
+  FullAssessment,
+  GoldenThreadCheck,
+  VisualIntegrityCheck,
+} from '../assessment';
 import { TerminologyAlert } from './TerminologyAlert';
 import { PlatformGuidancePanel } from './PlatformGuidancePanel';
 import { checkTerminology } from '../../lib/terminology';
@@ -1676,6 +1681,18 @@ export function EntryModal({
                         return normalizeEntry(next);
                       });
                     }}
+                  />
+                </FieldRow>
+
+                <FieldRow label="Visual integrity">
+                  <VisualIntegrityCheck
+                    values={draft.assessmentScores?.visualIntegrity || {}}
+                    onChange={(visualIntegrity) =>
+                      update('assessmentScores', {
+                        ...(draft.assessmentScores || {}),
+                        visualIntegrity,
+                      })
+                    }
                   />
                 </FieldRow>
 

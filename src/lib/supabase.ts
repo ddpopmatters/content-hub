@@ -287,6 +287,8 @@ import type {
   Influencer,
   PlatformProfile,
   ReportingPeriod,
+  MonthlyReport,
+  QualitativeInsights,
 } from '../types/models';
 
 // Local type aliases for types used only in this file
@@ -352,6 +354,9 @@ interface EntryRow {
   episode_number: number | null;
   origin_content_id: string | null;
   partner_org: string | null;
+  partner_individual_name: string | null;
+  partner_consent_status: string | null;
+  partner_capture_context: string | null;
   alt_text_status: string | null;
   subtitles_status: string | null;
   utm_status: string | null;
@@ -381,6 +386,18 @@ interface EntryRow {
   updated_at: string;
   approved_at: string | null;
   deleted_at: string | null;
+}
+
+interface MonthlyReportRow {
+  id: string;
+  period_month: number;
+  period_year: number;
+  platform_metrics: Record<string, Record<string, number>> | null;
+  qualitative: Partial<QualitativeInsights> | null;
+  created_by: string | null;
+  created_by_email: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface IdeaRow {
@@ -790,6 +807,87 @@ export const SUPABASE_API = {
     } catch (error) {
       Logger.error(error, 'deleteEntry');
       return false;
+    }
+  },
+
+  // ==========================================
+  // MONTHLY REPORTS
+  // ==========================================
+
+  getMonthlyReports: async (): Promise<MonthlyReport[]> => {
+    await initSupabase();
+    if (!supabase) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('monthly_reports')
+        .select('*')
+        .order('period_year', { ascending: false })
+        .order('period_month', { ascending: false });
+
+      if (error) {
+        Logger.error(error, 'getMonthlyReports');
+        return [];
+      }
+
+      return ((data as MonthlyReportRow[]) || []).map(SUPABASE_API.mapMonthlyReportToApp);
+    } catch (error) {
+      Logger.error(error, 'getMonthlyReports');
+      return [];
+    }
+  },
+
+  getMonthlyReport: async (year: number, month: number): Promise<MonthlyReport | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('monthly_reports')
+        .select('*')
+        .eq('period_year', year)
+        .eq('period_month', month)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        Logger.error(error, 'getMonthlyReport');
+        return null;
+      }
+
+      return data ? SUPABASE_API.mapMonthlyReportToApp(data as MonthlyReportRow) : null;
+    } catch (error) {
+      Logger.error(error, 'getMonthlyReport');
+      return null;
+    }
+  },
+
+  saveMonthlyReport: async (
+    report: Omit<MonthlyReport, 'id' | 'createdAt' | 'updatedAt'>,
+    existingId?: string,
+  ): Promise<MonthlyReport> => {
+    await initSupabase();
+    if (!supabase) {
+      throw new Error('Supabase is unavailable');
+    }
+
+    try {
+      const dbReport = SUPABASE_API.mapMonthlyReportToDb(report, existingId);
+
+      const { data, error } = await supabase
+        .from('monthly_reports')
+        .upsert(dbReport, { onConflict: 'period_year,period_month' })
+        .select()
+        .single();
+
+      if (error || !data) {
+        Logger.error(error, 'saveMonthlyReport');
+        throw new Error('Failed to save monthly report');
+      }
+
+      return SUPABASE_API.mapMonthlyReportToApp(data as MonthlyReportRow);
+    } catch (error) {
+      Logger.error(error, 'saveMonthlyReport');
+      throw error instanceof Error ? error : new Error('Failed to save monthly report');
     }
   },
 
@@ -2076,6 +2174,11 @@ export const SUPABASE_API = {
     episodeNumber: row.episode_number ?? undefined,
     originContentId: row.origin_content_id || undefined,
     partnerOrg: row.partner_org || undefined,
+    partnerIndividualName: row.partner_individual_name ?? undefined,
+    partnerConsentStatus:
+      (row.partner_consent_status as 'confirmed' | 'pending' | 'not-required' | undefined) ??
+      undefined,
+    partnerCaptureContext: row.partner_capture_context ?? undefined,
     altTextStatus: mapExecutionStatusFromDb(row.alt_text_status),
     subtitlesStatus: mapExecutionStatusFromDb(row.subtitles_status),
     utmStatus: mapExecutionStatusFromDb(row.utm_status),
@@ -2131,6 +2234,9 @@ export const SUPABASE_API = {
     episode_number: entry.episodeNumber ?? null,
     origin_content_id: entry.originContentId || null,
     partner_org: entry.partnerOrg || null,
+    partner_individual_name: entry.partnerIndividualName ?? null,
+    partner_consent_status: entry.partnerConsentStatus ?? null,
+    partner_capture_context: entry.partnerCaptureContext ?? null,
     alt_text_status: entry.altTextStatus || null,
     subtitles_status: entry.subtitlesStatus || null,
     utm_status: entry.utmStatus || null,
@@ -2156,6 +2262,43 @@ export const SUPABASE_API = {
     script: entry.script || null,
     design_copy: entry.designCopy || null,
     carousel_slides: entry.carouselSlides || [],
+  }),
+
+  mapMonthlyReportToApp: (row: MonthlyReportRow): MonthlyReport => ({
+    id: row.id,
+    periodMonth: row.period_month,
+    periodYear: row.period_year,
+    platformMetrics: row.platform_metrics || {},
+    qualitative: {
+      whatWorked: row.qualitative?.whatWorked || '',
+      whatDidnt: row.qualitative?.whatDidnt || '',
+      themes: row.qualitative?.themes || '',
+      nextMonthFocus: row.qualitative?.nextMonthFocus || '',
+      highlights: row.qualitative?.highlights || '',
+    },
+    createdBy: row.created_by || '',
+    createdByEmail: row.created_by_email || '',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }),
+
+  mapMonthlyReportToDb: (
+    report: Omit<MonthlyReport, 'id' | 'createdAt' | 'updatedAt'>,
+    existingId?: string,
+  ) => ({
+    id: existingId || undefined,
+    period_month: report.periodMonth,
+    period_year: report.periodYear,
+    platform_metrics: report.platformMetrics || {},
+    qualitative: {
+      whatWorked: report.qualitative.whatWorked || '',
+      whatDidnt: report.qualitative.whatDidnt || '',
+      themes: report.qualitative.themes || '',
+      nextMonthFocus: report.qualitative.nextMonthFocus || '',
+      highlights: report.qualitative.highlights || '',
+    },
+    created_by: report.createdBy || '',
+    created_by_email: report.createdByEmail || '',
   }),
 
   mapIdeaToApp: (row: IdeaRow): Idea => ({

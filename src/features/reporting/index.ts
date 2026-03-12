@@ -4,3 +4,5 @@ export { ReportEditor } from './ReportEditor';
 export { ReportMetricForm } from './ReportMetricForm';
 export { ReportNarrativeForm } from './ReportNarrativeForm';
 export { ReportPrintView } from './ReportPrintView';
+export { ReportingView } from './ReportingView';
+export { ReportFinalView } from './ReportFinalView';
