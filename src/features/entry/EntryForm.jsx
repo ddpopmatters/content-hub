@@ -66,6 +66,10 @@ export function EntryForm({
   const [campaign, setCampaign] = useState('');
   const [contentPillar, setContentPillar] = useState('');
   const [influencerId, setInfluencerId] = useState('');
+  const [partnerOrg, setPartnerOrg] = useState('');
+  const [partnerIndividualName, setPartnerIndividualName] = useState('');
+  const [partnerConsentStatus, setPartnerConsentStatus] = useState('');
+  const [partnerCaptureContext, setPartnerCaptureContext] = useState('');
   const [audienceSegments, setAudienceSegments] = useState([]);
   const [quickAssessment, setQuickAssessment] = useState({});
   const [goldenThread, setGoldenThread] = useState({});
@@ -144,6 +148,10 @@ export function EntryForm({
     setCampaign('');
     setContentPillar('');
     setInfluencerId('');
+    setPartnerOrg('');
+    setPartnerIndividualName('');
+    setPartnerConsentStatus('');
+    setPartnerCaptureContext('');
     setAudienceSegments([]);
     setQuickAssessment({});
     setGoldenThread({});
@@ -195,6 +203,10 @@ export function EntryForm({
       campaign: campaign || undefined,
       contentPillar: contentPillar || undefined,
       influencerId: influencerId || undefined,
+      partnerOrg: partnerOrg || undefined,
+      partnerIndividualName: partnerIndividualName || undefined,
+      partnerConsentStatus: partnerConsentStatus || undefined,
+      partnerCaptureContext: partnerCaptureContext || undefined,
       audienceSegments: audienceSegments.length > 0 ? audienceSegments : undefined,
       assessmentScores:
         Object.keys(quickAssessment).length > 0 || Object.keys(goldenThread).length > 0
@@ -375,6 +387,48 @@ export function EntryForm({
                   label="Influencer collaboration"
                 />
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="partnerOrg">Partner organisation</Label>
+                <Input
+                  id="partnerOrg"
+                  value={partnerOrg}
+                  onChange={(event) => setPartnerOrg(event.target.value)}
+                  placeholder="Partner, coalition, or programme lead"
+                />
+                {partnerOrg && (
+                  <>
+                    <Label htmlFor="partnerIndividualName">Named individual</Label>
+                    <Input
+                      id="partnerIndividualName"
+                      value={partnerIndividualName}
+                      onChange={(e) => setPartnerIndividualName(e.target.value)}
+                      placeholder="e.g. Amina Bello, community health worker, Kaduna"
+                    />
+
+                    <Label htmlFor="partnerConsentStatus">Consent status</Label>
+                    <select
+                      id="partnerConsentStatus"
+                      value={partnerConsentStatus}
+                      onChange={(e) => setPartnerConsentStatus(e.target.value)}
+                      className="w-full rounded-lg border border-graystone-200 px-3 py-2 text-sm focus:border-ocean-400 focus:outline-none focus:ring-2 focus:ring-ocean-200"
+                    >
+                      <option value="">— select —</option>
+                      <option value="confirmed">Consent confirmed</option>
+                      <option value="pending">Consent pending</option>
+                      <option value="not-required">Not required</option>
+                    </select>
+
+                    <Label htmlFor="partnerCaptureContext">Capture context</Label>
+                    <Input
+                      id="partnerCaptureContext"
+                      value={partnerCaptureContext}
+                      onChange={(e) => setPartnerCaptureContext(e.target.value)}
+                      placeholder="e.g. Photographed by E2P team, Kaduna, Feb 2026"
+                    />
+                  </>
+                )}
+              </div>
 
               <div className="space-y-2">
                 <Label>Approvers</Label>
