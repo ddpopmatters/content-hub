@@ -310,6 +310,8 @@ export const REPORTING_PLATFORM_METRICS: Record<Platform, PlatformMetricField[]>
   Instagram: [
     { key: 'numberOfPosts', label: 'Posts published' },
     { key: 'numberOfStories', label: 'Stories published' },
+    { key: 'followersTotal', label: 'Total followers', isRate: true },
+    { key: 'followersGained', label: 'New followers' },
     { key: 'views', label: 'Views' },
     { key: 'followerNonFollowerRatio', label: 'Follower / Non-follower ratio (%)', isRate: true },
     { key: 'accountsReached', label: 'Accounts reached' },
@@ -326,6 +328,8 @@ export const REPORTING_PLATFORM_METRICS: Record<Platform, PlatformMetricField[]>
   ],
   LinkedIn: [
     { key: 'numberOfPosts', label: 'Posts published' },
+    { key: 'followersTotal', label: 'Total followers', isRate: true },
+    { key: 'followersGained', label: 'New followers' },
     { key: 'impressions', label: 'Impressions' },
     { key: 'reactions', label: 'Reactions' },
     { key: 'comments', label: 'Comments' },
@@ -338,6 +342,8 @@ export const REPORTING_PLATFORM_METRICS: Record<Platform, PlatformMetricField[]>
   ],
   YouTube: [
     { key: 'numberOfPosts', label: 'Videos published' },
+    { key: 'subscribersTotal', label: 'Total subscribers', isRate: true },
+    { key: 'subscribers', label: 'Subscribers gained' },
     { key: 'views', label: 'Views' },
     { key: 'watchTimeHours', label: 'Watch time (hours)' },
     { key: 'subscribers', label: 'Subscribers gained' },
@@ -347,6 +353,8 @@ export const REPORTING_PLATFORM_METRICS: Record<Platform, PlatformMetricField[]>
   ],
   Facebook: [
     { key: 'numberOfPosts', label: 'Posts published' },
+    { key: 'followersTotal', label: 'Total followers', isRate: true },
+    { key: 'followersGained', label: 'New followers' },
     { key: 'views', label: 'Views' },
     { key: 'viewers', label: 'Viewers' },
     { key: 'contentInteractions', label: 'Content interactions' },
@@ -366,6 +374,8 @@ export const REPORTING_PLATFORM_METRICS: Record<Platform, PlatformMetricField[]>
   ],
   BlueSky: [
     { key: 'numberOfPosts', label: 'Posts published' },
+    { key: 'followersTotal', label: 'Total followers', isRate: true },
+    { key: 'followersGained', label: 'New followers' },
     { key: 'replies', label: 'Replies' },
     { key: 'quotePosts', label: 'Quotes' },
     { key: 'likes', label: 'Likes' },
