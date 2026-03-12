@@ -31,49 +31,44 @@ export function WeeklyStatsWidget({ entries }: WeeklyStatsWidgetProps): React.Re
     });
 
     let totalEngagements = 0;
-    let totalReach = 0;
+    let totalShares = 0;
+    let totalSaves = 0;
     let postsWithAnalytics = 0;
 
     thisWeekEntries.forEach((entry) => {
       if (!entry.analytics) return;
       entry.platforms?.forEach((platform) => {
-        const stats = entry.analytics?.[platform];
-        if (stats && typeof stats === 'object') {
-          const s = stats as Record<string, number>;
+        const platformStats = entry.analytics?.[platform];
+        if (platformStats && typeof platformStats === 'object') {
+          const s = platformStats as Record<string, number>;
           const likes = s.likes || 0;
           const comments = s.comments || 0;
           const shares = s.shares || 0;
-          const reach = s.reach || 0;
+          const saves = s.saves || 0;
 
-          if (likes || comments || shares || reach) {
+          if (likes || comments || shares || saves) {
             postsWithAnalytics++;
             totalEngagements += likes + comments + shares;
-            totalReach += reach;
+            totalShares += shares;
+            totalSaves += saves;
           }
         }
       });
     });
 
-    const avgEngagement =
-      postsWithAnalytics > 0 ? Math.round(totalEngagements / postsWithAnalytics) : 0;
-
     return {
       postsPublished: thisWeekEntries.length,
       totalEngagements,
-      totalReach,
-      avgEngagement,
+      totalShares,
+      totalSaves,
     };
   }, [entries]);
 
   const metrics = [
-    { label: 'Posts Published', value: stats.postsPublished, color: 'text-ocean-600' },
-    {
-      label: 'Total Engagements',
-      value: formatNumber(stats.totalEngagements),
-      color: 'text-green-600',
-    },
-    { label: 'Total Reach', value: formatNumber(stats.totalReach), color: 'text-purple-600' },
-    { label: 'Avg Engagement', value: stats.avgEngagement, color: 'text-amber-600' },
+    { label: 'Shares', value: formatNumber(stats.totalShares), color: 'text-ocean-600' },
+    { label: 'Saves', value: formatNumber(stats.totalSaves), color: 'text-emerald-600' },
+    { label: 'Posts Published', value: stats.postsPublished, color: 'text-graystone-700' },
+    { label: 'Engagements', value: formatNumber(stats.totalEngagements), color: 'text-amber-600' },
   ];
 
   return (
