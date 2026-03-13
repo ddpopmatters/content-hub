@@ -401,6 +401,14 @@ export interface Notification {
 }
 
 /**
+ * Approver directory entry - name + email for sending notifications to non-account-holders
+ */
+export interface ApproverDirectoryEntry {
+  name: string;
+  email: string;
+}
+
+/**
  * Guidelines model - brand/copy guidelines
  */
 export interface Guidelines {
@@ -409,6 +417,7 @@ export interface Guidelines {
   requiredPhrases: string[];
   languageGuide: string;
   hashtagTips: string;
+  approverDirectory: ApproverDirectoryEntry[];
 }
 
 /**

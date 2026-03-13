@@ -59,7 +59,7 @@ export const entryDescriptor = (entry: Partial<Entry> | null | undefined): strin
 export const entryReviewLink = (entry: Partial<Entry> | null | undefined): string => {
   if (typeof window === 'undefined' || !entry) return '';
   try {
-    return `${window.location.origin}?entry=${encodeURIComponent(entry.id || '')}`;
+    return `${window.location.origin}/review.html?id=${encodeURIComponent(entry.id || '')}`;
   } catch {
     return '';
   }

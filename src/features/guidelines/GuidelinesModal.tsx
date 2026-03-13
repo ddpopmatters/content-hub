@@ -6,15 +6,16 @@ import {
   PLATFORM_TIPS,
   TERMINOLOGY_MAP,
 } from '../../constants';
-import type { Guidelines } from '../../types/models';
+import type { ApproverDirectoryEntry, Guidelines } from '../../types/models';
 
-type Tab = 'terminology' | 'voice' | 'platforms' | 'brand';
+type Tab = 'terminology' | 'voice' | 'platforms' | 'brand' | 'approvers';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'terminology', label: 'Terminology' },
   { key: 'voice', label: 'Voice & Tone' },
   { key: 'platforms', label: 'Platform Tips' },
   { key: 'brand', label: 'Brand' },
+  { key: 'approvers', label: 'Approvers' },
 ];
 
 interface GuidelinesDraft {
@@ -23,6 +24,7 @@ interface GuidelinesDraft {
   languageGuide: string;
   hashtagTips: string;
   charLimits: Record<string, number>;
+  approverDirectory: ApproverDirectoryEntry[];
 }
 
 export interface GuidelinesModalProps {
@@ -41,6 +43,7 @@ const buildDraft = (source: Guidelines | null): GuidelinesDraft => ({
   languageGuide: source?.languageGuide || '',
   hashtagTips: source?.hashtagTips || '',
   charLimits: { ...(source?.charLimits || {}) },
+  approverDirectory: source?.approverDirectory ? [...source.approverDirectory] : [],
 });
 
 const splitList = (value: string): string[] =>
@@ -206,6 +209,110 @@ function PlatformTipsTab(): React.ReactElement {
   );
 }
 
+function ApproversTab({
+  directory,
+  setDraft,
+}: {
+  directory: ApproverDirectoryEntry[];
+  setDraft: React.Dispatch<React.SetStateAction<GuidelinesDraft>>;
+}): React.ReactElement {
+  const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [error, setError] = useState('');
+
+  const add = () => {
+    const name = newName.trim();
+    const email = newEmail.trim();
+    if (!name || !email) {
+      setError('Both name and email are required.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Enter a valid email address.');
+      return;
+    }
+    if (directory.some((e) => e.name.toLowerCase() === name.toLowerCase())) {
+      setError('An entry with this name already exists.');
+      return;
+    }
+    setDraft((prev) => ({
+      ...prev,
+      approverDirectory: [...prev.approverDirectory, { name, email }],
+    }));
+    setNewName('');
+    setNewEmail('');
+    setError('');
+  };
+
+  const remove = (name: string) => {
+    setDraft((prev) => ({
+      ...prev,
+      approverDirectory: prev.approverDirectory.filter((e) => e.name !== name),
+    }));
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-graystone-500">
+        Approvers listed here receive email notifications for content they are assigned to review.
+        They do not need an account in the Content Hub.
+      </p>
+
+      <div className="space-y-2">
+        {directory.length === 0 && (
+          <p className="rounded-xl border border-graystone-100 bg-graystone-50 px-3 py-4 text-center text-xs text-graystone-400">
+            No approvers added yet.
+          </p>
+        )}
+        {directory.map((entry) => (
+          <div
+            key={entry.name}
+            className="flex items-center justify-between gap-3 rounded-xl border border-graystone-100 bg-graystone-50 px-3 py-2"
+          >
+            <div className="min-w-0">
+              <div className="truncate text-xs font-semibold text-graystone-800">{entry.name}</div>
+              <div className="truncate text-xs text-graystone-500">{entry.email}</div>
+            </div>
+            <button
+              type="button"
+              className="shrink-0 rounded-lg px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+              onClick={() => remove(entry.name)}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-xl border border-graystone-200 bg-white p-3 shadow-sm">
+        <p className="mb-2 text-xs font-semibold text-graystone-700">Add approver</p>
+        <div className="space-y-2">
+          <input
+            type="text"
+            placeholder="Full name (e.g. Jameen Kaur)"
+            className="dropdown-font w-full rounded-full border border-black px-4 py-2 text-sm"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && add()}
+          />
+          <input
+            type="email"
+            placeholder="Email address"
+            className="dropdown-font w-full rounded-full border border-black px-4 py-2 text-sm"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && add()}
+          />
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          <Button size="sm" onClick={add}>
+            Add
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BrandTab({
   draft,
   setDraft,
@@ -355,6 +462,7 @@ export const GuidelinesModal: React.FC<GuidelinesModalProps> = ({
       languageGuide: draft.languageGuide,
       hashtagTips: draft.hashtagTips,
       charLimits: { ...draft.charLimits },
+      approverDirectory: draft.approverDirectory,
     });
     if (isAdmin && onSaveWebhookUrl && webhookDraft !== (teamsWebhookUrlProp || '')) {
       onSaveWebhookUrl(webhookDraft);
@@ -418,8 +526,11 @@ export const GuidelinesModal: React.FC<GuidelinesModalProps> = ({
               teamsWebhookUrlProp={teamsWebhookUrlProp}
             />
           )}
+          {activeTab === 'approvers' && (
+            <ApproversTab directory={draft.approverDirectory} setDraft={setDraft} />
+          )}
         </div>
-        {activeTab === 'brand' && (
+        {(activeTab === 'brand' || activeTab === 'approvers') && (
           <div className="flex items-center justify-between border-t border-graystone-200 bg-graystone-50 px-6 py-4">
             <p className="text-xs text-graystone-500">
               Changes sync to the server when connected, with local fallback if offline.

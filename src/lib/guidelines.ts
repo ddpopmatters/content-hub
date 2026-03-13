@@ -14,6 +14,7 @@ export const FALLBACK_GUIDELINES: Guidelines = {
   languageGuide: '',
   hashtagTips: '',
   charLimits: { ...PLATFORM_DEFAULT_LIMITS },
+  approverDirectory: [],
 };
 
 /**
@@ -47,7 +48,23 @@ export const normalizeGuidelines = (raw: unknown): Guidelines => {
         ? value
         : (PLATFORM_DEFAULT_LIMITS as Record<string, number>)[platform] || 500;
   });
-  return { bannedWords, requiredPhrases, languageGuide, hashtagTips, charLimits };
+  const approverDirectory = Array.isArray(data.approverDirectory)
+    ? (data.approverDirectory as unknown[]).filter(
+        (e): e is { name: string; email: string } =>
+          typeof e === 'object' &&
+          e !== null &&
+          typeof (e as Record<string, unknown>).name === 'string' &&
+          typeof (e as Record<string, unknown>).email === 'string',
+      )
+    : [];
+  return {
+    bannedWords,
+    requiredPhrases,
+    languageGuide,
+    hashtagTips,
+    charLimits,
+    approverDirectory,
+  };
 };
 
 /**

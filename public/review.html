@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Content Review — Population Matters</title>
+    <meta
+      name="description"
+      content="Review a content item from the Population Matters communications team."
+    />
+    <meta name="robots" content="noindex, nofollow" />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --pm-blue: #0f9dde;
+        --pm-blue-dark: #0d8bc9;
+        --pm-blue-light: #e8f6fd;
+        --border: #d1d5db;
+        --text: #111827;
+        --text-muted: #6b7280;
+        --label: #374151;
+        --bg: #f9fafb;
+        --card-bg: #ffffff;
+        --radius: 8px;
+      }
+
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        min-height: 100vh;
+        padding: 2rem 1rem;
+      }
+
+      .container {
+        max-width: 680px;
+        margin: 0 auto;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        margin-bottom: 1.25rem;
+      }
+      .logo-mark {
+        width: 32px;
+        height: 32px;
+        background: var(--pm-blue);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: 800;
+        font-size: 0.875rem;
+        letter-spacing: -0.04em;
+      }
+      .logo-text {
+        font-size: 0.9375rem;
+        font-weight: 600;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .subtitle {
+        margin-top: 0.375rem;
+        font-size: 0.9375rem;
+        color: var(--text-muted);
+        margin-bottom: 2rem;
+      }
+
+      .state-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 3rem 2rem;
+        text-align: center;
+        color: var(--text-muted);
+      }
+      .state-card.error {
+        border-color: #fca5a5;
+        background: #fef2f2;
+        color: #dc2626;
+      }
+
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        margin-bottom: 1rem;
+      }
+      .card-section {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border);
+      }
+      .card-section:last-child {
+        border-bottom: none;
+      }
+
+      .section-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        margin-bottom: 0.625rem;
+      }
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.3125rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.8125rem;
+        font-weight: 600;
+      }
+      .status-badge.draft {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+      .status-badge.review {
+        background: #fef3c7;
+        color: #d97706;
+      }
+      .status-badge.approved {
+        background: #dcfce7;
+        color: #16a34a;
+      }
+      .status-badge.published {
+        background: var(--pm-blue-light);
+        color: var(--pm-blue-dark);
+      }
+      .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      .meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.5rem;
+      }
+      .meta-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+      }
+      .meta-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        font-weight: 500;
+      }
+      .meta-value {
+        font-size: 0.9375rem;
+        font-weight: 600;
+      }
+
+      .chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.375rem;
+      }
+      .chip {
+        border-radius: 999px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+      }
+      .chip.platform {
+        background: var(--pm-blue-light);
+        color: var(--pm-blue-dark);
+      }
+      .chip.approver {
+        background: #f3f4f6;
+        color: var(--label);
+        font-weight: 400;
+      }
+
+      .caption-text {
+        font-size: 1rem;
+        line-height: 1.7;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .preview-img {
+        max-width: 100%;
+        border-radius: calc(var(--radius) - 2px);
+        display: block;
+      }
+
+      .notice {
+        background: var(--pm-blue-light);
+        border: 1px solid #bae6fd;
+        border-radius: var(--radius);
+        padding: 0.875rem 1rem;
+        font-size: 0.875rem;
+        color: #0369a1;
+        margin-top: 1.5rem;
+      }
+
+      .footer {
+        margin-top: 2.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border);
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+        text-align: center;
+      }
+      .footer a {
+        color: var(--pm-blue);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">
+        <div class="logo-mark">PM</div>
+        <span class="logo-text">Population Matters</span>
+      </div>
+      <h1>Content Review</h1>
+      <p class="subtitle">You have been asked to review the following content.</p>
+
+      <div id="content">
+        <div class="state-card">Loading…</div>
+      </div>
+
+      <p class="footer">
+        Questions? Contact
+        <a href="mailto:dan@populationmatters.org">dan@populationmatters.org</a>
+      </p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script>
+      (function () {
+        const SUPABASE_URL = 'https://dvhjvtxtkmtsqlnurhfg.supabase.co';
+        const SUPABASE_ANON_KEY =
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aGp2dHh0a210c3FsbnVyaGZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5OTI0OTYsImV4cCI6MjA4MzU2ODQ5Nn0.c4yIpOZXqU8Doci2IN6uNKA_rWwrrMzbMDkMx9HCjcc';
+
+        const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const contentEl = document.getElementById('content');
+
+        /** Safely set text content on an element */
+        function setText(el, text) {
+          el.textContent = String(text || '');
+        }
+
+        /** Create an element with optional class */
+        function el(tag, cls) {
+          var node = document.createElement(tag);
+          if (cls) node.className = cls;
+          return node;
+        }
+
+        function getEntryId() {
+          var params = new URLSearchParams(window.location.search);
+          return params.get('id') || params.get('entry');
+        }
+
+        function statusClass(status) {
+          var s = (status || '').toLowerCase();
+          if (s === 'approved') return 'approved';
+          if (s === 'published') return 'published';
+          if (s.includes('review') || s === 'pending') return 'review';
+          return 'draft';
+        }
+
+        function formatDate(dateStr) {
+          if (!dateStr) return null;
+          try {
+            return new Date(dateStr).toLocaleDateString('en-GB', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            });
+          } catch (e) {
+            return dateStr;
+          }
+        }
+
+        function parseArray(val) {
+          if (!val) return [];
+          if (Array.isArray(val)) return val;
+          if (typeof val === 'string') {
+            try {
+              return JSON.parse(val);
+            } catch (e) {
+              return [val];
+            }
+          }
+          return [];
+        }
+
+        function makeSection(labelText) {
+          var section = el('div', 'card-section');
+          var label = el('div', 'section-label');
+          setText(label, labelText);
+          section.appendChild(label);
+          return section;
+        }
+
+        function renderEntry(entry) {
+          var platforms = parseArray(entry.platforms);
+          var approvers = parseArray(entry.approvers);
+          var wfStatus = entry.workflow_status || entry.workflowStatus || entry.status || 'Draft';
+          var caption = entry.caption || '';
+          var previewUrl = entry.preview_url || entry.previewUrl || '';
+          var assetType = entry.asset_type || entry.assetType || '';
+          var campaign = entry.campaign || '';
+          var pillar = entry.content_pillar || entry.contentPillar || '';
+          var author = entry.author || '';
+          var date = entry.date || '';
+
+          var card = el('div', 'card');
+
+          // Status section
+          var statusSection = makeSection('Status');
+          var badge = el('span', 'status-badge ' + statusClass(wfStatus));
+          var dot = el('span', 'status-dot');
+          badge.appendChild(dot);
+          badge.appendChild(document.createTextNode(' '));
+          setText(badge, ''); // reset then rebuild
+          badge.className = 'status-badge ' + statusClass(wfStatus);
+          var dotNode = el('span', 'status-dot');
+          badge.appendChild(dotNode);
+          var statusText = document.createTextNode(' ' + wfStatus);
+          badge.appendChild(statusText);
+          statusSection.appendChild(badge);
+          card.appendChild(statusSection);
+
+          // Meta section
+          var metaItems = [
+            { label: 'Scheduled date', value: formatDate(date) },
+            { label: 'Content type', value: assetType },
+            { label: 'Author', value: author },
+            { label: 'Campaign', value: campaign },
+            { label: 'Content pillar', value: pillar },
+          ].filter(function (m) {
+            return m.value;
+          });
+
+          if (metaItems.length) {
+            var metaSection = makeSection('Details');
+            var metaRow = el('div', 'meta-row');
+            metaItems.forEach(function (item) {
+              var metaItem = el('div', 'meta-item');
+              var metaLabel = el('span', 'meta-label');
+              setText(metaLabel, item.label);
+              var metaValue = el('span', 'meta-value');
+              setText(metaValue, item.value);
+              metaItem.appendChild(metaLabel);
+              metaItem.appendChild(metaValue);
+              metaRow.appendChild(metaItem);
+            });
+            metaSection.appendChild(metaRow);
+            card.appendChild(metaSection);
+          }
+
+          // Platforms section
+          if (platforms.length) {
+            var platformSection = makeSection('Platforms');
+            var chipList = el('div', 'chip-list');
+            platforms.forEach(function (p) {
+              var chip = el('span', 'chip platform');
+              setText(chip, p);
+              chipList.appendChild(chip);
+            });
+            platformSection.appendChild(chipList);
+            card.appendChild(platformSection);
+          }
+
+          // Caption section
+          if (caption) {
+            var captionSection = makeSection('Caption / copy');
+            var captionP = el('p', 'caption-text');
+            setText(captionP, caption);
+            captionSection.appendChild(captionP);
+            card.appendChild(captionSection);
+          }
+
+          // Preview image section
+          if (previewUrl) {
+            var previewSection = makeSection('Preview');
+            var img = el('img', 'preview-img');
+            img.src = previewUrl;
+            img.alt = 'Content preview';
+            previewSection.appendChild(img);
+            card.appendChild(previewSection);
+          }
+
+          // Approvers section
+          if (approvers.length) {
+            var approverSection = makeSection('Approvers');
+            var approverList = el('div', 'chip-list');
+            approvers.forEach(function (a) {
+              var chip = el('span', 'chip approver');
+              setText(chip, a);
+              approverList.appendChild(chip);
+            });
+            approverSection.appendChild(approverList);
+            card.appendChild(approverSection);
+          }
+
+          contentEl.textContent = '';
+          contentEl.appendChild(card);
+
+          // Notice
+          var notice = el('div', 'notice');
+          setText(
+            notice,
+            'To approve or leave feedback, please reply to the notification email or contact the communications team.',
+          );
+          contentEl.appendChild(notice);
+        }
+
+        function renderError(msg) {
+          contentEl.textContent = '';
+          var errCard = el('div', 'state-card error');
+          setText(errCard, msg);
+          contentEl.appendChild(errCard);
+        }
+
+        function load() {
+          var id = getEntryId();
+          if (!id) {
+            renderError('No entry ID provided. Check the link in your notification email.');
+            return;
+          }
+
+          client
+            .from('entries')
+            .select('*')
+            .eq('id', id)
+            .is('deleted_at', null)
+            .single()
+            .then(function (result) {
+              if (result.error || !result.data) {
+                renderError(
+                  'Entry not found. It may have been deleted or the link may be incorrect.',
+                );
+              } else {
+                renderEntry(result.data);
+              }
+            })
+            .catch(function () {
+              renderError('Something went wrong loading the entry. Please try again.');
+            });
+        }
+
+        load();
+      })();
+    </script>
+  </body>
+</html>

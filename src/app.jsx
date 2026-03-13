@@ -345,6 +345,7 @@ function ContentDashboard() {
   const canUseInfluencers = true; // Show to everyone
   const canUseRequests = true;
   const approverOptions = useMemo(() => {
+    const directoryNames = (guidelines?.approverDirectory ?? []).map((e) => e.name).filter(Boolean);
     const derived = userList
       .filter((user) => user.isApprover && user.status !== 'disabled')
       .map((user) => {
@@ -353,11 +354,9 @@ function ContentDashboard() {
         return '';
       })
       .filter(Boolean);
-    if (derived.length) {
-      return Array.from(new Set(derived));
-    }
-    return approverDirectory;
-  }, [userList, approverDirectory]);
+    const base = derived.length ? derived : approverDirectory;
+    return Array.from(new Set([...base, ...directoryNames]));
+  }, [userList, approverDirectory, guidelines?.approverDirectory]);
   const mentionUsers = useMemo(
     () => (userList.length ? userList : DEFAULT_USER_RECORDS),
     [userList],

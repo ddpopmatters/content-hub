@@ -547,6 +547,7 @@ interface GuidelinesRow {
   required_phrases: string[];
   language_guide: string;
   hashtag_tips: string;
+  approver_directory: { name: string; email: string }[];
 }
 
 interface UserProfileRow {
@@ -2686,6 +2687,7 @@ export const SUPABASE_API = {
     requiredPhrases: row.required_phrases || [],
     languageGuide: row.language_guide,
     hashtagTips: row.hashtag_tips,
+    approverDirectory: row.approver_directory || [],
   }),
 
   mapGuidelinesToDb: (guidelines: Partial<Guidelines>) => ({
@@ -2695,6 +2697,7 @@ export const SUPABASE_API = {
     required_phrases: guidelines.requiredPhrases || [],
     language_guide: guidelines.languageGuide,
     hashtag_tips: guidelines.hashtagTips,
+    approver_directory: guidelines.approverDirectory || [],
   }),
 
   mapInfluencerToApp: (row: InfluencerRow): Influencer => {
