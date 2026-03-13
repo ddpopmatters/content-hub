@@ -3,7 +3,7 @@ import { corsHeaders, handleCors } from '../_shared/cors.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
+const POSTMARK_SERVER_TOKEN = Deno.env.get('POSTMARK_SERVER_TOKEN')!;
 const FROM_EMAIL = Deno.env.get('FROM_EMAIL') ?? 'noreply@populationmatters.org';
 const FROM_NAME = Deno.env.get('FROM_NAME') ?? 'Population Matters';
 
@@ -74,24 +74,25 @@ async function resolveEmails(names: string[]): Promise<string[]> {
 }
 
 async function sendEmail(to: string, payload: NotificationPayload): Promise<void> {
-  const res = await fetch('https://api.resend.com/emails', {
+  const res = await fetch('https://api.postmarkapp.com/email', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'X-Postmark-Server-Token': POSTMARK_SERVER_TOKEN,
       'Content-Type': 'application/json',
+      Accept: 'application/json',
     },
     body: JSON.stringify({
-      from: `${FROM_NAME} <${FROM_EMAIL}>`,
-      to: [to],
-      subject: payload.subject,
-      text: payload.text,
-      ...(payload.html ? { html: payload.html } : {}),
+      From: `${FROM_NAME} <${FROM_EMAIL}>`,
+      To: to,
+      Subject: payload.subject,
+      TextBody: payload.text,
+      ...(payload.html ? { HtmlBody: payload.html } : {}),
     }),
   });
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Resend error ${res.status}: ${body}`);
+    throw new Error(`Postmark error ${res.status}: ${body}`);
   }
 }
 
