@@ -2479,7 +2479,7 @@ export const SUPABASE_API = {
   mapCampaignToApp: (row: CampaignRow): PlanningCampaign => ({
     id: row.id,
     name: row.name,
-    type: row.type as PlanningCampaign['type'],
+    type: (row.type as PlanningCampaign['type']) || 'campaign',
     startDate: row.start_date,
     endDate: row.end_date,
     colour: row.colour,
@@ -2496,7 +2496,7 @@ export const SUPABASE_API = {
     end_date: campaign.endDate,
     colour: campaign.colour || '#6366f1',
     notes: campaign.notes || null,
-    created_by: userEmail || null,
+    created_by: campaign.createdBy || userEmail || null,
   }),
 
   mapOpportunityToApp: (row: OpportunityRow): Opportunity => ({
