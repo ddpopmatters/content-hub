@@ -659,38 +659,46 @@ interface AuthResult {
 
 // Supabase client instance
 let supabase: SupabaseClient | null = null;
+// In-flight init promise — prevents multiple concurrent createClient calls
+let initPromise: Promise<SupabaseClient | null> | null = null;
 
 // Initialise Supabase client
 export const initSupabase = async (): Promise<SupabaseClient | null> => {
   if (supabase) return supabase;
+  if (initPromise) return initPromise;
 
   if (!APP_CONFIG.SUPABASE_ENABLED) {
     Logger.warn('Supabase is disabled in config');
     return null;
   }
 
-  try {
-    // Wait for Supabase SDK to load (if using CDN)
-    if (window.supabaseReady) {
-      await window.supabaseReady;
+  initPromise = (async () => {
+    try {
+      // Wait for Supabase SDK to load (if using CDN)
+      if (window.supabaseReady) {
+        await window.supabaseReady;
+      }
+
+      const { createClient } = window.supabase || (await import('@supabase/supabase-js'));
+
+      supabase = createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY, {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true,
+        },
+      });
+
+      Logger.debug('Supabase client initialized');
+      return supabase;
+    } catch (error) {
+      Logger.error(error, 'Failed to initialize Supabase');
+      initPromise = null; // allow retry on failure
+      return null;
     }
+  })();
 
-    const { createClient } = window.supabase || (await import('@supabase/supabase-js'));
-
-    supabase = createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-      },
-    });
-
-    Logger.debug('Supabase client initialized');
-    return supabase;
-  } catch (error) {
-    Logger.error(error, 'Failed to initialize Supabase');
-    return null;
-  }
+  return initPromise;
 };
 
 // Get current Supabase client
