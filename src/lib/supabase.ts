@@ -824,6 +824,22 @@ export const SUPABASE_API = {
     }
   },
 
+  restoreEntry: async (id: string): Promise<boolean> => {
+    await initSupabase();
+    if (!supabase) return false;
+    try {
+      const { error } = await supabase.from('entries').update({ deleted_at: null }).eq('id', id);
+      if (error) {
+        Logger.error(error, 'restoreEntry');
+        return false;
+      }
+      return true;
+    } catch (error) {
+      Logger.error(error, 'restoreEntry');
+      return false;
+    }
+  },
+
   // ==========================================
   // MONTHLY REPORTS
   // ==========================================
