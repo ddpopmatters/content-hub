@@ -1412,6 +1412,7 @@ function ContentDashboard() {
                         }
                         openOpportunitiesCount={openOpportunities.length}
                         onOpenOpportunities={() => setShowOpportunitiesModal(true)}
+                        userEmail={currentUserEmail}
                       />
                     );
                   case 'peaks':

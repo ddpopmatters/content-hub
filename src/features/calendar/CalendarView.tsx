@@ -239,6 +239,8 @@ export interface CalendarViewProps {
   openOpportunitiesCount?: number;
   /** Opens the opportunities modal — shows sidebar card when provided */
   onOpenOpportunities?: () => void;
+  /** Current user's email — used for attributing planning note edits */
+  userEmail?: string;
 }
 
 export function CalendarView({
@@ -261,6 +263,7 @@ export function CalendarView({
   onOpenApprovals,
   openOpportunitiesCount,
   onOpenOpportunities,
+  userEmail = '',
 }: CalendarViewProps): React.ReactElement {
   // View mode and week navigation (week cursor stays internal)
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
@@ -865,6 +868,7 @@ export function CalendarView({
                 days={days}
                 month={monthCursor.getMonth()}
                 year={monthCursor.getFullYear()}
+                userEmail={userEmail}
               />
             ) : viewMode === 'month' ? (
               <MonthGrid

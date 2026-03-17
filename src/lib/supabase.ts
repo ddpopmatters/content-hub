@@ -2765,6 +2765,55 @@ export const SUPABASE_API = {
       status: influencer.status,
     };
   },
+
+  // ==========================================
+  // PLANNING NOTES
+  // ==========================================
+
+  fetchPlanningNotes: async (): Promise<Record<string, string>> => {
+    await initSupabase();
+    if (!supabase) return {};
+
+    try {
+      const { data, error } = await supabase.from('planning_notes').select('date, content');
+
+      if (error) {
+        Logger.error(error, 'fetchPlanningNotes');
+        return {};
+      }
+
+      return Object.fromEntries(
+        (data ?? []).map((row) => [row.date as string, row.content as string]),
+      );
+    } catch (error) {
+      Logger.error(error, 'fetchPlanningNotes');
+      return {};
+    }
+  },
+
+  savePlanningNote: async (date: string, content: string, updatedBy: string): Promise<boolean> => {
+    await initSupabase();
+    if (!supabase) return false;
+
+    try {
+      const { error } = await supabase
+        .from('planning_notes')
+        .upsert(
+          { date, content, updated_by: updatedBy, updated_at: new Date().toISOString() },
+          { onConflict: 'date' },
+        );
+
+      if (error) {
+        Logger.error(error, 'savePlanningNote');
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      Logger.error(error, 'savePlanningNote');
+      return false;
+    }
+  },
 };
 
 // ============================================
