@@ -7,6 +7,7 @@ import { cx, daysInMonth, monthStartISO, monthEndISO } from '../../lib/utils';
 import { selectBaseClasses } from '../../lib/styles';
 import { ALL_PLATFORMS, KANBAN_STATUSES, PRIORITY_TIERS } from '../../constants';
 import MonthGrid from './MonthGrid';
+import PlanningGrid from './PlanningGrid';
 import WeekGrid from './WeekGrid';
 import { MonthlyGlance } from './MonthlyGlance';
 import UpcomingDeadlines from './UpcomingDeadlines';
@@ -264,6 +265,7 @@ export function CalendarView({
   // View mode and week navigation (week cursor stays internal)
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
   const [weekCursor, setWeekCursor] = useState(() => getWeekStart(new Date()));
+  const [calendarLayer, setCalendarLayer] = useState<'confirmed' | 'planning'>('confirmed');
 
   // Panel visibility
   const [showFilters, setShowFilters] = useState(false);
@@ -509,6 +511,27 @@ export function CalendarView({
               </button>
             ))}
           </div>
+
+          {/* Confirmed / Planning toggle — month view only */}
+          {viewMode === 'month' && (
+            <div className="inline-flex rounded-lg border border-graystone-200 bg-graystone-50 p-0.5">
+              {(['confirmed', 'planning'] as const).map((layer) => (
+                <button
+                  key={layer}
+                  type="button"
+                  onClick={() => setCalendarLayer(layer)}
+                  className={cx(
+                    'rounded-md px-3 py-1 text-xs font-medium transition capitalize',
+                    calendarLayer === layer
+                      ? 'bg-white text-ocean-700 shadow-sm'
+                      : 'text-graystone-600 hover:text-graystone-900',
+                  )}
+                >
+                  {layer}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Prev / date label / Next */}
           <Button
@@ -837,7 +860,13 @@ export function CalendarView({
       {(viewMode === 'month' || viewMode === 'week') && (
         <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(240px,0.8fr)]">
           <div>
-            {viewMode === 'month' ? (
+            {viewMode === 'month' && calendarLayer === 'planning' ? (
+              <PlanningGrid
+                days={days}
+                month={monthCursor.getMonth()}
+                year={monthCursor.getFullYear()}
+              />
+            ) : viewMode === 'month' ? (
               <MonthGrid
                 days={days}
                 month={monthCursor.getMonth()}
