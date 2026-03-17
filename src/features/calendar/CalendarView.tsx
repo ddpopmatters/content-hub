@@ -16,8 +16,10 @@ import BulkDateShift from './BulkDateShift';
 import { SavedFilters, loadFilterPresets, saveFilterPresets } from './SavedFilters';
 import type { FilterPreset } from './SavedFilters';
 import type { Entry } from '../../types/models';
+import type { PlanningCampaign } from '../../hooks/domain/useYearPlan';
+import { YearPlanView } from './YearPlanView';
 
-type CalendarViewMode = 'month' | 'week' | 'board' | 'glance';
+type CalendarViewMode = 'month' | 'week' | 'board' | 'glance' | 'year';
 
 /** Get the Sunday of the week containing the given date */
 function getWeekStart(date: Date): Date {
@@ -241,6 +243,17 @@ export interface CalendarViewProps {
   onOpenOpportunities?: () => void;
   /** Current user's email — used for attributing planning note edits */
   userEmail?: string;
+  /** Planning campaigns for the year view */
+  campaigns: PlanningCampaign[];
+  /** Callback to add a new campaign */
+  onAddCampaign: (data: Omit<PlanningCampaign, 'id' | 'createdAt' | 'createdBy'>) => void;
+  /** Callback to update an existing campaign */
+  onUpdateCampaign: (
+    id: string,
+    updates: Partial<Omit<PlanningCampaign, 'id' | 'createdAt' | 'createdBy'>>,
+  ) => void;
+  /** Callback to delete a campaign */
+  onDeleteCampaign: (id: string) => void;
 }
 
 export function CalendarView({
@@ -264,6 +277,10 @@ export function CalendarView({
   openOpportunitiesCount,
   onOpenOpportunities,
   userEmail = '',
+  campaigns,
+  onAddCampaign,
+  onUpdateCampaign,
+  onDeleteCampaign,
 }: CalendarViewProps): React.ReactElement {
   // View mode and week navigation (week cursor stays internal)
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
@@ -498,7 +515,7 @@ export function CalendarView({
         <div className="flex items-center gap-2">
           {/* Month / Week / Board / Glance toggle */}
           <div className="inline-flex rounded-lg border border-graystone-200 bg-graystone-50 p-0.5">
-            {(['month', 'week', 'board', 'glance'] as const).map((mode) => (
+            {(['month', 'week', 'board', 'glance', 'year'] as const).map((mode) => (
               <button
                 key={mode}
                 type="button"
@@ -856,6 +873,16 @@ export function CalendarView({
           onNextMonth={goToNextMonth}
           onOpenEntry={onOpenEntry}
           onUpdate={onUpdate ?? (() => {})}
+        />
+      )}
+
+      {/* ── Year plan view ───────────────────────────────────────────────────── */}
+      {viewMode === 'year' && (
+        <YearPlanView
+          campaigns={campaigns}
+          onAdd={onAddCampaign}
+          onUpdate={onUpdateCampaign}
+          onDelete={onDeleteCampaign}
         />
       )}
 
