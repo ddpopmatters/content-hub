@@ -68,6 +68,7 @@ import {
   useContentPeaks,
   useContentSeries,
   useRapidResponses,
+  useYearPlan,
 } from './hooks/domain';
 
 const { useState, useMemo, useEffect, useCallback, useRef } = React;
@@ -216,6 +217,11 @@ function ContentDashboard() {
     updateRapidResponse,
     deleteRapidResponse,
   } = rapidResponsesHook;
+  const { campaigns, addCampaign, updateCampaign, deleteCampaign } = useYearPlan({
+    currentUser,
+    runSyncTask: sync.runSyncTask,
+    pushSyncToast: sync.pushSyncToast,
+  });
 
   entryCreatedSideEffectsRef.current = (entry) => {
     if (entry?._sourceIdeaId) {
@@ -1413,6 +1419,10 @@ function ContentDashboard() {
                         openOpportunitiesCount={openOpportunities.length}
                         onOpenOpportunities={() => setShowOpportunitiesModal(true)}
                         userEmail={currentUserEmail}
+                        campaigns={campaigns}
+                        onAddCampaign={addCampaign}
+                        onUpdateCampaign={updateCampaign}
+                        onDeleteCampaign={deleteCampaign}
                       />
                     );
                   case 'peaks':

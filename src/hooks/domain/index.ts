@@ -16,3 +16,4 @@ export { useReporting } from './useReporting';
 export { useContentPeaks } from './useContentPeaks';
 export { useContentSeries } from './useContentSeries';
 export { useRapidResponses } from './useRapidResponses';
+export { useYearPlan } from './useYearPlan';
