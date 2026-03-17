@@ -11,6 +11,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Brainstorm mockups
+.superpowers/
+
 # Local dev artifacts
 .wrangler/
 supabase/.temp/
