@@ -10,6 +10,7 @@ import {
 } from '../../components/ui';
 import type { ReportingPeriod } from '../../types/models';
 import { getMetricDefinitionsForGroup } from '../../lib/reporting/metricRegistry';
+import { MetricInfoButton } from './MetricInfoButton';
 
 interface ReportMetricFormProps {
   report: ReportingPeriod;
@@ -91,8 +92,16 @@ export function ReportMetricForm({
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <div className="text-sm font-semibold text-ocean-900">
-                              {definition.label}
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-semibold text-ocean-900">
+                                {definition.label}
+                              </span>
+                              {definition.guidance && (
+                                <MetricInfoButton
+                                  label={definition.label}
+                                  guidance={definition.guidance}
+                                />
+                              )}
                             </div>
                             <p className="mt-1 text-xs text-graystone-500">
                               {definition.description}
