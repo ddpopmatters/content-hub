@@ -840,6 +840,22 @@ export const SUPABASE_API = {
     }
   },
 
+  hardDeleteEntry: async (id: string): Promise<boolean> => {
+    await initSupabase();
+    if (!supabase) return false;
+    try {
+      const { error } = await supabase.from('entries').delete().eq('id', id);
+      if (error) {
+        Logger.error(error, 'hardDeleteEntry');
+        return false;
+      }
+      return true;
+    } catch (error) {
+      Logger.error(error, 'hardDeleteEntry');
+      return false;
+    }
+  },
+
   // ==========================================
   // MONTHLY REPORTS
   // ==========================================

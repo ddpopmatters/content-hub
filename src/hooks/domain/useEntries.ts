@@ -87,11 +87,7 @@ export function useEntries({
   }, []);
 
   const refreshEntries = useCallback(() => {
-    const api = (window as unknown as Record<string, unknown>).api as
-      | Record<string, unknown>
-      | undefined;
-    if (!api || !api.enabled || !api.listEntries) return;
-    (api.listEntries as () => Promise<unknown>)()
+    SUPABASE_API.fetchEntries()
       .then((payload: unknown) => Array.isArray(payload) && setEntries(payload))
       .catch(() => pushSyncToast('Unable to refresh entries from the server.', 'warning'));
   }, [pushSyncToast]);
@@ -294,18 +290,9 @@ export function useEntries({
             testingFrameworkName: entry.testingFrameworkName,
             user: currentUser,
           };
-          runSyncTask(`Create entry (${entry.id})`, () => {
-            const api = (
-              window as unknown as Record<
-                string,
-                { enabled?: boolean } & Record<string, (...args: unknown[]) => Promise<unknown>>
-              >
-            ).api;
-            if (api?.enabled) {
-              return api.createEntry(payload);
-            }
-            return SUPABASE_API.saveEntry(entry as Partial<Entry>, currentUser || '');
-          }).then((ok: unknown) => {
+          runSyncTask(`Create entry (${entry.id})`, () =>
+            SUPABASE_API.saveEntry(entry as Partial<Entry>, currentUser || ''),
+          ).then((ok: unknown) => {
             if (ok) {
               onEntryCreated?.(entry);
               refreshEntries();
@@ -470,23 +457,9 @@ export function useEntries({
           delete payload._isNew;
           delete payload._sourceIdeaId;
 
-          const windowApi = (
-            window as unknown as Record<
-              string,
-              { enabled?: boolean } & Record<string, (...args: unknown[]) => Promise<unknown>>
-            >
-          ).api;
-
           if (isNewEntry) {
-            const createPayload = {
-              ...payload,
-              id: updated.id,
-              user: currentUser,
-            };
             runSyncTask(`Create entry (${updated.id})`, () =>
-              windowApi?.enabled
-                ? windowApi.createEntry(createPayload)
-                : SUPABASE_API.saveEntry(updated as Partial<Entry>, currentUser || ''),
+              SUPABASE_API.saveEntry(updated as Partial<Entry>, currentUser || ''),
             ).then((ok: unknown) => {
               if (ok) {
                 setEntries((prev) =>
@@ -502,9 +475,7 @@ export function useEntries({
             });
           } else {
             runSyncTask(`Update entry (${updated.id})`, () =>
-              windowApi?.enabled
-                ? windowApi.updateEntry(updated.id, payload)
-                : SUPABASE_API.saveEntry(updated as Partial<Entry>, currentUser || ''),
+              SUPABASE_API.saveEntry(updated as Partial<Entry>, currentUser || ''),
             ).then((ok: unknown) => {
               if (ok) refreshEntries();
             });
@@ -573,32 +544,18 @@ export function useEntries({
         }),
       );
       if (nextStatusForServer) {
-        const windowApi = (
-          window as unknown as Record<
-            string,
-            { enabled?: boolean } & Record<string, (...args: unknown[]) => Promise<unknown>>
-          >
-        ).api;
         try {
           runSyncTask(`Update approval (${id})`, () =>
-            windowApi?.enabled
-              ? windowApi.updateEntry(id, {
-                  status: nextStatusForServer,
-                  workflowStatus: nextWorkflowStatusForServer,
-                  approvedAt: nextStatusForServer === 'Approved' ? timestamp : null,
-                })
-              : SUPABASE_API.saveEntry(
-                  {
-                    ...entryRecord,
-                    id,
-                    status: nextStatusForServer as string,
-                    workflowStatus: (nextWorkflowStatusForServer ?? undefined) as
-                      | string
-                      | undefined,
-                    approvedAt: nextStatusForServer === 'Approved' ? timestamp : undefined,
-                  },
-                  currentUser || '',
-                ),
+            SUPABASE_API.saveEntry(
+              {
+                ...entryRecord,
+                id,
+                status: nextStatusForServer as string,
+                workflowStatus: (nextWorkflowStatusForServer ?? undefined) as string | undefined,
+                approvedAt: nextStatusForServer === 'Approved' ? timestamp : undefined,
+              },
+              currentUser || '',
+            ),
           ).then((ok: unknown) => {
             if (ok) refreshEntries();
           });
@@ -711,20 +668,10 @@ export function useEntries({
 
         setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
 
-        if (
-          ((window as unknown as Record<string, unknown>).api as Record<string, unknown>)
-            ?.updateEntry
-        ) {
-          try {
-            await (
-              (window as unknown as Record<string, unknown>).api as Record<
-                string,
-                (...args: unknown[]) => Promise<unknown>
-              >
-            ).updateEntry(id, updates);
-          } catch (err) {
-            console.error('Failed to persist publish status:', err);
-          }
+        try {
+          await SUPABASE_API.saveEntry({ id, ...updates } as Partial<Entry>, currentUser || '');
+        } catch (err) {
+          console.error('Failed to persist publish status:', err);
         }
       } else {
         const failedStatus: Record<string, unknown> = {};
@@ -741,20 +688,13 @@ export function useEntries({
           prev.map((e) => (e.id === id ? { ...e, publishStatus: failedStatus } : e)),
         );
 
-        if (
-          ((window as unknown as Record<string, unknown>).api as Record<string, unknown>)
-            ?.updateEntry
-        ) {
-          try {
-            await (
-              (window as unknown as Record<string, unknown>).api as Record<
-                string,
-                (...args: unknown[]) => Promise<unknown>
-              >
-            ).updateEntry(id, { publishStatus: failedStatus });
-          } catch (err) {
-            console.error('Failed to persist publish failure:', err);
-          }
+        try {
+          await SUPABASE_API.saveEntry(
+            { id, publishStatus: failedStatus } as Partial<Entry>,
+            currentUser || '',
+          );
+        } catch (err) {
+          console.error('Failed to persist publish failure:', err);
         }
       }
 
@@ -815,16 +755,8 @@ export function useEntries({
 
       const entry = entries.find((e) => e.id === id);
       if (entry) {
-        const windowApi = (
-          window as unknown as Record<
-            string,
-            { enabled?: boolean } & Record<string, (...args: unknown[]) => Promise<unknown>>
-          >
-        ).api;
         runSyncTask(`Toggle evergreen (${id})`, () =>
-          windowApi?.enabled
-            ? windowApi.updateEntry(id, { evergreen: !entry.evergreen })
-            : SUPABASE_API.saveEntry({ ...entry, evergreen: !entry.evergreen }, currentUser || ''),
+          SUPABASE_API.saveEntry({ ...entry, evergreen: !entry.evergreen }, currentUser || ''),
         );
       }
     },
@@ -843,16 +775,8 @@ export function useEntries({
 
       {
         const dateEntry = entries.find((e) => e.id === id);
-        const windowApi = (
-          window as unknown as Record<
-            string,
-            { enabled?: boolean } & Record<string, (...args: unknown[]) => Promise<unknown>>
-          >
-        ).api;
         runSyncTask(`Change date (${id})`, () =>
-          windowApi?.enabled
-            ? windowApi.updateEntry(id, { date: newDate })
-            : SUPABASE_API.saveEntry({ ...dateEntry, id, date: newDate }, currentUser || ''),
+          SUPABASE_API.saveEntry({ ...dateEntry, id, date: newDate }, currentUser || ''),
         );
       }
 
@@ -896,21 +820,13 @@ export function useEntries({
       );
 
       {
-        const windowApi = (
-          window as unknown as Record<
-            string,
-            { enabled?: boolean } & Record<string, (...args: unknown[]) => Promise<unknown>>
-          >
-        ).api;
         originalDates.forEach((originalDate, entryId) => {
           const shiftEntry = entries.find((e) => e.id === entryId);
           runSyncTask(`Shift date (${entryId})`, () =>
-            windowApi?.enabled
-              ? windowApi.updateEntry(entryId, { date: shiftDate(originalDate) })
-              : SUPABASE_API.saveEntry(
-                  { ...shiftEntry, id: entryId, date: shiftDate(originalDate) },
-                  currentUser || '',
-                ),
+            SUPABASE_API.saveEntry(
+              { ...shiftEntry, id: entryId, date: shiftDate(originalDate) },
+              currentUser || '',
+            ),
           );
         });
       }
@@ -948,30 +864,18 @@ export function useEntries({
         }),
       );
       const workflowEntry = entries.find((e) => e.id === id);
-      const workflowWindowApi = (
-        window as unknown as Record<
-          string,
-          { enabled?: boolean } & Record<string, (...args: unknown[]) => Promise<unknown>>
-        >
-      ).api;
       try {
         runSyncTask(`Update workflow (${id})`, () =>
-          workflowWindowApi?.enabled
-            ? workflowWindowApi.updateEntry(id, {
-                workflowStatus: nextStatus,
-                status: syncedStatus,
-                approvedAt: syncedStatus === 'Approved' ? timestamp : undefined,
-              })
-            : SUPABASE_API.saveEntry(
-                {
-                  ...workflowEntry,
-                  id,
-                  workflowStatus: nextStatus,
-                  status: syncedStatus,
-                  approvedAt: syncedStatus === 'Approved' ? timestamp : workflowEntry?.approvedAt,
-                },
-                currentUser || '',
-              ),
+          SUPABASE_API.saveEntry(
+            {
+              ...workflowEntry,
+              id,
+              workflowStatus: nextStatus,
+              status: syncedStatus,
+              approvedAt: syncedStatus === 'Approved' ? timestamp : workflowEntry?.approvedAt,
+            },
+            currentUser || '',
+          ),
         ).then((ok: unknown) => {
           if (ok) refreshEntries();
         });
@@ -997,18 +901,12 @@ export function useEntries({
         ),
       );
       if (viewingId === id) closeEntry();
-      const deleteWindowApi = (
-        window as unknown as Record<
-          string,
-          { enabled?: boolean } & Record<string, (...args: unknown[]) => Promise<unknown>>
-        >
-      ).api;
       try {
-        runSyncTask(`Delete entry (${id})`, () =>
-          deleteWindowApi?.enabled ? deleteWindowApi.deleteEntry(id) : SUPABASE_API.deleteEntry(id),
-        ).then((ok: unknown) => {
-          if (ok) refreshEntries();
-        });
+        runSyncTask(`Delete entry (${id})`, () => SUPABASE_API.deleteEntry(id)).then(
+          (ok: unknown) => {
+            if (ok) refreshEntries();
+          },
+        );
       } catch {
         /* sync failure handled by queue */
       }
@@ -1025,20 +923,12 @@ export function useEntries({
           entry.id === id ? { ...entry, deletedAt: undefined, updatedAt: timestamp } : entry,
         ),
       );
-      const restoreWindowApi = (
-        window as unknown as Record<
-          string,
-          { enabled?: boolean } & Record<string, (...args: unknown[]) => Promise<unknown>>
-        >
-      ).api;
       try {
-        runSyncTask(`Restore entry (${id})`, () =>
-          restoreWindowApi?.enabled
-            ? restoreWindowApi.updateEntry(id, { deletedAt: null })
-            : SUPABASE_API.restoreEntry(id),
-        ).then((ok: unknown) => {
-          if (ok) refreshEntries();
-        });
+        runSyncTask(`Restore entry (${id})`, () => SUPABASE_API.restoreEntry(id)).then(
+          (ok: unknown) => {
+            if (ok) refreshEntries();
+          },
+        );
       } catch {
         /* sync failure handled by queue */
       }
@@ -1053,17 +943,9 @@ export function useEntries({
       if (!confirmed) return;
       setEntries((prev) => prev.filter((entry) => entry.id !== id));
       if (viewingId === id) closeEntry();
-      const hardDeleteWindowApi = (
-        window as unknown as Record<
-          string,
-          { enabled?: boolean } & Record<string, (...args: unknown[]) => Promise<unknown>>
-        >
-      ).api;
       try {
         runSyncTask(`Delete entry permanently (${id})`, () =>
-          hardDeleteWindowApi?.enabled
-            ? hardDeleteWindowApi.deleteEntry(id, { hard: true })
-            : SUPABASE_API.deleteEntry(id),
+          SUPABASE_API.hardDeleteEntry(id),
         ).then((ok: unknown) => {
           if (ok) refreshEntries();
         });
