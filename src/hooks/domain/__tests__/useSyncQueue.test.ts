@@ -59,17 +59,17 @@ describe('useSyncQueue', () => {
       expect(result.current.syncQueue[0].label).toContain('offline');
     });
 
-    it('enqueues when window.api is undefined', async () => {
+    it('runs the action when window.api is undefined (Supabase path)', async () => {
       delete (window as unknown as Record<string, unknown>).api;
       const { result } = renderHook(() => useSyncQueue());
-      const action = vi.fn();
+      const action = vi.fn().mockResolvedValue(undefined);
 
       await act(async () => {
         await result.current.runSyncTask('Save entry', action);
       });
 
-      expect(action).not.toHaveBeenCalled();
-      expect(result.current.syncQueue).toHaveLength(1);
+      expect(action).toHaveBeenCalled();
+      expect(result.current.syncQueue).toHaveLength(0);
     });
 
     it('skips API check when requiresApi is false', async () => {
