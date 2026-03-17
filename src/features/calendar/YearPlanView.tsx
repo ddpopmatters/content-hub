@@ -82,11 +82,13 @@ export function YearPlanView({
 
   const todayPct = todayBarPosition(year);
 
-  const visibleCampaigns = campaigns.filter((c) => {
-    const yearStart = `${year}-01-01`;
-    const yearEnd = `${year}-12-31`;
-    return c.startDate <= yearEnd && c.endDate >= yearStart;
-  });
+  const visibleCampaigns = campaigns
+    .filter((c) => {
+      const yearStart = `${year}-01-01`;
+      const yearEnd = `${year}-12-31`;
+      return c.startDate <= yearEnd && c.endDate >= yearStart;
+    })
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
 
   return (
     <div className="flex flex-col gap-4">
