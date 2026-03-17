@@ -352,7 +352,7 @@ export function MonthGrid({
                     onDrop={(e) => handleDrop(e, iso)}
                     className={cx(
                       'flex min-h-20 flex-col overflow-hidden rounded-lg border bg-white outline-none transition-colors',
-                      'focus:ring-2 focus:ring-aqua-500 focus:ring-offset-1',
+                      'focus-visible:ring-2 focus-visible:ring-aqua-500 focus-visible:ring-offset-1',
                       isToday ? 'border-ocean-400' : 'border-graystone-200',
                       isSelected && 'ring-2 ring-ocean-500 ring-offset-1',
                       isDragOver && 'bg-aqua-100 ring-2 ring-aqua-400',
@@ -418,7 +418,7 @@ export function MonthGrid({
                             }
                             className={cx(
                               'group cursor-pointer rounded border-l-2 bg-graystone-50 px-1 py-0.5 outline-none transition',
-                              'hover:bg-aqua-50 focus:ring-1 focus:ring-aqua-400',
+                              'hover:bg-aqua-50 focus-visible:ring-1 focus-visible:ring-aqua-400',
                               onDateChange && 'cursor-grab active:cursor-grabbing',
                               borderClass,
                             )}
