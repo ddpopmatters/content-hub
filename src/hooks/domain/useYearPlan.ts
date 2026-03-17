@@ -37,9 +37,11 @@ export function useYearPlan({ currentUser, runSyncTask, pushSyncToast }: UseYear
       setCampaigns((prev) =>
         [...prev, newCampaign].sort((a, b) => a.startDate.localeCompare(b.startDate)),
       );
-      runSyncTask(`Create campaign (${newCampaign.id})`, () =>
-        SUPABASE_API.saveCampaign(newCampaign, currentUser),
-      ).then((ok) => {
+      runSyncTask(`Create campaign (${newCampaign.id})`, async () => {
+        const result = await SUPABASE_API.saveCampaign(newCampaign, currentUser);
+        if (!result) throw new Error('Failed to save campaign');
+        return result;
+      }).then((ok) => {
         if (ok) refreshCampaigns();
       });
     },
@@ -56,9 +58,11 @@ export function useYearPlan({ currentUser, runSyncTask, pushSyncToast }: UseYear
           .map((c) => (c.id === id ? merged : c))
           .sort((a, b) => a.startDate.localeCompare(b.startDate)),
       );
-      runSyncTask(`Update campaign (${id})`, () =>
-        SUPABASE_API.saveCampaign(merged, currentUser),
-      ).then((ok) => {
+      runSyncTask(`Update campaign (${id})`, async () => {
+        const result = await SUPABASE_API.saveCampaign(merged, currentUser);
+        if (!result) throw new Error('Failed to save campaign');
+        return result;
+      }).then((ok) => {
         if (ok) refreshCampaigns();
       });
     },
@@ -68,7 +72,11 @@ export function useYearPlan({ currentUser, runSyncTask, pushSyncToast }: UseYear
   const deleteCampaign = useCallback(
     (id: string) => {
       setCampaigns((prev) => prev.filter((c) => c.id !== id));
-      runSyncTask(`Delete campaign (${id})`, () => SUPABASE_API.deleteCampaign(id)).then((ok) => {
+      runSyncTask(`Delete campaign (${id})`, async () => {
+        const result = await SUPABASE_API.deleteCampaign(id);
+        if (!result) throw new Error('Failed to delete campaign');
+        return result;
+      }).then((ok) => {
         if (ok) refreshCampaigns();
       });
     },
