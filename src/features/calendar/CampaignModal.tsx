@@ -69,18 +69,16 @@ export function CampaignModal({
   const handleSave = () => {
     if (isSaveDisabled) return;
 
-    // Fix 1: Guard edit fallthrough — if isEditMode but onUpdate is missing, do nothing
     if (isEditMode) {
-      if (onUpdate) {
-        onUpdate(campaign.id, {
-          name: name.trim(),
-          type,
-          startDate,
-          endDate,
-          colour,
-          notes: notes.trim() || undefined,
-        });
-      }
+      if (!onUpdate) return; // no-op: shouldn't happen if parent wires props correctly
+      onUpdate(campaign.id, {
+        name: name.trim(),
+        type,
+        startDate,
+        endDate,
+        colour,
+        notes: notes.trim() || undefined,
+      });
     } else {
       onSave({
         name: name.trim(),
