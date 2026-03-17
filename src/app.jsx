@@ -441,18 +441,29 @@ function ContentDashboard() {
   );
 
   const loadBootstrapData = useCallback(async () => {
-    if (!window.api?.enabled) return null;
     const wantsIdeas = canUseIdeas;
     const wantsUsers = currentUserIsAdmin;
+
+    if (window.api?.enabled) {
+      const [serverEntries, serverIdeas, serverGuidelines, serverUsers] = await Promise.all([
+        window.api.listEntries().catch(() => []),
+        wantsIdeas ? window.api.listIdeas().catch(() => []) : Promise.resolve([]),
+        window.api.getGuidelines
+          ? window.api.getGuidelines().catch(() => null)
+          : Promise.resolve(null),
+        wantsUsers && window.api.listUsers
+          ? window.api.listUsers().catch(() => [])
+          : Promise.resolve([]),
+      ]);
+      return { serverEntries, serverIdeas, serverGuidelines, serverUsers };
+    }
+
+    // Supabase path — used when Cloudflare Functions are not present (e.g. GitHub Pages)
     const [serverEntries, serverIdeas, serverGuidelines, serverUsers] = await Promise.all([
-      window.api.listEntries().catch(() => []),
-      wantsIdeas ? window.api.listIdeas().catch(() => []) : Promise.resolve([]),
-      window.api.getGuidelines
-        ? window.api.getGuidelines().catch(() => null)
-        : Promise.resolve(null),
-      wantsUsers && window.api.listUsers
-        ? window.api.listUsers().catch(() => [])
-        : Promise.resolve([]),
+      SUPABASE_API.fetchEntries().catch(() => []),
+      wantsIdeas ? SUPABASE_API.fetchIdeas().catch(() => []) : Promise.resolve([]),
+      SUPABASE_API.fetchGuidelines().catch(() => null),
+      wantsUsers ? SUPABASE_API.fetchUserProfiles().catch(() => []) : Promise.resolve([]),
     ]);
     return { serverEntries, serverIdeas, serverGuidelines, serverUsers };
   }, [canUseIdeas, currentUserIsAdmin]);
