@@ -46,7 +46,7 @@ import { EntryForm, EntryModal, EntryPreviewModal } from './features/entry';
 import { ContentRequestsView } from './features/requests';
 import { normalizeGuidelines, saveGuidelines } from './lib/guidelines';
 import { appendAudit } from './lib/audit';
-import { loadIdeas } from './lib/storage';
+import { loadIdeas, loadEntries } from './lib/storage';
 import { InfluencersView, InfluencerModal } from './features/influencers';
 import { DEFAULT_USER_RECORDS, DEFAULT_FEATURES } from './lib/users';
 import { mergePerformanceData } from './lib/performance';
@@ -459,12 +459,35 @@ function ContentDashboard() {
     }
 
     // Supabase path — used when Cloudflare Functions are not present (e.g. GitHub Pages)
-    const [serverEntries, serverIdeas, serverGuidelines, serverUsers] = await Promise.all([
+    let [serverEntries, serverIdeas, serverGuidelines, serverUsers] = await Promise.all([
       SUPABASE_API.fetchEntries().catch(() => []),
       wantsIdeas ? SUPABASE_API.fetchIdeas().catch(() => []) : Promise.resolve([]),
       SUPABASE_API.fetchGuidelines().catch(() => null),
       wantsUsers ? SUPABASE_API.fetchUserProfiles().catch(() => []) : Promise.resolve([]),
     ]);
+
+    // Migrate any localStorage entries that haven't been saved to Supabase yet
+    const MIGRATION_FLAG = 'content-hub-local-migrated';
+    if (!localStorage.getItem(MIGRATION_FLAG)) {
+      try {
+        const localEntries = loadEntries();
+        const serverIds = new Set(serverEntries.map((e) => e.id));
+        const toMigrate = localEntries.filter((e) => e.id && !serverIds.has(e.id));
+        if (toMigrate.length > 0) {
+          await Promise.all(
+            toMigrate.map((entry) =>
+              SUPABASE_API.saveEntry(entry, currentUserEmail).catch(() => {}),
+            ),
+          );
+          // Re-fetch so the migrated entries are included in the returned data
+          serverEntries = await SUPABASE_API.fetchEntries().catch(() => serverEntries);
+        }
+        localStorage.setItem(MIGRATION_FLAG, '1');
+      } catch {
+        // Migration failures are non-fatal — app continues with whatever was fetched
+      }
+    }
+
     return { serverEntries, serverIdeas, serverGuidelines, serverUsers };
   }, [canUseIdeas, currentUserIsAdmin]);
 
