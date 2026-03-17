@@ -57,7 +57,9 @@ export function useSyncQueue() {
   const runSyncTask = useCallback(
     async (label: string, action: () => Promise<unknown>, options: RunSyncOptions = {}) => {
       const requiresApi = options.requiresApi !== false;
-      if (requiresApi && (!window.api || !window.api.enabled)) {
+      // Only block if window.api is present but explicitly disabled.
+      // When window.api is absent we fall through to the Supabase path.
+      if (requiresApi && window.api && !window.api.enabled) {
         enqueueSyncTask(`${label} (offline)`, action, new Error('API offline'), requiresApi);
         return false;
       }
@@ -75,7 +77,7 @@ export function useSyncQueue() {
 
   const retrySyncItem = useCallback(
     async (item: SyncQueueItem) => {
-      if (item.requiresApi && (!window.api || !window.api.enabled)) {
+      if (item.requiresApi && window.api && !window.api.enabled) {
         setSyncQueue((prev) =>
           prev.map((entry) =>
             entry.id === item.id
