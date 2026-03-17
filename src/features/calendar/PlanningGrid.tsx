@@ -1,15 +1,6 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { cx, isoFromParts } from '../../lib/utils';
-
-const PLANNING_NOTES_KEY = 'content-hub-planning-notes';
-
-function loadNotes(): Record<string, string> {
-  try {
-    return JSON.parse(localStorage.getItem(PLANNING_NOTES_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
+import { SUPABASE_API } from '../../lib/supabase';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
@@ -17,26 +8,45 @@ interface PlanningGridProps {
   days: number[];
   month: number;
   year: number;
+  userEmail: string;
 }
 
-export function PlanningGrid({ days, month, year }: PlanningGridProps): React.ReactElement {
-  const [notes, setNotes] = useState<Record<string, string>>(loadNotes);
+export function PlanningGrid({
+  days,
+  month,
+  year,
+  userEmail,
+}: PlanningGridProps): React.ReactElement {
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  // Load notes from Supabase on mount
+  useEffect(() => {
+    SUPABASE_API.fetchPlanningNotes().then((fetched) => {
+      setNotes(fetched);
+    });
+  }, []);
+
+  const handleChange = useCallback(
+    (iso: string, value: string) => {
+      setNotes((prev) => {
+        const next = { ...prev };
+        if (value) next[iso] = value;
+        else delete next[iso];
+        return next;
+      });
+
+      // Debounce the Supabase write by 800 ms
+      clearTimeout(saveTimers.current[iso]);
+      saveTimers.current[iso] = setTimeout(() => {
+        SUPABASE_API.savePlanningNote(iso, value, userEmail);
+      }, 800);
+    },
+    [userEmail],
+  );
 
   const today = new Date();
   const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-  const handleChange = useCallback((iso: string, value: string) => {
-    setNotes((prev) => {
-      const next = { ...prev };
-      if (value) next[iso] = value;
-      else delete next[iso];
-      return next;
-    });
-    const stored = loadNotes();
-    if (value) stored[iso] = value;
-    else delete stored[iso];
-    localStorage.setItem(PLANNING_NOTES_KEY, JSON.stringify(stored));
-  }, []);
 
   const weeks = useMemo(() => {
     const firstDayOfMonth = new Date(year, month, 1).getDay();
