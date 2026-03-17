@@ -108,13 +108,14 @@ async function updateEntry(id, patch) {
     const dbPatch = {};
 
     // Map camelCase to snake_case for each field
-    if (patch.date !== undefined) dbPatch.date = patch.date;
+    if (patch.date !== undefined) dbPatch.date = dateOrNull(patch.date);
     if (patch.platforms !== undefined) dbPatch.platforms = patch.platforms;
     if (patch.assetType !== undefined) dbPatch.asset_type = patch.assetType;
     if (patch.caption !== undefined) dbPatch.caption = patch.caption;
     if (patch.platformCaptions !== undefined) dbPatch.platform_captions = patch.platformCaptions;
     if (patch.firstComment !== undefined) dbPatch.first_comment = patch.firstComment;
-    if (patch.approvalDeadline !== undefined) dbPatch.approval_deadline = patch.approvalDeadline;
+    if (patch.approvalDeadline !== undefined)
+      dbPatch.approval_deadline = dateOrNull(patch.approvalDeadline);
     if (patch.status !== undefined) dbPatch.status = patch.status;
     if (patch.approvers !== undefined) dbPatch.approvers = patch.approvers;
     if (patch.author !== undefined) dbPatch.author = patch.author;
@@ -1043,16 +1044,21 @@ function mapEntryToApp(row) {
   };
 }
 
+function dateOrNull(value) {
+  if (!value || String(value).trim() === '') return null;
+  return value;
+}
+
 function mapEntryToDb(entry, userEmail) {
   return {
     id: entry.id || undefined,
-    date: entry.date,
+    date: dateOrNull(entry.date),
     platforms: entry.platforms || [],
     asset_type: entry.assetType || 'Design',
     caption: entry.caption,
     platform_captions: entry.platformCaptions || {},
     first_comment: entry.firstComment,
-    approval_deadline: entry.approvalDeadline,
+    approval_deadline: dateOrNull(entry.approvalDeadline),
     status: entry.status || 'Pending',
     approvers: entry.approvers || [],
     author: entry.author,
