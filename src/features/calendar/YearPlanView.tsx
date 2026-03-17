@@ -14,11 +14,19 @@ function daysInYear(year: number): number {
   return isLeapYear(year) ? 366 : 365;
 }
 
+const MONTH_DAYS_NORMAL = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+const MONTH_DAYS_LEAP = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+function monthWidthPcts(year: number): number[] {
+  const days = isLeapYear(year) ? MONTH_DAYS_LEAP : MONTH_DAYS_NORMAL;
+  const total = daysInYear(year);
+  return days.map((d) => (d / total) * 100);
+}
+
 function dayOfYear(dateStr: string): number {
-  const d = new Date(dateStr + 'T00:00:00');
-  const start = new Date(d.getFullYear(), 0, 0);
-  const diff = d.getTime() - start.getTime();
-  return Math.floor(diff / 86400000);
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const msFromYearStart = Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 1);
+  return Math.floor(msFromYearStart / 86400000) + 1;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -41,7 +49,7 @@ function barPosition(
   const startDay = dayOfYear(clampedStart);
   const endDay = dayOfYear(clampedEnd);
   const leftPct = clamp(((startDay - 1) / total) * 100, 0, 100);
-  const widthPct = clamp(((endDay - startDay + 1) / total) * 100, 0.5, 100 - leftPct);
+  const widthPct = clamp(((endDay - startDay + 1) / total) * 100, 0, 100 - leftPct);
 
   return { left: `${leftPct.toFixed(2)}%`, width: `${widthPct.toFixed(2)}%` };
 }
@@ -49,9 +57,9 @@ function barPosition(
 function todayBarPosition(year: number): number | null {
   const now = new Date();
   if (now.getFullYear() !== year) return null;
-  const total = daysInYear(year);
-  const day = dayOfYear(now.toISOString().slice(0, 10));
-  return clamp(((day - 1) / total) * 100, 0, 100);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return ((dayOfYear(todayStr) - 1) / daysInYear(year)) * 100;
 }
 
 const TYPE_BADGE_CLASSES: Record<string, string> = {
@@ -81,6 +89,7 @@ export function YearPlanView({
   const [editCampaign, setEditCampaign] = useState<PlanningCampaign | null>(null);
 
   const todayPct = todayBarPosition(year);
+  const monthWidths = monthWidthPcts(year);
 
   const visibleCampaigns = campaigns
     .filter((c) => {
@@ -103,7 +112,11 @@ export function YearPlanView({
           >
             ←
           </button>
-          <span className="min-w-[4ch] text-center text-lg font-semibold text-graystone-900">
+          <span
+            className="min-w-[4ch] text-center text-lg font-semibold text-graystone-900"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             {year}
           </span>
           <button
@@ -125,8 +138,12 @@ export function YearPlanView({
         <div style={{ minWidth: 600 }}>
           {/* Month headers */}
           <div className="mb-1 flex" style={{ marginLeft: 180 }}>
-            {MONTHS.map((m) => (
-              <div key={m} className="flex-1 text-center text-xs text-graystone-500">
+            {MONTHS.map((m, i) => (
+              <div
+                key={m}
+                style={{ width: `${monthWidths[i]}%` }}
+                className="text-center text-xs text-graystone-400 font-medium"
+              >
                 {m}
               </div>
             ))}
@@ -136,13 +153,16 @@ export function YearPlanView({
           <div className="relative">
             {/* Month column dividers — rendered behind rows */}
             <div className="pointer-events-none absolute inset-0" style={{ left: 180 }}>
-              {MONTHS.map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute top-0 h-full border-l border-graystone-100"
-                  style={{ left: `${(i / 12) * 100}%` }}
-                />
-              ))}
+              {MONTHS.map((_, i) => {
+                const leftPct = monthWidths.slice(0, i).reduce((a, b) => a + b, 0);
+                return (
+                  <div
+                    key={i}
+                    className="absolute top-0 h-full border-l border-graystone-100"
+                    style={{ left: `${leftPct}%` }}
+                  />
+                );
+              })}
               {/* Right edge */}
               <div className="absolute right-0 top-0 h-full border-l border-graystone-100" />
             </div>
@@ -198,10 +218,11 @@ export function YearPlanView({
                         style={{
                           left: pos.left,
                           width: pos.width,
+                          minWidth: '8px',
                           backgroundColor: campaign.colour,
                         }}
-                        title={campaign.name}
-                        aria-label={`Edit campaign: ${campaign.name}`}
+                        title={`${campaign.name} (${campaign.type}): ${campaign.startDate} to ${campaign.endDate}`}
+                        aria-label={`${campaign.name} (${campaign.type}): ${campaign.startDate} to ${campaign.endDate} — click to edit`}
                       >
                         {campaign.name}
                       </button>
