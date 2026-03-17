@@ -217,7 +217,14 @@ function ContentDashboard() {
     updateRapidResponse,
     deleteRapidResponse,
   } = rapidResponsesHook;
-  const { campaigns, addCampaign, updateCampaign, deleteCampaign } = useYearPlan({
+  const {
+    campaigns,
+    addCampaign,
+    updateCampaign,
+    deleteCampaign,
+    refreshCampaigns,
+    reset: resetCampaigns,
+  } = useYearPlan({
     currentUser,
     runSyncTask: sync.runSyncTask,
     pushSyncToast: sync.pushSyncToast,
@@ -512,6 +519,12 @@ function ContentDashboard() {
       cancelled = true;
     };
   }, [authStatus, loadBootstrapData, applyBootstrapData]);
+
+  // Hydrate campaigns from server once authenticated
+  useEffect(() => {
+    if (authStatus !== 'ready') return;
+    refreshCampaigns();
+  }, [authStatus, refreshCampaigns]);
 
   // Build managers from DB profiles when authenticated
   useEffect(() => {
@@ -845,6 +858,7 @@ function ContentDashboard() {
       ideasHook.reset();
       opportunitiesHook.reset();
       contentRequestsHook.reset();
+      resetCampaigns();
       resetReporting();
       setCurrentView('dashboard');
       setChangePasswordOpen(false);
