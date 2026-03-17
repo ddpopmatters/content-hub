@@ -282,6 +282,7 @@ import type {
   Entry,
   Idea,
   Opportunity,
+  PlanningCampaign,
   RapidResponse,
   Guidelines,
   Influencer,
@@ -416,6 +417,18 @@ interface IdeaRow {
   created_by: string;
   target_date: string;
   target_month: string;
+  created_at: string;
+}
+
+interface CampaignRow {
+  id: string;
+  name: string;
+  type: string;
+  start_date: string;
+  end_date: string;
+  colour: string;
+  notes: string | null;
+  created_by: string | null;
   created_at: string;
 }
 
@@ -1011,6 +1024,65 @@ export const SUPABASE_API = {
       return true;
     } catch (error) {
       Logger.error(error, 'deleteIdea');
+      return false;
+    }
+  },
+
+  // ==========================================
+  // CAMPAIGNS
+  // ==========================================
+
+  fetchCampaigns: async (): Promise<PlanningCampaign[]> => {
+    await initSupabase();
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .order('start_date', { ascending: true });
+      if (error) {
+        Logger.error(error, 'fetchCampaigns');
+        return [];
+      }
+      return ((data as CampaignRow[]) || []).map(SUPABASE_API.mapCampaignToApp);
+    } catch (error) {
+      Logger.error(error, 'fetchCampaigns');
+      return [];
+    }
+  },
+
+  saveCampaign: async (
+    campaign: Partial<PlanningCampaign>,
+    userEmail: string,
+  ): Promise<PlanningCampaign | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+    try {
+      const dbCampaign = SUPABASE_API.mapCampaignToDb(campaign, userEmail);
+      const { data, error } = await supabase.from('campaigns').upsert(dbCampaign).select().single();
+      if (error) {
+        Logger.error(error, 'saveCampaign');
+        return null;
+      }
+      return data ? SUPABASE_API.mapCampaignToApp(data as CampaignRow) : null;
+    } catch (error) {
+      Logger.error(error, 'saveCampaign');
+      return null;
+    }
+  },
+
+  deleteCampaign: async (id: string): Promise<boolean> => {
+    await initSupabase();
+    if (!supabase) return false;
+    try {
+      const { error } = await supabase.from('campaigns').delete().eq('id', id);
+      if (error) {
+        Logger.error(error, 'deleteCampaign');
+        return false;
+      }
+      return true;
+    } catch (error) {
+      Logger.error(error, 'deleteCampaign');
       return false;
     }
   },
@@ -2402,6 +2474,29 @@ export const SUPABASE_API = {
     created_by_email: userEmail,
     target_date: dateOrNull(idea.targetDate),
     target_month: idea.targetMonth || (idea.targetDate ? idea.targetDate.substring(0, 7) : null),
+  }),
+
+  mapCampaignToApp: (row: CampaignRow): PlanningCampaign => ({
+    id: row.id,
+    name: row.name,
+    type: row.type as PlanningCampaign['type'],
+    startDate: row.start_date,
+    endDate: row.end_date,
+    colour: row.colour,
+    notes: row.notes ?? undefined,
+    createdBy: row.created_by ?? '',
+    createdAt: row.created_at,
+  }),
+
+  mapCampaignToDb: (campaign: Partial<PlanningCampaign>, userEmail: string) => ({
+    id: campaign.id || undefined,
+    name: campaign.name,
+    type: campaign.type || 'campaign',
+    start_date: campaign.startDate,
+    end_date: campaign.endDate,
+    colour: campaign.colour || '#6366f1',
+    notes: campaign.notes || null,
+    created_by: userEmail || null,
   }),
 
   mapOpportunityToApp: (row: OpportunityRow): Opportunity => ({
