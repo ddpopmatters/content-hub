@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { PlanningCampaign } from '../../types/models';
 import { loadCampaigns, saveCampaigns } from '../../lib/storage';
 import { SUPABASE_API } from '../../lib/supabase';
@@ -13,8 +13,10 @@ interface UseYearPlanDeps {
 
 export function useYearPlan({ currentUser, runSyncTask, pushSyncToast }: UseYearPlanDeps) {
   const [campaigns, setCampaigns] = useState<PlanningCampaign[]>(() => loadCampaigns());
+  const campaignsRef = useRef<PlanningCampaign[]>([]);
 
   useEffect(() => {
+    campaignsRef.current = campaigns;
     saveCampaigns(campaigns);
   }, [campaigns]);
 
@@ -45,26 +47,20 @@ export function useYearPlan({ currentUser, runSyncTask, pushSyncToast }: UseYear
   );
 
   const updateCampaign = useCallback(
-    (id: string, updates: Partial<PlanningCampaign>) => {
-      let merged: PlanningCampaign | undefined;
-      setCampaigns((prev) => {
-        const next = prev
-          .map((c) => {
-            if (c.id !== id) return c;
-            merged = { ...c, ...updates };
-            return merged;
-          })
-          .sort((a, b) => a.startDate.localeCompare(b.startDate));
-        return next;
+    (id: string, updates: Partial<Omit<PlanningCampaign, 'id' | 'createdAt' | 'createdBy'>>) => {
+      const existing = campaignsRef.current.find((c) => c.id === id);
+      if (!existing) return;
+      const merged: PlanningCampaign = { ...existing, ...updates };
+      setCampaigns((prev) =>
+        prev
+          .map((c) => (c.id === id ? merged : c))
+          .sort((a, b) => a.startDate.localeCompare(b.startDate)),
+      );
+      runSyncTask(`Update campaign (${id})`, () =>
+        SUPABASE_API.saveCampaign(merged, currentUser),
+      ).then((ok) => {
+        if (ok) refreshCampaigns();
       });
-      if (merged) {
-        const toSave = merged;
-        runSyncTask(`Update campaign (${id})`, () =>
-          SUPABASE_API.saveCampaign(toSave, currentUser),
-        ).then((ok) => {
-          if (ok) refreshCampaigns();
-        });
-      }
     },
     [currentUser, runSyncTask, refreshCampaigns],
   );
