@@ -1072,7 +1072,7 @@ function mapEntryToDb(entry, userEmail) {
     status_detail: entry.statusDetail,
     ai_flags: entry.aiFlags || [],
     ai_score: entry.aiScore || {},
-    testing_framework_id: entry.testingFrameworkId,
+    testing_framework_id: entry.testingFrameworkId || null,
     testing_framework_name: entry.testingFrameworkName,
     audience_segments: entry.audienceSegments || [],
     golden_thread_pass: entry.goldenThreadPass ?? null,
