@@ -214,7 +214,7 @@ export interface Idea {
   convertedAt?: string;
 }
 
-export interface Campaign {
+export interface PlanningCampaign {
   id: string;
   name: string;
   type: 'campaign' | 'theme' | 'series';
@@ -222,8 +222,8 @@ export interface Campaign {
   endDate: string; // ISO date string — maps to end_date column
   colour: string; // hex, e.g. '#6366f1'
   notes?: string;
-  createdBy?: string;
-  createdAt?: string;
+  createdBy: string;
+  createdAt: string;
 }
 
 export type OpportunityUrgency = 'High' | 'Medium' | 'Low';

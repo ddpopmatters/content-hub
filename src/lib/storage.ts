@@ -4,7 +4,7 @@
 import { STORAGE_KEYS, storageAvailable, isOlderThanDays } from './utils';
 import { sanitizeEntry, sanitizeIdea, computeStatusDetail } from './sanitizers';
 import type {
-  Campaign,
+  PlanningCampaign,
   ContentPeak,
   ContentSeries,
   Entry,
@@ -23,6 +23,7 @@ const CONTENT_PEAKS_STORAGE_KEY = STORAGE_KEYS.CONTENT_PEAKS;
 const CONTENT_SERIES_STORAGE_KEY = STORAGE_KEYS.CONTENT_SERIES;
 const RAPID_RESPONSES_STORAGE_KEY = STORAGE_KEYS.RAPID_RESPONSES;
 const INFLUENCERS_STORAGE_KEY = STORAGE_KEYS.INFLUENCERS;
+const CAMPAIGNS_STORAGE_KEY = STORAGE_KEYS.CAMPAIGNS;
 
 const VALID_INFLUENCER_STATUSES: InfluencerStatus[] = [
   'Follow & Observe',
@@ -172,24 +173,31 @@ export const saveIdeas = (ideas: Idea[]): void => {
   }
 };
 
-export const loadCampaigns = (): Campaign[] => {
+/**
+ * Loads planning campaigns from localStorage
+ */
+export const loadCampaigns = (): PlanningCampaign[] => {
   if (!storageAvailable) return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.CAMPAIGNS);
+    const raw = window.localStorage.getItem(CAMPAIGNS_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as Campaign[]) : [];
-  } catch {
+    return Array.isArray(parsed) ? (parsed as PlanningCampaign[]) : [];
+  } catch (error) {
+    console.warn('Failed to load campaigns', error);
     return [];
   }
 };
 
-export const saveCampaigns = (campaigns: Campaign[]): void => {
+/**
+ * Saves planning campaigns to localStorage
+ */
+export const saveCampaigns = (campaigns: PlanningCampaign[]): void => {
   if (!storageAvailable) return;
   try {
-    localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(campaigns));
-  } catch {
-    // localStorage unavailable — silent fail
+    window.localStorage.setItem(CAMPAIGNS_STORAGE_KEY, JSON.stringify(campaigns));
+  } catch (error) {
+    console.warn('Failed to persist campaigns', error);
   }
 };
 
