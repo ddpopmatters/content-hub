@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { Button, Card, CardContent, CardHeader, CardTitle, Label } from '../../../components/ui';
 import { REPORTING_PLATFORM_METRICS } from '../../../constants';
 import { inputBaseClasses } from '../../../lib/styles';
+import { MetricInfoButton } from '../MetricInfoButton';
 
 interface PlatformMetricsStepProps {
   metrics: Record<string, Record<string, number>>;
@@ -67,7 +68,12 @@ export function PlatformMetricsStep({
 
                     return (
                       <div key={metric.key} className="space-y-1">
-                        <Label htmlFor={inputId}>{metric.label}</Label>
+                        <div className="flex items-center gap-1.5">
+                          <Label htmlFor={inputId}>{metric.label}</Label>
+                          {metric.guidance && (
+                            <MetricInfoButton label={metric.label} guidance={metric.guidance} />
+                          )}
+                        </div>
                         {metric.hint ? (
                           <p className="text-xs text-graystone-500">{metric.hint}</p>
                         ) : null}

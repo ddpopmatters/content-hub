@@ -259,6 +259,8 @@ export interface PlatformMetricField {
   key: string;
   label: string;
   hint?: string;
+  /** Extended guidance shown in the info modal: what this metric measures and where to find it. */
+  guidance?: string;
   isRate?: boolean; // true for %, ratio, or rate fields — excluded from per-post calculation
 }
 
@@ -308,78 +310,378 @@ export const PLATFORM_METRICS: Record<Platform, PlatformMetricField[]> = {
 // De-prioritised signals (likes, raw impressions) are intentionally excluded.
 export const REPORTING_PLATFORM_METRICS: Record<Platform, PlatformMetricField[]> = {
   Instagram: [
-    { key: 'numberOfPosts', label: 'Posts published' },
-    { key: 'numberOfStories', label: 'Stories published' },
-    { key: 'followersTotal', label: 'Total followers', isRate: true },
-    { key: 'followersGained', label: 'New followers' },
-    { key: 'views', label: 'Views' },
-    { key: 'followerNonFollowerRatio', label: 'Follower / Non-follower ratio (%)', isRate: true },
-    { key: 'accountsReached', label: 'Accounts reached' },
-    { key: 'profileVisits', label: 'Profile visits' },
-    { key: 'likes', label: 'Likes' },
-    { key: 'saves', label: 'Saves' },
-    { key: 'reposts', label: 'Reposts' },
-    { key: 'sharesToStory', label: 'Shares to story' },
-    { key: 'comments', label: 'Comments' },
-    { key: 'dmSends', label: 'DM sends', hint: '#1 algorithm signal (Mosseri, Jan 2026)' },
-    { key: 'reelViews', label: 'Reel views' },
-    { key: 'storyViews', label: 'Story views' },
-    { key: 'externalLinkClicks', label: 'External link clicks' },
+    {
+      key: 'numberOfPosts',
+      label: 'Posts published',
+      guidance:
+        'Count of feed posts (including carousels and Reels) published during the period. Find in Instagram Insights → Content → filter by date range. Does not include Stories.',
+    },
+    {
+      key: 'numberOfStories',
+      label: 'Stories published',
+      guidance:
+        'Count of Stories published during the period. Find in Instagram Insights → Content → Stories tab → filter by date range.',
+    },
+    {
+      key: 'followersTotal',
+      label: 'Total followers',
+      isRate: true,
+      guidance:
+        'Total follower count at the end of the reporting period. Find in Instagram Insights → Audience → Followers → note the current total. Record at the last day of the period for consistency.',
+    },
+    {
+      key: 'followersGained',
+      label: 'New followers',
+      guidance:
+        'Net new followers gained during the period (follows minus unfollows). Find in Instagram Insights → Audience → Followers → select the date range and read the net change figure.',
+    },
+    {
+      key: 'views',
+      label: 'Views',
+      guidance:
+        'Total video and Reel plays for the period. Find in Instagram Insights → Overview → Views, or sum Reel plays from the Content tab. Includes replays by the same account.',
+    },
+    {
+      key: 'followerNonFollowerRatio',
+      label: 'Follower / Non-follower ratio (%)',
+      isRate: true,
+      guidance:
+        'Percentage of your reach that came from accounts NOT already following you. A higher percentage means the algorithm is distributing your content beyond your existing audience.\n\nWhere to find it: Instagram Insights → Reach → scroll to the "Follower and Non-follower" breakdown. Enter the non-follower percentage here. A rising ratio over time indicates improving organic discovery.',
+    },
+    {
+      key: 'accountsReached',
+      label: 'Accounts reached',
+      guidance:
+        'Unique accounts that saw any of your content during the period. This is the period-level unique figure — do not sum per-post reach, as the same account is counted multiple times.\n\nWhere to find it: Instagram Insights → Overview → Accounts reached → select the date range.',
+    },
+    {
+      key: 'profileVisits',
+      label: 'Profile visits',
+      guidance:
+        'Number of times your profile was visited during the period. A leading indicator of audience interest — someone who visits your profile after seeing a post is considering following or exploring further.\n\nWhere to find it: Instagram Insights → Overview → Profile visits → select the date range.',
+    },
+    {
+      key: 'likes',
+      label: 'Likes',
+      guidance:
+        'Total likes across all posts in the period. Sum from Instagram Insights → Content → select each post. Likes are a low-quality signal and are de-prioritised in the framework, but useful for per-post comparison.',
+    },
+    {
+      key: 'saves',
+      label: 'Saves',
+      guidance:
+        "Total saves/bookmarks across all posts in the period. Saves are a high-quality signal — they indicate content worth returning to. Instagram's algorithm weights saves heavily.\n\nWhere to find it: Instagram Insights → individual post → Saves. Sum across all posts in the period, or use the period-level summary in the Content tab if available.",
+    },
+    {
+      key: 'reposts',
+      label: 'Reposts',
+      guidance:
+        'Total reposts of your posts during the period. Find in Instagram Insights → individual post → Shares (the share-to-feed / repost figure). Sum across all posts.',
+    },
+    {
+      key: 'sharesToStory',
+      label: 'Shares to story',
+      guidance:
+        'Number of times people shared your posts to their own Stories using the paper-plane send button → "Add to your Story". A strong secondary distribution signal — the post is being amplified into another account\'s network.\n\nWhere to find it: Instagram Insights → individual post → Shares to story. Sum across posts in the period.',
+    },
+    {
+      key: 'comments',
+      label: 'Comments',
+      guidance:
+        'Total comments across all posts in the period. Find in Instagram Insights → Content tab or individual post analytics. Review comment quality qualitatively — substantive comments carry more strategic weight than low-effort responses.',
+    },
+    {
+      key: 'dmSends',
+      label: 'DM sends',
+      hint: '#1 algorithm signal (Mosseri, Jan 2026)',
+      guidance:
+        'Number of times your posts were sent via DM (the paper-plane button → "Send to"). Confirmed as Instagram\'s primary ranking signal by Adam Mosseri in January 2026. When someone sends your post to a friend, it signals genuine value to the algorithm.\n\nWhere to find it: Instagram Insights → individual post → Sends. Sum across all posts in the period. Also visible in the post\'s interaction summary as "Send to".',
+    },
+    {
+      key: 'reelViews',
+      label: 'Reel views',
+      guidance:
+        'Total plays of your Reels during the period. Each play counts separately, including replays. Compare against Reel reach to understand replay rate.\n\nWhere to find it: Instagram Insights → Content → Reels tab → sum the "Plays" figure across all Reels published in the period.',
+    },
+    {
+      key: 'storyViews',
+      label: 'Story views',
+      guidance:
+        'Total views (impressions) across all Stories published in the period. Instagram counts each Story slide separately.\n\nWhere to find it: Instagram Insights → Content → Stories tab → sum the "Impressions" or "Views" figure across all Stories in the period.',
+    },
+    {
+      key: 'externalLinkClicks',
+      label: 'External link clicks',
+      guidance:
+        'Clicks on external links from your profile and posts — includes bio link, link stickers in Stories, and any linked content.\n\nWhere to find it: Instagram Insights → Overview → External link taps, or individual post/Story analytics for link sticker clicks. This is the closest Instagram gets to a CTR metric given that links in feed posts are not permitted.',
+    },
   ],
   LinkedIn: [
-    { key: 'numberOfPosts', label: 'Posts published' },
-    { key: 'followersTotal', label: 'Total followers', isRate: true },
-    { key: 'followersGained', label: 'New followers' },
-    { key: 'impressions', label: 'Impressions' },
-    { key: 'reactions', label: 'Reactions' },
-    { key: 'comments', label: 'Comments' },
-    { key: 'reposts', label: 'Reposts' },
-    { key: 'engagements', label: 'Engagements' },
-    { key: 'engagementRate', label: 'Engagement rate (%)', isRate: true },
-    { key: 'ctr', label: 'CTR (%)', isRate: true },
-    { key: 'membersReached', label: 'Members reached' },
-    { key: 'clicks', label: 'Clicks' },
+    {
+      key: 'numberOfPosts',
+      label: 'Posts published',
+      guidance:
+        'Total posts published from the Page during the period. Find in LinkedIn Page Analytics → Content tab → filter by date range → count entries.',
+    },
+    {
+      key: 'followersTotal',
+      label: 'Total followers',
+      isRate: true,
+      guidance:
+        'Total Page followers at the end of the reporting period. Find in LinkedIn Page Analytics → Followers → note the current total. Record at the last day of the period.',
+    },
+    {
+      key: 'followersGained',
+      label: 'New followers',
+      guidance:
+        'Net new followers gained during the period. Find in LinkedIn Page Analytics → Followers → follower growth graph → read the net change for the date range.',
+    },
+    {
+      key: 'impressions',
+      label: 'Impressions',
+      guidance:
+        'Total times your posts were displayed, including repeat views by the same member. Context only — not a target metric. Find in LinkedIn Page Analytics → Content tab → Impressions column. Use Members reached for a more meaningful reach figure.',
+    },
+    {
+      key: 'reactions',
+      label: 'Reactions',
+      guidance:
+        'Total reactions (Like, Celebrate, Support, Love, Insightful, Funny) across all posts in the period. Find in LinkedIn Page Analytics → Content tab → Reactions column.',
+    },
+    {
+      key: 'comments',
+      label: 'Comments',
+      guidance:
+        'Total comments across all posts in the period. Find in LinkedIn Page Analytics → Content tab → Comments column. Review comment quality — LinkedIn comments from policymakers or NGO leads are high-value signals worth capturing in the narrative.',
+    },
+    {
+      key: 'reposts',
+      label: 'Reposts',
+      guidance:
+        'Total reposts (silent reposts and commented reposts combined) across all posts in the period. Find in LinkedIn Page Analytics → Content tab → Reposts column.',
+    },
+    {
+      key: 'engagements',
+      label: 'Engagements',
+      guidance:
+        'LinkedIn\'s aggregate engagement count: reactions + comments + clicks + reposts. Find in LinkedIn Page Analytics → Content tab → Engagements column. Note: LinkedIn\'s "Engagements" includes link clicks, which inflates the figure compared to the standard formula used elsewhere in this tool.',
+    },
+    {
+      key: 'engagementRate',
+      label: 'Engagement rate (%)',
+      isRate: true,
+      guidance:
+        "LinkedIn's native engagement rate: engagements (reactions + comments + clicks + reposts) ÷ impressions × 100.\n\nWhere to find it: LinkedIn Page Analytics → Content tab → Engagement rate column.\n\nImportant: LinkedIn's formula differs from the cross-platform standard formula used in the Tier 1 metrics (which uses engagements ÷ reach, excluding clicks). Use this figure for LinkedIn-specific benchmarking. Target: 3–4% (sector average 1.91%; document carousels average 6.10%).",
+    },
+    {
+      key: 'ctr',
+      label: 'CTR (%)',
+      isRate: true,
+      guidance:
+        'Click-through rate: link clicks ÷ impressions × 100. Only meaningful for posts containing external links.\n\nWhere to find it: LinkedIn Page Analytics → Content tab → CTR column. Target: 1%+ for organic posts with links.',
+    },
+    {
+      key: 'membersReached',
+      label: 'Members reached',
+      guidance:
+        'Unique LinkedIn members who saw your content at least once in the period. This is the closest equivalent to "reach" on LinkedIn.\n\nWhere to find it: LinkedIn Page Analytics → Reach tab → "Unique impressions". LinkedIn uses the term "unique impressions" in some views and "members reached" in others — they refer to the same figure. Use this rather than total Impressions for the engagement rate calculation.',
+    },
+    {
+      key: 'clicks',
+      label: 'Clicks',
+      guidance:
+        'Total link clicks across all posts in the period. Find in LinkedIn Page Analytics → Content tab → Clicks column. Includes clicks on any external URL in the post.',
+    },
   ],
   YouTube: [
-    { key: 'numberOfPosts', label: 'Videos published' },
-    { key: 'subscribersTotal', label: 'Total subscribers', isRate: true },
-    { key: 'subscribers', label: 'Subscribers gained' },
-    { key: 'views', label: 'Views' },
-    { key: 'watchTimeHours', label: 'Watch time (hours)' },
-    { key: 'subscribers', label: 'Subscribers gained' },
-    { key: 'comments', label: 'Comments' },
-    { key: 'likes', label: 'Likes' },
-    { key: 'shares', label: 'Shares' },
+    {
+      key: 'numberOfPosts',
+      label: 'Videos published',
+      guidance:
+        'Total videos (long-form and Shorts) published during the period. Find in YouTube Studio → Content tab → filter by date published.',
+    },
+    {
+      key: 'subscribersTotal',
+      label: 'Total subscribers',
+      isRate: true,
+      guidance:
+        'Total channel subscribers at the end of the reporting period. Find in YouTube Studio → Analytics → Audience tab → current subscriber count. Record at the last day of the period.',
+    },
+    {
+      key: 'subscribers',
+      label: 'Subscribers gained',
+      guidance:
+        'Net new subscribers gained during the period (gained minus lost). Find in YouTube Studio → Analytics → Audience tab → Subscribers gained/lost graph → read the net figure for the date range.',
+    },
+    {
+      key: 'views',
+      label: 'Views',
+      guidance:
+        'Total views across all videos in the period. Find in YouTube Studio → Analytics → Overview tab → Views → filter by date range.',
+    },
+    {
+      key: 'watchTimeHours',
+      label: 'Watch time (hours)',
+      guidance:
+        "Total hours watched across all videos in the period. This is YouTube's primary quality metric — the algorithm heavily weights watch time as evidence that content delivered on its promise.\n\nWhere to find it: YouTube Studio → Analytics → Overview or Content tab → Watch time → filter by date range. YouTube reports in hours. A rising watch time trend matters more than absolute view count.",
+    },
+    {
+      key: 'comments',
+      label: 'Comments',
+      guidance:
+        'Total comments across all videos in the period. Find in YouTube Studio → Analytics → Content tab → Comments column. Review comment quality — substantive discussion indicates content is landing with the right audiences.',
+    },
+    {
+      key: 'likes',
+      label: 'Likes',
+      guidance:
+        'Total likes across all videos in the period. Find in YouTube Studio → Analytics → Content tab → Likes column.',
+    },
+    {
+      key: 'shares',
+      label: 'Shares',
+      guidance:
+        'Total shares across all videos (using the Share button). Find in YouTube Studio → Analytics → Content tab → Shares column.',
+    },
   ],
   Facebook: [
-    { key: 'numberOfPosts', label: 'Posts published' },
-    { key: 'followersTotal', label: 'Total followers', isRate: true },
-    { key: 'followersGained', label: 'New followers' },
-    { key: 'views', label: 'Views' },
-    { key: 'viewers', label: 'Viewers' },
-    { key: 'contentInteractions', label: 'Content interactions' },
-    { key: 'threeSecondViews', label: '3-second views' },
-    { key: 'oneMinuteViews', label: '1-minute views' },
-    { key: 'shares', label: 'Shares' },
-    { key: 'comments', label: 'Comments' },
-    { key: 'saves', label: 'Saves' },
-    { key: 'totalWatchTime', label: 'Total watch time (mins)' },
-    { key: 'reactionLove', label: 'Love reactions' },
-    { key: 'reactionCare', label: 'Care reactions' },
+    {
+      key: 'numberOfPosts',
+      label: 'Posts published',
+      guidance:
+        'Total posts published from the Page during the period. Find in Facebook Insights → Content → filter by date range → count entries. Note: all Page videos are now auto-published as Reels.',
+    },
+    {
+      key: 'followersTotal',
+      label: 'Total followers',
+      isRate: true,
+      guidance:
+        'Total Page followers at the end of the reporting period. Find in Facebook Insights → Followers → note the current total. Record at the last day of the period.',
+    },
+    {
+      key: 'followersGained',
+      label: 'New followers',
+      guidance:
+        'Net new Page followers gained during the period. Find in Facebook Insights → Followers → net follower change graph → read the figure for the date range.',
+    },
+    {
+      key: 'views',
+      label: 'Views',
+      guidance:
+        'Total video views during the period. Find in Facebook Insights → Videos → Total video views. Includes both feed views and Reels views (all Page videos are auto-Reels).',
+    },
+    {
+      key: 'viewers',
+      label: 'Viewers',
+      guidance:
+        'Unique accounts that watched any of your videos during the period. Compare against Views to understand repeat-view rate.\n\nWhere to find it: Facebook Insights → Videos → Unique video viewers.',
+    },
+    {
+      key: 'contentInteractions',
+      label: 'Content interactions',
+      guidance:
+        'Facebook\'s aggregate engagement count: reactions, comments, shares, and clicks combined. Find in Facebook Insights → Overview → Content interactions or Posts → Content interactions column.\n\nNote: Facebook\'s "Content interactions" formula differs from the cross-platform standard formula used elsewhere in this tool. Use for Facebook-specific trending rather than cross-channel comparison.',
+    },
+    {
+      key: 'threeSecondViews',
+      label: '3-second views',
+      guidance:
+        'Number of times your videos were watched for at least 3 seconds. The minimum threshold for Facebook to count a "view".\n\nWhere to find it: Facebook Insights → Videos → 3-second video views.\n\nUse alongside 1-minute views to gauge hook effectiveness. A high 3-second count with low 1-minute count means your thumbnail/opening is attracting clicks but the content is not holding attention.',
+    },
+    {
+      key: 'oneMinuteViews',
+      label: '1-minute views',
+      guidance:
+        'Number of times your videos were watched for at least 60 seconds. Indicates sustained attention beyond the hook.\n\nWhere to find it: Facebook Insights → Videos → 1-minute video views.\n\nCompare the ratio of 1-minute views to 3-second views — this is your effective completion rate proxy for Facebook. Target: aim for at least 30–40% of 3-second views converting to 1-minute views.',
+    },
+    {
+      key: 'shares',
+      label: 'Shares',
+      guidance:
+        "Total shares of your posts during the period. Shares are the most meaningful organic signal on Facebook — they extend reach to the sharer's network. Find in Facebook Insights → Posts → Shares column.",
+    },
+    {
+      key: 'comments',
+      label: 'Comments',
+      guidance:
+        'Total comments across all posts in the period. Find in Facebook Insights → Posts → Comments column. Review tone qualitatively alongside reaction sentiment data.',
+    },
+    {
+      key: 'saves',
+      label: 'Saves',
+      guidance:
+        'Total saves/bookmarks across posts in the period. Find in Facebook Insights → Posts → Saves column (available on most post types). A save indicates the content was worth returning to.',
+    },
+    {
+      key: 'totalWatchTime',
+      label: 'Total watch time (mins)',
+      guidance:
+        'Total minutes watched across all videos in the period. Includes both feed views and Reels (all Page videos are now auto-Reels).\n\nWhere to find it: Facebook Insights → Videos → Total minutes viewed.',
+    },
+    {
+      key: 'reactionLove',
+      label: 'Love reactions',
+      guidance:
+        'Count of Love reactions (heart) on posts during the period. Find in Facebook Insights → individual post → expand reaction breakdown.\n\nHigh Love reactions on partner stories or rights-based content signal strong emotional resonance. Track alongside Care and Angry reactions for sentiment shifts.',
+    },
+    {
+      key: 'reactionCare',
+      label: 'Care reactions',
+      guidance:
+        'Count of Care reactions (hugging face) on posts during the period. Find in Facebook Insights → individual post → expand reaction breakdown.\n\nCare reactions on content about affected communities or vulnerable populations indicate emotional engagement with the human stories behind the data.',
+    },
     {
       key: 'reactionAngry',
       label: 'Angry reactions',
       hint: 'Leading indicator of discomfort on sensitive content',
+      guidance:
+        "Count of Angry reactions on posts during the period. Find in Facebook Insights → individual post → expand reaction breakdown → Angry.\n\nAngry reactions on population, family size, migration, or environmental content are an early warning signal of discomfort or misread framing. Track the ratio vs Love and Care reactions — a spike in Angry alongside flat positive reactions warrants a review of the content's framing and whether risk audiences are misinterpreting the message.\n\nDo not optimise away from topics that attract Angry reactions — some friction indicates you are engaging people with contested views, which is part of the counter-disinformation function.",
     },
   ],
   BlueSky: [
-    { key: 'numberOfPosts', label: 'Posts published' },
-    { key: 'followersTotal', label: 'Total followers', isRate: true },
-    { key: 'followersGained', label: 'New followers' },
-    { key: 'replies', label: 'Replies' },
-    { key: 'quotePosts', label: 'Quotes' },
-    { key: 'likes', label: 'Likes' },
-    { key: 'reposts', label: 'Reposts' },
+    {
+      key: 'numberOfPosts',
+      label: 'Posts published',
+      guidance:
+        "Total posts published from the PM BlueSky account during the period. Count from your BlueSky profile or use a third-party analytics tool. BlueSky's native analytics are limited — manual counting from the profile is the most reliable method.",
+    },
+    {
+      key: 'followersTotal',
+      label: 'Total followers',
+      isRate: true,
+      guidance:
+        'Total followers at the end of the reporting period. Find on your BlueSky profile page. Record at the last day of the period. BlueSky does not have a built-in analytics dashboard — note the count at the start and end of each month.',
+    },
+    {
+      key: 'followersGained',
+      label: 'New followers',
+      guidance:
+        'Net new followers during the period. Calculate by subtracting the follower count at the start of the period from the count at the end. Keep a note of your follower count at the start of each reporting period for this purpose.',
+    },
+    {
+      key: 'replies',
+      label: 'Replies',
+      guidance:
+        'Total replies received on your posts during the period. Visible under each post. BlueSky reply threads from journalists, researchers, and policymakers are the highest-value engagement signal on this platform — review them qualitatively and note notable interactions in the narrative.',
+    },
+    {
+      key: 'quotePosts',
+      label: 'Quotes',
+      guidance:
+        "Total quote-posts of your content during the period. Visible under each post (the speech-bubble-with-arrow icon). Quote-posts from credible accounts in PM's target segments (researchers, journalists, policymakers) are particularly valuable — they amplify your content into a new audience network with an implicit endorsement.",
+    },
+    {
+      key: 'likes',
+      label: 'Likes',
+      guidance:
+        'Total likes on your posts during the period. Visible under each post. On BlueSky, likes are a lower-quality signal than quote-posts or replies — they indicate passive approval but less than active amplification.',
+    },
+    {
+      key: 'reposts',
+      label: 'Reposts',
+      guidance:
+        'Total reposts (silent reposts, without added commentary) during the period. Visible under each post. Track alongside quote-posts — a high repost rate relative to quote-posts means content is being shared but not commented on. A high quote-post rate suggests content is prompting substantive engagement.',
+    },
   ],
 };
 
