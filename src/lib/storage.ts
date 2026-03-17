@@ -4,6 +4,7 @@
 import { STORAGE_KEYS, storageAvailable, isOlderThanDays } from './utils';
 import { sanitizeEntry, sanitizeIdea, computeStatusDetail } from './sanitizers';
 import type {
+  Campaign,
   ContentPeak,
   ContentSeries,
   Entry,
@@ -168,6 +169,27 @@ export const saveIdeas = (ideas: Idea[]): void => {
     window.localStorage.setItem(IDEAS_STORAGE_KEY, JSON.stringify(ideas));
   } catch (error) {
     console.warn('Failed to persist ideas', error);
+  }
+};
+
+export const loadCampaigns = (): Campaign[] => {
+  if (!storageAvailable) return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.CAMPAIGNS);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Campaign[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+export const saveCampaigns = (campaigns: Campaign[]): void => {
+  if (!storageAvailable) return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(campaigns));
+  } catch {
+    // localStorage unavailable — silent fail
   }
 };
 

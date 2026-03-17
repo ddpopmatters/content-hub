@@ -214,6 +214,18 @@ export interface Idea {
   convertedAt?: string;
 }
 
+export interface Campaign {
+  id: string;
+  name: string;
+  type: 'campaign' | 'theme' | 'series';
+  startDate: string; // ISO date string — maps to start_date column
+  endDate: string; // ISO date string — maps to end_date column
+  colour: string; // hex, e.g. '#6366f1'
+  notes?: string;
+  createdBy?: string;
+  createdAt?: string;
+}
+
 export type OpportunityUrgency = 'High' | 'Medium' | 'Low';
 export type OpportunityStatus = 'Open' | 'Acted' | 'Dismissed';
 
