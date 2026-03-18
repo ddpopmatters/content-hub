@@ -27,6 +27,10 @@ Hybrid: "Post now" = direct Edge Function call. "Schedule" = Zapier webhook with
 
 The existing `date` column (DATE type) stores calendar date only. Scheduled posting requires a precise datetime. `scheduled_at` is nullable — only set when a post has been scheduled.
 
+### Type change
+
+Add `scheduled_at?: string | null` to the `Entry` interface in `src/types/models.ts`.
+
 ### No other schema changes
 
 `publish_status` (`jsonb`) already tracks per-platform state as `Record<string, PlatformPublishStatus>`:
@@ -137,18 +141,26 @@ Toast includes: "[Platform] needs reconnecting" with inline link to Connections 
 
 `src/hooks/domain/usePublish.ts`
 
+Follows the domain hook dependency injection pattern (same as `useEntries`, `useYearPlan`):
+
 ```typescript
-function usePublish(entry: Entry) {
+function usePublish({
+  currentUser,
+  pushSyncToast,
+}: {
+  currentUser: User | null;
+  pushSyncToast: (msg: string, variant: 'success' | 'error') => void;
+}) {
   return {
-    postNow: (platforms: string[]) => Promise<PublishResult[]>,
-    schedule: (platforms: string[], datetime: string) => Promise<void>,
+    postNow: (entry: Entry, platforms: string[]) => Promise<PublishResult[]>,
+    schedule: (entry: Entry, platforms: string[], datetime: string) => Promise<void>,
     isPosting: boolean,
     lastResult: PublishResult[] | null,
   }
 }
 ```
 
-Handles: Edge Function invocation, Zapier fetch, optimistic `publish_status` writes, toast despatch, `scheduled_at` persistence.
+Exported from `src/hooks/domain/index.ts`. Instantiated in `app.jsx` alongside other domain hooks. Handles: Edge Function invocation, Zapier fetch, optimistic `publish_status` writes, toast despatch, `scheduled_at` persistence.
 
 ---
 
