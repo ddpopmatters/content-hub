@@ -1,35 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Label } from '../../components/ui';
-import type { OrgEvent, OrgEventType } from '../../types/models';
+import type { OrgEvent } from '../../types/models';
+import { GANTT_COLOUR_SWATCHES } from './CampaignModal';
 
-const ORG_EVENT_TYPES: { value: OrgEventType; label: string }[] = [
-  { value: 'conference', label: 'Conference / event' },
-  { value: 'policy', label: 'Policy moment' },
-  { value: 'fundraising', label: 'Fundraising' },
-  { value: 'internal', label: 'Internal milestone' },
-  { value: 'report', label: 'Report / publication' },
-  { value: 'partnership', label: 'Partnership' },
-];
+const PRESET_ORG_TYPES = ['conference', 'policy', 'fundraising', 'internal', 'report', 'partnership'] as const;
+type PresetOrgType = typeof PRESET_ORG_TYPES[number];
 
-const TYPE_DEFAULT_COLOURS: Record<OrgEventType, string> = {
-  conference:  '#8b5cf6',
-  policy:      '#f59e0b',
-  fundraising: '#10b981',
-  internal:    '#6b7280',
-  report:      '#0ea5e9',
-  partnership: '#ec4899',
+const CUSTOM_SENTINEL = '__custom__';
+
+const ORG_EVENT_TYPE_LABELS: Record<PresetOrgType, string> = {
+  conference:  'Conference / event',
+  policy:      'Policy moment',
+  fundraising: 'Fundraising',
+  internal:    'Internal milestone',
+  report:      'Report / publication',
+  partnership: 'Partnership',
 };
 
-const COLOUR_SWATCHES = [
-  { label: 'Purple',  value: '#8b5cf6' },
-  { label: 'Amber',   value: '#f59e0b' },
-  { label: 'Green',   value: '#10b981' },
-  { label: 'Gray',    value: '#6b7280' },
-  { label: 'Sky',     value: '#0ea5e9' },
-  { label: 'Pink',    value: '#ec4899' },
-  { label: 'Ocean',   value: '#0f9dde' },
-  { label: 'Red',     value: '#ef4444' },
-];
+const TYPE_DEFAULT_COLOURS: Record<PresetOrgType, string> = {
+  conference:  '#7c3aed',
+  policy:      '#d97706',
+  fundraising: '#059669',
+  internal:    '#475569',
+  report:      '#0284c7',
+  partnership: '#db2777',
+};
+
+const COLOUR_LABEL_ID = 'org-event-colour-label';
+
+function isPreset(t: string): t is PresetOrgType {
+  return (PRESET_ORG_TYPES as readonly string[]).includes(t);
+}
 
 interface OrgEventModalProps {
   event?: OrgEvent;
@@ -49,26 +50,38 @@ export function OrgEventModal({
   const isEditMode = event !== undefined;
 
   const [name, setName] = useState(event?.name ?? '');
-  const [type, setType] = useState<OrgEventType>(event?.type ?? 'conference');
+  const [type, setType] = useState(event?.type ?? 'conference');
+  const [customType, setCustomType] = useState(
+    event?.type && !isPreset(event.type) ? event.type : '',
+  );
   const [startDate, setStartDate] = useState(event?.startDate ?? '');
   const [endDate, setEndDate] = useState(event?.endDate ?? '');
-  const [colour, setColour] = useState(event?.colour ?? COLOUR_SWATCHES[0].value);
+  const [colour, setColour] = useState(event?.colour ?? TYPE_DEFAULT_COLOURS['conference']);
   const [notes, setNotes] = useState(event?.notes ?? '');
 
   useEffect(() => {
     setName(event?.name ?? '');
     setType(event?.type ?? 'conference');
+    setCustomType(event?.type && !isPreset(event.type) ? event.type : '');
     setStartDate(event?.startDate ?? '');
     setEndDate(event?.endDate ?? '');
-    setColour(event?.colour ?? COLOUR_SWATCHES[0].value);
+    setColour(event?.colour ?? TYPE_DEFAULT_COLOURS['conference']);
     setNotes(event?.notes ?? '');
   }, [event]);
 
-  // When type changes, auto-apply its default colour (only if user hasn't diverged from defaults)
-  function handleTypeChange(newType: OrgEventType) {
-    setType(newType);
-    if (!isEditMode) {
-      setColour(TYPE_DEFAULT_COLOURS[newType]);
+  const isCustom = !isPreset(type);
+  const selectValue = isCustom ? CUSTOM_SENTINEL : type;
+  const resolvedType = isCustom ? customType.trim() : type;
+
+  function handleTypeChange(val: string) {
+    if (val === CUSTOM_SENTINEL) {
+      setType(CUSTOM_SENTINEL);
+    } else {
+      setType(val);
+      setCustomType('');
+      if (!isEditMode && isPreset(val)) {
+        setColour(TYPE_DEFAULT_COLOURS[val as PresetOrgType]);
+      }
     }
   }
 
@@ -77,11 +90,23 @@ export function OrgEventModal({
       ? 'End date must be on or after the start date.'
       : null;
 
-  const isSaveDisabled = name.trim() === '' || !startDate || !endDate || dateError !== null;
+  const isSaveDisabled =
+    name.trim() === '' ||
+    !startDate ||
+    !endDate ||
+    dateError !== null ||
+    (isCustom && customType.trim() === '');
 
   function handleSave() {
     if (isSaveDisabled) return;
-    const data = { name: name.trim(), type, startDate, endDate, colour, notes: notes.trim() };
+    const data = {
+      name: name.trim(),
+      type: resolvedType,
+      startDate,
+      endDate,
+      colour,
+      notes: notes.trim(),
+    };
     if (isEditMode && onUpdate) {
       onUpdate(event.id, data);
     } else {
@@ -90,15 +115,8 @@ export function OrgEventModal({
     onClose();
   }
 
-  function handleDelete() {
-    if (isEditMode && onDelete) {
-      onDelete(event.id);
-      onClose();
-    }
-  }
-
   const inputClass =
-    'w-full rounded-md border border-graystone-200 bg-white px-3 py-2 text-sm text-graystone-900 focus:border-ocean-400 focus:outline-none focus:ring-1 focus:ring-ocean-400';
+    'w-full rounded-xl border border-graystone-300 bg-white px-3 py-2 text-sm text-graystone-900 focus:outline-none focus:ring-2 focus:ring-ocean-400 focus:ring-offset-2';
 
   return (
     <div
@@ -108,7 +126,7 @@ export function OrgEventModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-graystone-100 px-5 py-4">
           <h2 className="text-base font-semibold text-graystone-900">
@@ -117,87 +135,107 @@ export function OrgEventModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-graystone-400 hover:bg-graystone-100 hover:text-graystone-600"
+            className="rounded-lg p-1 text-graystone-400 hover:bg-graystone-100 hover:text-graystone-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400"
             aria-label="Close"
           >
             ✕
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex flex-col gap-4 px-5 py-4">
+        <form
+          onSubmit={(e) => { e.preventDefault(); handleSave(); }}
+          className="flex flex-col gap-4 px-5 py-4"
+        >
           {/* Name */}
-          <div>
-            <Label htmlFor="org-event-name">Name *</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="org-event-name">Name</Label>
             <input
               id="org-event-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. World Population Day"
-              className={`mt-1 ${inputClass}`}
+              className={inputClass}
               autoFocus
             />
           </div>
 
           {/* Type */}
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="org-event-type">Type</Label>
             <select
               id="org-event-type"
-              value={type}
-              onChange={(e) => handleTypeChange(e.target.value as OrgEventType)}
-              className={`mt-1 ${inputClass}`}
+              value={selectValue}
+              onChange={(e) => handleTypeChange(e.target.value)}
+              className={inputClass}
             >
-              {ORG_EVENT_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
+              {PRESET_ORG_TYPES.map((t) => (
+                <option key={t} value={t}>{ORG_EVENT_TYPE_LABELS[t]}</option>
               ))}
+              <option disabled>──────────</option>
+              <option value={CUSTOM_SENTINEL}>Custom…</option>
             </select>
+            {isCustom && (
+              <input
+                type="text"
+                value={customType}
+                onChange={(e) => setCustomType(e.target.value)}
+                placeholder="Enter type name"
+                className={inputClass}
+                autoFocus
+              />
+            )}
           </div>
 
           {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="org-event-start">Start date *</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="org-event-start">Start date</Label>
               <input
                 id="org-event-start"
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className={`mt-1 ${inputClass}`}
+                className={inputClass}
               />
             </div>
-            <div>
-              <Label htmlFor="org-event-end">End date *</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="org-event-end">End date</Label>
               <input
                 id="org-event-end"
                 type="date"
                 value={endDate}
-                min={startDate}
+                min={startDate || undefined}
                 onChange={(e) => setEndDate(e.target.value)}
-                className={`mt-1 ${inputClass}`}
+                className={inputClass}
               />
             </div>
           </div>
-          {dateError && (
-            <p className="text-xs text-red-600">{dateError}</p>
-          )}
+          {dateError && <p className="text-xs text-rose-600">{dateError}</p>}
 
-          {/* Colour */}
-          <div>
-            <Label>Colour</Label>
-            <div className="mt-1.5 flex flex-wrap gap-2">
-              {COLOUR_SWATCHES.map((swatch) => (
+          {/* Colour — 8×3 grid */}
+          <div className="space-y-1.5">
+            <Label id={COLOUR_LABEL_ID}>Colour</Label>
+            <div
+              role="radiogroup"
+              aria-labelledby={COLOUR_LABEL_ID}
+              className="grid grid-cols-8 gap-1.5"
+            >
+              {GANTT_COLOUR_SWATCHES.map((swatch) => (
                 <button
                   key={swatch.value}
                   type="button"
-                  onClick={() => setColour(swatch.value)}
-                  className="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
-                  style={{
-                    backgroundColor: swatch.value,
-                    borderColor: colour === swatch.value ? '#1e293b' : 'transparent',
-                  }}
+                  role="radio"
+                  aria-checked={colour === swatch.value}
                   aria-label={swatch.label}
+                  onClick={() => setColour(swatch.value)}
+                  className={[
+                    'h-6 w-6 rounded-full transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400 focus-visible:ring-offset-1',
+                    colour === swatch.value
+                      ? 'scale-110 ring-2 ring-graystone-700 ring-offset-1'
+                      : 'hover:scale-110',
+                  ].join(' ')}
+                  style={{ backgroundColor: swatch.value }}
                   title={swatch.label}
                 />
               ))}
@@ -205,7 +243,7 @@ export function OrgEventModal({
           </div>
 
           {/* Notes */}
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="org-event-notes">Notes</Label>
             <textarea
               id="org-event-notes"
@@ -213,28 +251,33 @@ export function OrgEventModal({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Optional context…"
               rows={2}
-              className={`mt-1 resize-none ${inputClass}`}
+              className={`resize-none ${inputClass}`}
             />
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between border-t border-graystone-100 px-5 py-3">
-          <div>
-            {isEditMode && onDelete && (
-              <Button variant="ghost" size="sm" onClick={handleDelete}
-                className="text-red-600 hover:bg-red-50 hover:text-red-700">
-                Delete
+          {/* Footer */}
+          <div className="flex items-center border-t border-graystone-100 pt-3 mt-1">
+            <div className="flex-1">
+              {isEditMode && onDelete && (
+                <button
+                  type="button"
+                  onClick={() => { onDelete(event.id); onClose(); }}
+                  className="text-sm font-medium text-rose-600 hover:text-rose-700 focus:outline-none focus-visible:underline"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={onClose}>
+                Cancel
               </Button>
-            )}
+              <Button type="submit" size="sm" disabled={isSaveDisabled}>
+                {isEditMode ? 'Save changes' : 'Add event'}
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-            <Button size="sm" onClick={handleSave} disabled={isSaveDisabled}>
-              {isEditMode ? 'Save changes' : 'Add event'}
-            </Button>
-          </div>
-        </div>
+        </form>
       </div>
     </div>
   );
