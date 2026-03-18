@@ -883,6 +883,7 @@ export function CalendarView({
           onAdd={onAddCampaign}
           onUpdate={onUpdateCampaign}
           onDelete={onDeleteCampaign}
+          currentUser={userEmail}
         />
       )}
 

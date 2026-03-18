@@ -290,6 +290,7 @@ import type {
   ReportingPeriod,
   MonthlyReport,
   QualitativeInsights,
+  OrgEvent,
 } from '../types/models';
 
 // Local type aliases for types used only in this file
@@ -2938,6 +2939,97 @@ export const SUPABASE_API = {
       return true;
     } catch (error) {
       Logger.error(error, 'savePlanningNote');
+      return false;
+    }
+  },
+
+  // ==========================================
+  // ORG EVENTS
+  // ==========================================
+
+  fetchOrgEvents: async (year: number): Promise<OrgEvent[]> => {
+    await initSupabase();
+    if (!supabase) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('org_events')
+        .select('id, name, type, start_date, end_date, colour, notes, created_by, created_at')
+        .lte('start_date', `${year}-12-31`)
+        .gte('end_date', `${year}-01-01`)
+        .order('start_date', { ascending: true });
+
+      if (error) { Logger.error(error, 'fetchOrgEvents'); return []; }
+
+      return (data ?? []).map((row) => ({
+        id: row.id as string,
+        name: row.name as string,
+        type: row.type as OrgEvent['type'],
+        startDate: row.start_date as string,
+        endDate: row.end_date as string,
+        colour: row.colour as string,
+        notes: row.notes as string,
+        createdBy: row.created_by as string | null,
+        createdAt: row.created_at as string,
+      }));
+    } catch (error) {
+      Logger.error(error, 'fetchOrgEvents');
+      return [];
+    }
+  },
+
+  saveOrgEvent: async (
+    event: Omit<OrgEvent, 'id' | 'createdAt'> & { id?: string },
+    createdBy: string,
+  ): Promise<OrgEvent | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    const row = {
+      name: event.name,
+      type: event.type,
+      start_date: event.startDate,
+      end_date: event.endDate,
+      colour: event.colour,
+      notes: event.notes,
+      created_by: createdBy,
+    };
+
+    try {
+      if (event.id) {
+        const { data, error } = await supabase
+          .from('org_events')
+          .update(row)
+          .eq('id', event.id)
+          .select()
+          .single();
+        if (error) { Logger.error(error, 'saveOrgEvent/update'); return null; }
+        return data ? { id: data.id, name: data.name, type: data.type, startDate: data.start_date, endDate: data.end_date, colour: data.colour, notes: data.notes, createdBy: data.created_by, createdAt: data.created_at } : null;
+      } else {
+        const { data, error } = await supabase
+          .from('org_events')
+          .insert(row)
+          .select()
+          .single();
+        if (error) { Logger.error(error, 'saveOrgEvent/insert'); return null; }
+        return data ? { id: data.id, name: data.name, type: data.type, startDate: data.start_date, endDate: data.end_date, colour: data.colour, notes: data.notes, createdBy: data.created_by, createdAt: data.created_at } : null;
+      }
+    } catch (error) {
+      Logger.error(error, 'saveOrgEvent');
+      return null;
+    }
+  },
+
+  deleteOrgEvent: async (id: string): Promise<boolean> => {
+    await initSupabase();
+    if (!supabase) return false;
+
+    try {
+      const { error } = await supabase.from('org_events').delete().eq('id', id);
+      if (error) { Logger.error(error, 'deleteOrgEvent'); return false; }
+      return true;
+    } catch (error) {
+      Logger.error(error, 'deleteOrgEvent');
       return false;
     }
   },
