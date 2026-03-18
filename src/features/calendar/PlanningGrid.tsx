@@ -3,6 +3,7 @@ import { cx, isoFromParts } from '../../lib/utils';
 import { SUPABASE_API } from '../../lib/supabase';
 import type { DraftPost } from '../../types/models';
 import { DraftPostModal, type DraftPostFormValues } from './DraftPostModal';
+import { ALL_PLATFORMS } from '../../constants';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
@@ -37,6 +38,7 @@ export function PlanningGrid({
 }: PlanningGridProps): React.ReactElement {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [draftPosts, setDraftPosts] = useState<DraftPost[]>([]);
+  const [platformFilter, setPlatformFilter] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState>(CLOSED_MODAL);
   const [isSaving, setIsSaving] = useState(false);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -138,17 +140,57 @@ export function PlanningGrid({
     return result;
   }, [days, month, year]);
 
+  const visibleDrafts = useMemo(
+    () => (platformFilter ? draftPosts.filter((p) => p.platform === platformFilter) : draftPosts),
+    [draftPosts, platformFilter],
+  );
+
   const draftsByDate = useMemo(() => {
     const map: Record<string, DraftPost[]> = {};
-    for (const post of draftPosts) {
+    for (const post of visibleDrafts) {
       if (!map[post.date]) map[post.date] = [];
       map[post.date].push(post);
     }
     return map;
-  }, [draftPosts]);
+  }, [visibleDrafts]);
+
+  const usedPlatforms = useMemo(
+    () => ALL_PLATFORMS.filter((p) => draftPosts.some((d) => d.platform === p)),
+    [draftPosts],
+  );
 
   return (
     <>
+      {usedPlatforms.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setPlatformFilter(null)}
+            className={cx(
+              'rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors',
+              platformFilter === null
+                ? 'bg-graystone-800 text-white'
+                : 'bg-graystone-100 text-graystone-600 hover:bg-graystone-200',
+            )}
+          >
+            All
+          </button>
+          {usedPlatforms.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPlatformFilter(platformFilter === p ? null : p)}
+              className={cx(
+                'rounded-full px-2.5 py-0.5 text-xs font-medium transition-opacity',
+                PLATFORM_COLOURS[p] ?? 'bg-graystone-100 text-graystone-600',
+                platformFilter !== null && platformFilter !== p ? 'opacity-30' : 'opacity-100',
+              )}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
       <div role="grid" aria-label="Planning calendar">
         <div className="mb-1 grid grid-cols-7 gap-1">
           {DAY_LABELS.map((label) => (
@@ -213,7 +255,8 @@ export function PlanningGrid({
                             className={cx(
                               'w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium leading-tight',
                               'transition-opacity hover:opacity-80',
-                              PLATFORM_COLOURS[post.platform] ?? 'bg-graystone-100 text-graystone-700',
+                              PLATFORM_COLOURS[post.platform] ??
+                                'bg-graystone-100 text-graystone-700',
                             )}
                           >
                             {post.platform} · {post.topic}
