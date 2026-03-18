@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '../../components/ui';
 import { cx } from '../../lib/utils';
 import type { PlanningCampaign } from '../../hooks/domain/useYearPlan';
@@ -6,6 +6,7 @@ import type { OrgEvent } from '../../types/models';
 import { CampaignModal } from './CampaignModal';
 import { OrgEventModal } from './OrgEventModal';
 import { useOrgEvents } from '../../hooks/domain/useOrgEvents';
+import { GanttTooltip, type GanttTooltipItem } from './GanttTooltip';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -90,32 +91,29 @@ const ORG_TYPE_BADGE_CLASSES: Record<string, string> = {
   partnership: 'bg-pink-100 text-pink-700',
 };
 
-// ── Shared month-header + dividers + today-line wrapper ───────────────────────
+// ── Shared Gantt shell ────────────────────────────────────────────────────────
 
 interface GanttShellProps {
   year: number;
   monthWidths: number[];
   todayPct: number | null;
   children: React.ReactNode;
-  showMonthHeaders?: boolean;
 }
 
-function GanttShell({ year, monthWidths, todayPct, children, showMonthHeaders = true }: GanttShellProps) {
+function GanttShell({ year, monthWidths, todayPct, children }: GanttShellProps) {
   return (
     <div style={{ minWidth: 600 }}>
-      {showMonthHeaders && (
-        <div className="mb-1 flex" style={{ marginLeft: 180 }}>
-          {MONTHS.map((m, i) => (
-            <div
-              key={m}
-              style={{ width: `${monthWidths[i]}%` }}
-              className="text-center text-xs text-graystone-400 font-medium"
-            >
-              {m}
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="mb-1 flex" style={{ marginLeft: 180 }}>
+        {MONTHS.map((m, i) => (
+          <div
+            key={m}
+            style={{ width: `${monthWidths[i]}%` }}
+            className="text-center text-xs text-graystone-400 font-medium"
+          >
+            {m}
+          </div>
+        ))}
+      </div>
 
       <div className="relative">
         {/* Month column dividers */}
@@ -175,6 +173,24 @@ export function YearPlanView({
   const [editCampaign, setEditCampaign] = useState<PlanningCampaign | null>(null);
   const [showAddOrgEvent, setShowAddOrgEvent] = useState(false);
   const [editOrgEvent, setEditOrgEvent] = useState<OrgEvent | null>(null);
+
+  // Tooltip state
+  const [tooltip, setTooltip] = useState<GanttTooltipItem | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+
+  const showTooltip = useCallback((item: GanttTooltipItem, e: React.MouseEvent) => {
+    setTooltip(item);
+    setTooltipPos({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  const moveTooltip = useCallback((e: React.MouseEvent) => {
+    setTooltipPos({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  const hideTooltip = useCallback(() => {
+    setTooltip(null);
+    setTooltipPos(null);
+  }, []);
 
   const { events: orgEvents, addEvent, updateEvent, deleteEvent } = useOrgEvents({
     year,
@@ -242,6 +258,16 @@ export function YearPlanView({
                 const pos = barPosition(campaign.startDate, campaign.endDate, year);
                 const badgeClass =
                   CAMPAIGN_BADGE_CLASSES[campaign.type] ?? 'bg-graystone-100 text-graystone-600';
+                const tooltipItem: GanttTooltipItem = {
+                  name: campaign.name,
+                  type: campaign.type,
+                  typeLabel: campaign.type,
+                  badgeClass,
+                  startDate: campaign.startDate,
+                  endDate: campaign.endDate,
+                  colour: campaign.colour,
+                  notes: campaign.notes,
+                };
 
                 return (
                   <div key={campaign.id} className="flex items-center py-1">
@@ -258,9 +284,11 @@ export function YearPlanView({
                         <button
                           type="button"
                           onClick={() => setEditCampaign(campaign)}
+                          onMouseEnter={(e) => showTooltip(tooltipItem, e)}
+                          onMouseMove={moveTooltip}
+                          onMouseLeave={hideTooltip}
                           className="absolute inset-y-0.5 truncate rounded-md px-2 text-xs font-medium text-white hover:brightness-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400 focus-visible:ring-offset-1"
                           style={{ left: pos.left, width: pos.width, minWidth: '8px', backgroundColor: campaign.colour }}
-                          title={`${campaign.name}: ${campaign.startDate} to ${campaign.endDate}`}
                           aria-label={`${campaign.name} (${campaign.type}): ${campaign.startDate} to ${campaign.endDate} — click to edit`}
                         >
                           {campaign.name}
@@ -297,6 +325,16 @@ export function YearPlanView({
                 const pos = barPosition(ev.startDate, ev.endDate, year);
                 const typeLabel = ORG_TYPE_LABELS[ev.type] ?? ev.type;
                 const badgeClass = ORG_TYPE_BADGE_CLASSES[ev.type] ?? 'bg-graystone-100 text-graystone-600';
+                const tooltipItem: GanttTooltipItem = {
+                  name: ev.name,
+                  type: ev.type,
+                  typeLabel,
+                  badgeClass,
+                  startDate: ev.startDate,
+                  endDate: ev.endDate,
+                  colour: ev.colour,
+                  notes: ev.notes,
+                };
 
                 return (
                   <div key={ev.id} className="flex items-center py-1">
@@ -313,9 +351,11 @@ export function YearPlanView({
                         <button
                           type="button"
                           onClick={() => setEditOrgEvent(ev)}
+                          onMouseEnter={(e) => showTooltip(tooltipItem, e)}
+                          onMouseMove={moveTooltip}
+                          onMouseLeave={hideTooltip}
                           className="absolute inset-y-0.5 truncate rounded-md px-2 text-xs font-medium text-white hover:brightness-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400 focus-visible:ring-offset-1"
                           style={{ left: pos.left, width: pos.width, minWidth: '8px', backgroundColor: ev.colour }}
-                          title={`${ev.name}: ${ev.startDate} to ${ev.endDate}${ev.notes ? ` — ${ev.notes}` : ''}`}
                           aria-label={`${ev.name} (${typeLabel}): ${ev.startDate} to ${ev.endDate} — click to edit`}
                         >
                           {ev.name}
@@ -329,6 +369,9 @@ export function YearPlanView({
           </GanttShell>
         </div>
       </section>
+
+      {/* ── Hover tooltip (rendered at root to escape overflow:hidden) ── */}
+      <GanttTooltip item={tooltip} anchorPos={tooltipPos} />
 
       {/* ── Modals ── */}
       {showAddCampaign && (
