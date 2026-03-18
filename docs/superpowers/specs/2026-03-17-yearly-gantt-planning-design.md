@@ -39,6 +39,24 @@ CREATE TABLE campaigns (
 
 ## Architecture
 
+### TypeScript interface
+
+Define `Campaign` in `src/hooks/domain/useYearPlan.ts`:
+
+```typescript
+export interface Campaign {
+  id: string;
+  name: string;
+  type: 'campaign' | 'theme' | 'series';
+  startDate: string; // ISO date string (maps to start_date column)
+  endDate: string; // ISO date string (maps to end_date column)
+  colour: string; // hex, e.g. '#6366f1'
+  notes?: string;
+  createdBy?: string;
+  createdAt?: string;
+}
+```
+
 ### New files
 
 | File                                      | Purpose                                     |
