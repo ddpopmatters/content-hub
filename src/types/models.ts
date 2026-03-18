@@ -217,7 +217,7 @@ export interface Idea {
 export interface PlanningCampaign {
   id: string;
   name: string;
-  type: 'campaign' | 'theme' | 'series';
+  type: string;
   startDate: string; // ISO date string — maps to start_date column
   endDate: string; // ISO date string — maps to end_date column
   colour: string; // hex, e.g. '#6366f1'
@@ -610,7 +610,7 @@ export interface MonthlyReport {
   updatedAt: string;
 }
 
-export type OrgEventType = 'conference' | 'policy' | 'fundraising' | 'internal' | 'report' | 'partnership';
+export type OrgEventType = string;
 
 export interface OrgEvent {
   id: string;
