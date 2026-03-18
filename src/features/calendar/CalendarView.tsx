@@ -9,9 +9,7 @@ import { ALL_PLATFORMS, KANBAN_STATUSES, PRIORITY_TIERS } from '../../constants'
 import MonthGrid from './MonthGrid';
 import PlanningGrid from './PlanningGrid';
 import WeekGrid from './WeekGrid';
-import { MonthlyGlance } from './MonthlyGlance';
 import UpcomingDeadlines from './UpcomingDeadlines';
-import { KanbanView } from '../kanban';
 import BulkDateShift from './BulkDateShift';
 import { SavedFilters, loadFilterPresets, saveFilterPresets } from './SavedFilters';
 import type { FilterPreset } from './SavedFilters';
@@ -19,7 +17,7 @@ import type { Entry } from '../../types/models';
 import type { PlanningCampaign } from '../../hooks/domain/useYearPlan';
 import { YearPlanView } from './YearPlanView';
 
-type CalendarViewMode = 'month' | 'week' | 'board' | 'glance' | 'year';
+type CalendarViewMode = 'month' | 'week' | 'year';
 
 /** Get the Sunday of the week containing the given date */
 function getWeekStart(date: Date): Date {
@@ -513,9 +511,9 @@ export function CalendarView({
       <div className="flex flex-wrap items-center justify-between gap-3">
         {/* Left: view mode + navigation */}
         <div className="flex items-center gap-2">
-          {/* Month / Week / Board / Glance toggle */}
+          {/* Month / Week / Year toggle */}
           <div className="inline-flex rounded-lg border border-graystone-200 bg-graystone-50 p-0.5">
-            {(['month', 'week', 'board', 'glance', 'year'] as const).map((mode) => (
+            {(['month', 'week', 'year'] as const).map((mode) => (
               <button
                 key={mode}
                 type="button"
@@ -553,29 +551,33 @@ export function CalendarView({
             </div>
           )}
 
-          {/* Prev / date label / Next */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={viewMode === 'month' ? goToPrevMonth : goToPrevWeek}
-          >
-            Prev
-          </Button>
-          <button
-            type="button"
-            onClick={goToToday}
-            className="inline-flex items-center gap-2 rounded-md border border-graystone-200 bg-white px-3 py-1 text-sm font-medium text-graystone-700 shadow-sm hover:bg-graystone-50"
-          >
-            <CalendarIcon className="h-4 w-4 text-graystone-500" />
-            {viewMode === 'month' ? monthLabel : weekLabel}
-          </button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={viewMode === 'month' ? goToNextMonth : goToNextWeek}
-          >
-            Next
-          </Button>
+          {/* Prev / date label / Next — hidden in year view (YearPlanView has its own nav) */}
+          {viewMode !== 'year' && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={viewMode === 'month' ? goToPrevMonth : goToPrevWeek}
+              >
+                Prev
+              </Button>
+              <button
+                type="button"
+                onClick={goToToday}
+                className="inline-flex items-center gap-2 rounded-md border border-graystone-200 bg-white px-3 py-1 text-sm font-medium text-graystone-700 shadow-sm hover:bg-graystone-50"
+              >
+                <CalendarIcon className="h-4 w-4 text-graystone-500" />
+                {viewMode === 'month' ? monthLabel : weekLabel}
+              </button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={viewMode === 'month' ? goToNextMonth : goToNextWeek}
+              >
+                Next
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Right: action buttons */}
@@ -853,27 +855,6 @@ export function CalendarView({
             </div>
           )}
         </div>
-      )}
-
-      {/* ── Board view ───────────────────────────────────────────────────────── */}
-      {viewMode === 'board' && (
-        <KanbanView
-          entries={filteredEntries}
-          onOpenEntry={onOpenEntry}
-          onUpdateStatus={onUpdateStatus ?? (() => {})}
-        />
-      )}
-
-      {/* ── Glance view ──────────────────────────────────────────────────────── */}
-      {viewMode === 'glance' && (
-        <MonthlyGlance
-          entries={entries}
-          monthCursor={monthCursor}
-          onPrevMonth={goToPrevMonth}
-          onNextMonth={goToNextMonth}
-          onOpenEntry={onOpenEntry}
-          onUpdate={onUpdate ?? (() => {})}
-        />
       )}
 
       {/* ── Year plan view ───────────────────────────────────────────────────── */}
