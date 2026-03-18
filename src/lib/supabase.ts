@@ -291,6 +291,7 @@ import type {
   MonthlyReport,
   QualitativeInsights,
   OrgEvent,
+  DraftPost,
 } from '../types/models';
 
 // Local type aliases for types used only in this file
@@ -3033,11 +3034,108 @@ export const SUPABASE_API = {
       return false;
     }
   },
-};
 
-// ============================================
-// AUTHENTICATION
-// ============================================
+  // ==========================================
+  // PLANNING DRAFT POSTS
+  // ==========================================
+
+  fetchDraftPosts: async (year: number, month: number): Promise<DraftPost[]> => {
+    await initSupabase();
+    if (!supabase) return [];
+
+    const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const to = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+    try {
+      const { data, error } = await supabase
+        .from('planning_draft_posts')
+        .select('id, date, platform, topic, asset_type, notes, created_by, created_at')
+        .gte('date', from)
+        .lte('date', to)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        Logger.error(error, 'fetchDraftPosts');
+        return [];
+      }
+
+      return (data ?? []).map((row) => ({
+        id: row.id as string,
+        date: row.date as string,
+        platform: row.platform as string,
+        topic: row.topic as string,
+        assetType: row.asset_type as string,
+        notes: row.notes as string,
+        createdBy: row.created_by as string | null,
+        createdAt: row.created_at as string,
+      }));
+    } catch (error) {
+      Logger.error(error, 'fetchDraftPosts');
+      return [];
+    }
+  },
+
+  saveDraftPost: async (
+    post: Omit<DraftPost, 'id' | 'createdAt'> & { id?: string },
+  ): Promise<DraftPost | null> => {
+    await initSupabase();
+    if (!supabase) return null;
+
+    const row = {
+      date: post.date,
+      platform: post.platform,
+      topic: post.topic,
+      asset_type: post.assetType,
+      notes: post.notes,
+      created_by: post.createdBy ?? null,
+    };
+
+    try {
+      if (post.id) {
+        const { data, error } = await supabase
+          .from('planning_draft_posts')
+          .update(row)
+          .eq('id', post.id)
+          .select()
+          .single();
+
+        if (error) { Logger.error(error, 'saveDraftPost/update'); return null; }
+        return data
+          ? { id: data.id, date: data.date, platform: data.platform, topic: data.topic, assetType: data.asset_type, notes: data.notes, createdBy: data.created_by, createdAt: data.created_at }
+          : null;
+      } else {
+        const { data, error } = await supabase
+          .from('planning_draft_posts')
+          .insert(row)
+          .select()
+          .single();
+
+        if (error) { Logger.error(error, 'saveDraftPost/insert'); return null; }
+        return data
+          ? { id: data.id, date: data.date, platform: data.platform, topic: data.topic, assetType: data.asset_type, notes: data.notes, createdBy: data.created_by, createdAt: data.created_at }
+          : null;
+      }
+    } catch (error) {
+      Logger.error(error, 'saveDraftPost');
+      return null;
+    }
+  },
+
+  deleteDraftPost: async (id: string): Promise<boolean> => {
+    await initSupabase();
+    if (!supabase) return false;
+
+    try {
+      const { error } = await supabase.from('planning_draft_posts').delete().eq('id', id);
+      if (error) { Logger.error(error, 'deleteDraftPost'); return false; }
+      return true;
+    } catch (error) {
+      Logger.error(error, 'deleteDraftPost');
+      return false;
+    }
+  },
+};// ============================================
 
 export const AUTH = {
   signIn: async (email: string, password: string): Promise<AuthResult> => {
