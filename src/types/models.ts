@@ -609,3 +609,17 @@ export interface MonthlyReport {
   createdAt: string;
   updatedAt: string;
 }
+
+export type OrgEventType = 'conference' | 'policy' | 'fundraising' | 'internal' | 'report' | 'partnership';
+
+export interface OrgEvent {
+  id: string;
+  name: string;
+  type: OrgEventType;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  colour: string;
+  notes: string;
+  createdBy: string | null;
+  createdAt: string;
+}
