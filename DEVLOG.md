@@ -2,6 +2,16 @@
 
 <!-- Current month. Older entries rotate to devlog/YYYY-MM.md -->
 
+## 2026-03-18 — Draft post cards on monthly planning calendar
+- Tool: Claude Code (Sonnet 4.6)
+- Branch: feature/planning-draft-posts
+- Changes:
+  - New `planning_draft_posts` table (date, platform, topic, asset_type, notes) + RLS
+  - `SUPABASE_API.fetchDraftPosts/saveDraftPost/deleteDraftPost` in supabase.ts
+  - `DraftPostModal.tsx` — platform select, topic, asset type, notes; edit + delete
+  - `PlanningGrid.tsx` — colour-coded draft chips per day, `+ Draft` button per cell
+- Status: Complete
+
 ## 2026-03-17 — Yearly Gantt Planning View
 
 **Tool:** Claude Code (Sonnet 4.6) + Codex (quality reviewer)
