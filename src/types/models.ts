@@ -623,3 +623,14 @@ export interface OrgEvent {
   createdBy: string | null;
   createdAt: string;
 }
+
+export interface DraftPost {
+  id: string;
+  date: string; // YYYY-MM-DD
+  platform: string;
+  topic: string;
+  assetType: string;
+  notes: string;
+  createdBy: string | null;
+  createdAt: string;
+}
