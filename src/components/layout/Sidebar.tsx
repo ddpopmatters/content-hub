@@ -206,7 +206,6 @@ export function Sidebar({
           />
           <div>
             <h1 className="heading-font text-lg text-ocean-900">Content Hub</h1>
-            <p className="text-xs text-ocean-500">Dashboard</p>
           </div>
         </div>
       </div>
@@ -220,7 +219,7 @@ export function Sidebar({
             className={cx(
               'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors',
               activeItem === item.id
-                ? 'bg-ocean-600 text-white font-medium'
+                ? 'bg-white text-ocean-900 font-medium shadow-sm'
                 : 'text-ocean-200 hover:bg-ocean-700 hover:text-white',
             )}
           >
