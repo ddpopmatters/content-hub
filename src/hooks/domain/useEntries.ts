@@ -92,6 +92,17 @@ export function useEntries({
       .catch(() => pushSyncToast('Unable to refresh entries from the server.', 'warning'));
   }, [pushSyncToast]);
 
+  // Subscribe to realtime changes so all team members see each other's entries live
+  useEffect(() => {
+    if (authStatus !== 'ready') return;
+    const channel = SUPABASE_API.subscribeToEntries(() => {
+      refreshEntries();
+    });
+    return () => {
+      channel?.unsubscribe();
+    };
+  }, [authStatus, refreshEntries]);
+
   const closeEntry = useCallback(() => {
     setViewingId(null);
     setViewingSnapshot(null);
