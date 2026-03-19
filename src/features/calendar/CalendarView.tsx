@@ -17,7 +17,7 @@ import type { Entry } from '../../types/models';
 import type { PlanningCampaign } from '../../hooks/domain/useYearPlan';
 import { YearPlanView } from './YearPlanView';
 
-type CalendarViewMode = 'month' | 'week' | 'year';
+type CalendarViewMode = 'month' | 'week' | 'year' | 'list';
 
 /** Get the Sunday of the week containing the given date */
 function getWeekStart(date: Date): Date {
@@ -513,7 +513,7 @@ export function CalendarView({
         <div className="flex items-center gap-2">
           {/* Month / Week / Year toggle */}
           <div className="inline-flex rounded-lg border border-graystone-200 bg-graystone-50 p-0.5">
-            {(['month', 'week', 'year'] as const).map((mode) => (
+            {(['month', 'week', 'year', 'list'] as const).map((mode) => (
               <button
                 key={mode}
                 type="button"
@@ -551,8 +551,8 @@ export function CalendarView({
             </div>
           )}
 
-          {/* Prev / date label / Next — hidden in year view (YearPlanView has its own nav) */}
-          {viewMode !== 'year' && (
+          {/* Prev / date label / Next — hidden in year and list views */}
+          {viewMode !== 'year' && viewMode !== 'list' && (
             <>
               <Button
                 variant="outline"
@@ -866,6 +866,61 @@ export function CalendarView({
           onDelete={onDeleteCampaign}
           currentUser={userEmail}
         />
+      )}
+
+      {/* ── List view — all entries regardless of month ──────────────────────── */}
+      {viewMode === 'list' && (
+        <div className="space-y-1">
+          <p className="mb-3 text-sm text-graystone-500">
+            {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'} total
+            {activeFilterCount > 0
+              ? ` (${activeFilterCount} filter${activeFilterCount > 1 ? 's' : ''} active)`
+              : ''}
+          </p>
+          {filteredEntries.length === 0 ? (
+            <p className="py-10 text-center text-sm text-graystone-400">
+              No content yet. Use "Create content" to add your first entry.
+            </p>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-graystone-200 bg-white">
+              {filteredEntries.map((entry, i) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => onOpenEntry(entry.id)}
+                  className={cx(
+                    'w-full px-4 py-3 text-left transition-colors hover:bg-ocean-50 flex items-center gap-4',
+                    i > 0 && 'border-t border-graystone-100',
+                  )}
+                >
+                  <span className="w-24 shrink-0 text-xs font-medium text-graystone-500">
+                    {entry.date}
+                  </span>
+                  <span className="w-24 shrink-0 text-xs text-graystone-500">
+                    {entry.assetType}
+                  </span>
+                  <span className="flex-1 truncate text-sm text-ocean-900">
+                    {entry.caption || entry.platforms?.join(', ') || 'Untitled'}
+                  </span>
+                  <span
+                    className={cx(
+                      'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium',
+                      entry.workflowStatus === 'Published'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : entry.workflowStatus === 'Approved'
+                          ? 'bg-sky-100 text-sky-700'
+                          : entry.workflowStatus === 'Ready for Review'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-graystone-100 text-graystone-600',
+                    )}
+                  >
+                    {entry.workflowStatus || 'Draft'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── Calendar grid + sidebar ──────────────────────────────────────────── */}
