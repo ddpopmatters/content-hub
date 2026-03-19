@@ -1437,6 +1437,7 @@ function ContentDashboard() {
                         onAddCampaign={addCampaign}
                         onUpdateCampaign={updateCampaign}
                         onDeleteCampaign={deleteCampaign}
+                        onRefresh={refreshEntries}
                       />
                     );
                   case 'peaks':

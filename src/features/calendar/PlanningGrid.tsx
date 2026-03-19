@@ -7,6 +7,16 @@ import { ALL_PLATFORMS } from '../../constants';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
+const THEMES_KEY = 'content-hub-calendar-themes';
+
+function loadThemes(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(THEMES_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
 const PLATFORM_COLOURS: Record<string, string> = {
   Instagram: 'bg-pink-100 text-pink-700',
   LinkedIn: 'bg-blue-100 text-blue-700',
@@ -41,9 +51,13 @@ export function PlanningGrid({
   const [platformFilter, setPlatformFilter] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState>(CLOSED_MODAL);
   const [isSaving, setIsSaving] = useState(false);
+  const [themes, setThemes] = useState<Record<string, string>>(loadThemes);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
+  const monthThemeKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+
   useEffect(() => {
+    setThemes(loadThemes());
     SUPABASE_API.fetchPlanningNotes().then((fetched) => {
       setNotes(fetched);
     });
@@ -192,6 +206,11 @@ export function PlanningGrid({
         </div>
       )}
       <div role="grid" aria-label="Planning calendar">
+        {themes[monthThemeKey] && (
+          <div className="mb-3 rounded-xl border border-ocean-200 bg-ocean-50 px-3 py-1.5 text-sm font-medium text-ocean-800">
+            {themes[monthThemeKey]}
+          </div>
+        )}
         <div className="mb-1 grid grid-cols-7 gap-1">
           {DAY_LABELS.map((label) => (
             <div
@@ -203,102 +222,109 @@ export function PlanningGrid({
           ))}
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-3">
           {weeks.map((week) => (
-            <div key={week.weekKey} className="grid grid-cols-7 gap-1">
-              {week.slots.map((day, slotIndex) => {
-                if (day === null) {
+            <div key={week.weekKey}>
+              {themes[week.weekKey] && (
+                <div className="mb-1 border-b border-graystone-100 pb-0.5 px-1 text-xs font-medium text-graystone-500">
+                  {themes[week.weekKey]}
+                </div>
+              )}
+              <div className="grid grid-cols-7 gap-1">
+                {week.slots.map((day, slotIndex) => {
+                  if (day === null) {
+                    return (
+                      <div
+                        key={`empty-${slotIndex}`}
+                        className="min-h-24 rounded-lg bg-graystone-50 opacity-30"
+                      />
+                    );
+                  }
+
+                  const iso = isoFromParts(year, month, day);
+                  const isToday = iso === todayISO;
+                  const dayDrafts = draftsByDate[iso] ?? [];
+
                   return (
                     <div
-                      key={`empty-${slotIndex}`}
-                      className="min-h-24 rounded-lg bg-graystone-50 opacity-30"
-                    />
-                  );
-                }
-
-                const iso = isoFromParts(year, month, day);
-                const isToday = iso === todayISO;
-                const dayDrafts = draftsByDate[iso] ?? [];
-
-                return (
-                  <div
-                    key={iso}
-                    className={cx(
-                      'flex min-h-24 flex-col overflow-hidden rounded-lg border bg-white',
-                      isToday ? 'border-ocean-400' : 'border-graystone-200',
-                    )}
-                  >
-                    <div
+                      key={iso}
                       className={cx(
-                        'border-b px-1.5 py-1',
-                        isToday ? 'border-ocean-200 bg-ocean-50' : 'border-graystone-100',
+                        'flex min-h-24 flex-col overflow-hidden rounded-lg border bg-white',
+                        isToday ? 'border-ocean-400' : 'border-graystone-200',
                       )}
                     >
-                      <span
+                      <div
                         className={cx(
-                          'text-xs font-semibold',
-                          isToday ? 'text-ocean-700' : 'text-graystone-700',
+                          'border-b px-1.5 py-1',
+                          isToday ? 'border-ocean-200 bg-ocean-50' : 'border-graystone-100',
                         )}
                       >
-                        {day}
-                      </span>
-                    </div>
-
-                    {dayDrafts.length > 0 && (
-                      <div className="flex flex-col gap-0.5 px-1 pt-1">
-                        {dayDrafts.map((post) => (
-                          <button
-                            key={post.id}
-                            type="button"
-                            onClick={() => openEditDraft(post)}
-                            title={post.topic}
-                            className={cx(
-                              'w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium leading-tight',
-                              'transition-opacity hover:opacity-80',
-                              PLATFORM_COLOURS[post.platform] ??
-                                'bg-graystone-100 text-graystone-700',
-                            )}
-                          >
-                            {post.platform} · {post.topic}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    <textarea
-                      value={notes[iso] ?? ''}
-                      onChange={(e) => handleChange(iso, e.target.value)}
-                      placeholder="Notes…"
-                      aria-label={`Planning notes for ${iso}`}
-                      className="flex-1 resize-none bg-transparent p-1 text-[11px] leading-snug text-graystone-700 placeholder-graystone-300 focus:outline-none"
-                    />
-
-                    <div className="border-t border-graystone-100 px-1 py-0.5">
-                      <button
-                        type="button"
-                        onClick={() => openNewDraft(iso)}
-                        className="flex w-full items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-graystone-400 hover:bg-graystone-50 hover:text-ocean-600 transition-colors"
-                        aria-label={`Add draft post for ${iso}`}
-                      >
-                        <svg
-                          aria-hidden="true"
-                          width="10"
-                          height="10"
-                          viewBox="0 0 10 10"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
+                        <span
+                          className={cx(
+                            'text-xs font-semibold',
+                            isToday ? 'text-ocean-700' : 'text-graystone-700',
+                          )}
                         >
-                          <line x1="5" y1="1" x2="5" y2="9" />
-                          <line x1="1" y1="5" x2="9" y2="5" />
-                        </svg>
-                        Draft
-                      </button>
+                          {day}
+                        </span>
+                      </div>
+
+                      {dayDrafts.length > 0 && (
+                        <div className="flex flex-col gap-0.5 px-1 pt-1">
+                          {dayDrafts.map((post) => (
+                            <button
+                              key={post.id}
+                              type="button"
+                              onClick={() => openEditDraft(post)}
+                              title={post.topic}
+                              className={cx(
+                                'w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium leading-tight',
+                                'transition-opacity hover:opacity-80',
+                                PLATFORM_COLOURS[post.platform] ??
+                                  'bg-graystone-100 text-graystone-700',
+                              )}
+                            >
+                              {post.platform} · {post.topic}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <textarea
+                        value={notes[iso] ?? ''}
+                        onChange={(e) => handleChange(iso, e.target.value)}
+                        placeholder="Notes…"
+                        aria-label={`Planning notes for ${iso}`}
+                        className="flex-1 resize-none bg-transparent p-1 text-[11px] leading-snug text-graystone-700 placeholder-graystone-300 focus:outline-none"
+                      />
+
+                      <div className="border-t border-graystone-100 px-1 py-0.5">
+                        <button
+                          type="button"
+                          onClick={() => openNewDraft(iso)}
+                          className="flex w-full items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-graystone-400 hover:bg-graystone-50 hover:text-ocean-600 transition-colors"
+                          aria-label={`Add draft post for ${iso}`}
+                        >
+                          <svg
+                            aria-hidden="true"
+                            width="10"
+                            height="10"
+                            viewBox="0 0 10 10"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                          >
+                            <line x1="5" y1="1" x2="5" y2="9" />
+                            <line x1="1" y1="5" x2="9" y2="5" />
+                          </svg>
+                          Draft
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           ))}
         </div>

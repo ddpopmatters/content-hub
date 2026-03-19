@@ -92,6 +92,17 @@ export function useEntries({
       .catch(() => pushSyncToast('Unable to refresh entries from the server.', 'warning'));
   }, [pushSyncToast]);
 
+  // Subscribe to realtime changes so all team members see each other's entries live
+  useEffect(() => {
+    if (authStatus !== 'ready') return;
+    const channel = SUPABASE_API.subscribeToEntries(() => {
+      refreshEntries();
+    });
+    return () => {
+      channel?.unsubscribe();
+    };
+  }, [authStatus, refreshEntries]);
+
   const closeEntry = useCallback(() => {
     setViewingId(null);
     setViewingSnapshot(null);
@@ -396,6 +407,8 @@ export function useEntries({
       const timestamp = new Date().toISOString();
       let approvalNotifications: Record<string, unknown>[] = [];
       const pendingApproverAlerts: Record<string, unknown>[] = [];
+      let newApproverEntryForNotify: Record<string, unknown> | null = null;
+      let newApproversForNotify: string[] = [];
       const normalizedActor = (currentUser || '').trim().toLowerCase();
       setEntries((prev) =>
         prev.map((entry) =>
@@ -420,6 +433,8 @@ export function useEntries({
                       newApprovers,
                     ),
                   );
+                  newApproverEntryForNotify = sanitized as unknown as Record<string, unknown>;
+                  newApproversForNotify = newApprovers;
                 }
                 const actorIsApprover = normalizedActor
                   ? nextApprovers.some(
@@ -443,6 +458,28 @@ export function useEntries({
       );
       if (approvalNotifications.length) {
         addNotifications(approvalNotifications);
+      }
+      // CFA can't trace assignments made inside the setEntries callback, so assert the declared type
+      const entryForNotify = newApproverEntryForNotify as Record<string, unknown> | null;
+      const approversForNotify = newApproversForNotify;
+      if (entryForNotify && approversForNotify.length) {
+        try {
+          const emailPayload = buildEntryEmailPayload(entryForNotify);
+          const requesterName = currentUser || String(entryForNotify.author || '') || 'A teammate';
+          notifyViaServer(
+            {
+              approvers: approversForNotify,
+              to: approversForNotify,
+              teamsWebhookUrl: (guidelines as Record<string, unknown> | null)?.teamsWebhookUrl,
+              subject: emailPayload?.subject ?? `[PM Dashboard] Approval requested`,
+              text: emailPayload?.text ?? `${requesterName} assigned you as an approver.`,
+              html: emailPayload?.html,
+            },
+            `Send approval request (${entryForNotify.id})`,
+          );
+        } catch {
+          /* best-effort — notification failure must not block the save */
+        }
       }
       if (pendingApproverAlerts.length) {
         pendingApproverAlerts.forEach((entry) => notifyApproversAboutChange(entry));
@@ -496,6 +533,8 @@ export function useEntries({
       addNotifications,
       buildApprovalNotifications,
       notifyApproversAboutChange,
+      notifyViaServer,
+      guidelines,
       runSyncTask,
       refreshEntries,
       onEntryCreated,
