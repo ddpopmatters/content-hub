@@ -252,6 +252,8 @@ export interface CalendarViewProps {
   ) => void;
   /** Callback to delete a campaign */
   onDeleteCampaign: (id: string) => void;
+  /** Manually refresh entries from the server */
+  onRefresh?: () => void;
 }
 
 export function CalendarView({
@@ -279,6 +281,7 @@ export function CalendarView({
   onAddCampaign,
   onUpdateCampaign,
   onDeleteCampaign,
+  onRefresh,
 }: CalendarViewProps): React.ReactElement {
   // View mode and week navigation (week cursor stays internal)
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
@@ -582,6 +585,32 @@ export function CalendarView({
 
         {/* Right: action buttons */}
         <div className="flex items-center gap-2">
+          {/* Refresh */}
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              title="Refresh entries"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-graystone-200 bg-white px-3 py-1.5 text-sm font-medium text-graystone-600 transition hover:border-graystone-300 hover:bg-graystone-50"
+            >
+              <svg
+                aria-hidden="true"
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M1 7a6 6 0 1 0 1.5-3.9" />
+                <polyline points="1 2 1 6 5 6" />
+              </svg>
+              Refresh
+            </button>
+          )}
+
           {/* Filters toggle */}
           <button
             type="button"
