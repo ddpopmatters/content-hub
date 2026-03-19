@@ -3,6 +3,7 @@
 <!-- Current month. Older entries rotate to devlog/YYYY-MM.md -->
 
 ## 2026-03-18 — Draft post cards on monthly planning calendar
+
 - Tool: Claude Code (Sonnet 4.6)
 - Branch: feature/planning-draft-posts
 - Changes:
@@ -77,3 +78,33 @@
 - Added AGENTS.md with Codex-specific context
 - Created DEVLOG.md for cross-tool work record
   **Status:** Complete
+
+## 2026-03-18 — Show confirmed calendar themes in planning view
+
+**Tool:** Claude Code (Sonnet 4.6)
+**Branch:** feature/planning-themes → PR #22
+**Changes:**
+
+- `PlanningGrid.tsx`: reads `content-hub-calendar-themes` localStorage key (shared with `MonthGrid`)
+- Month theme displayed as teal banner above the day-of-week headers
+- Week themes displayed as a subtle label above each week row
+- Both re-sync when navigating months; hidden when empty
+  **Status:** Complete
+
+---
+
+## 2026-03-19: Add test suite — filters, utils, Button, terminology
+
+**Tool:** Claude Code (claude-sonnet-4-6)
+**Branch:** `feature/test-suite`
+
+**Changes:**
+
+- `src/lib/filters.test.ts` — 14 tests for `isApprovalOverdue` and `matchesSearch` (all 24 Entry fields incl. contentPillar, firstComment)
+- `src/lib/utils.test.ts` — 28 tests for cx, date helpers, uuid, ensureArray, ensurePeopleArray
+- `src/components/ui/__tests__/Button.test.tsx` — 7 smoke tests (render, type, onClick, disabled, aria, className merge, all 6 variants)
+- `src/lib/terminology.test.ts` — 16 tests locking in PM messaging compliance gate (checkTerminology, hasTerminologyIssues, all 5 banned terms, index/length accuracy)
+
+**Test count:** 81 → 197
+
+**Status:** Complete
