@@ -617,7 +617,7 @@ export interface OrgEvent {
   name: string;
   type: OrgEventType;
   startDate: string; // YYYY-MM-DD
-  endDate: string;   // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
   colour: string;
   notes: string;
   createdBy: string | null;

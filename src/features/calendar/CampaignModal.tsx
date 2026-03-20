@@ -9,32 +9,32 @@ import { Modal } from '../../components/ui/Modal';
 // 24-colour palette — 3 rows × 8, covers full spectrum
 export const GANTT_COLOUR_SWATCHES = [
   // Warm
-  { label: 'Crimson',  value: '#dc2626' },
-  { label: 'Coral',    value: '#ea580c' },
-  { label: 'Amber',    value: '#d97706' },
-  { label: 'Yellow',   value: '#ca8a04' },
-  { label: 'Lime',     value: '#65a30d' },
-  { label: 'Emerald',  value: '#059669' },
-  { label: 'Teal',     value: '#0d9488' },
-  { label: 'Cyan',     value: '#0891b2' },
+  { label: 'Crimson', value: '#dc2626' },
+  { label: 'Coral', value: '#ea580c' },
+  { label: 'Amber', value: '#d97706' },
+  { label: 'Yellow', value: '#ca8a04' },
+  { label: 'Lime', value: '#65a30d' },
+  { label: 'Emerald', value: '#059669' },
+  { label: 'Teal', value: '#0d9488' },
+  { label: 'Cyan', value: '#0891b2' },
   // Cool
-  { label: 'Sky',      value: '#0284c7' },
-  { label: 'Blue',     value: '#2563eb' },
-  { label: 'Indigo',   value: '#4338ca' },
-  { label: 'Violet',   value: '#7c3aed' },
-  { label: 'Purple',   value: '#9333ea' },
-  { label: 'Fuchsia',  value: '#c026d3' },
-  { label: 'Pink',     value: '#db2777' },
-  { label: 'Rose',     value: '#e11d48' },
+  { label: 'Sky', value: '#0284c7' },
+  { label: 'Blue', value: '#2563eb' },
+  { label: 'Indigo', value: '#4338ca' },
+  { label: 'Violet', value: '#7c3aed' },
+  { label: 'Purple', value: '#9333ea' },
+  { label: 'Fuchsia', value: '#c026d3' },
+  { label: 'Pink', value: '#db2777' },
+  { label: 'Rose', value: '#e11d48' },
   // Deep / muted
-  { label: 'Slate',    value: '#334155' },
-  { label: 'Steel',    value: '#475569' },
-  { label: 'Bronze',   value: '#92400e' },
-  { label: 'Forest',   value: '#166534' },
-  { label: 'Navy',     value: '#1e3a8a' },
-  { label: 'Plum',     value: '#6b21a8' },
-  { label: 'Garnet',   value: '#881337' },
-  { label: 'Moss',     value: '#3f6212' },
+  { label: 'Slate', value: '#334155' },
+  { label: 'Steel', value: '#475569' },
+  { label: 'Bronze', value: '#92400e' },
+  { label: 'Forest', value: '#166534' },
+  { label: 'Navy', value: '#1e3a8a' },
+  { label: 'Plum', value: '#6b21a8' },
+  { label: 'Garnet', value: '#881337' },
+  { label: 'Moss', value: '#3f6212' },
 ] as const;
 
 const PRESET_TYPES = ['campaign', 'theme', 'series'] as const;
@@ -141,7 +141,12 @@ export function CampaignModal({
           {isEditMode ? 'Edit campaign' : 'New campaign'}
         </h2>
 
-        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSave();
+          }}
+        >
           <div className="space-y-4">
             {/* Name */}
             <div className="space-y-1.5">
@@ -254,7 +259,10 @@ export function CampaignModal({
               {isEditMode && onDelete && (
                 <button
                   type="button"
-                  onClick={() => { onDelete(campaign.id); onClose(); }}
+                  onClick={() => {
+                    onDelete(campaign.id);
+                    onClose();
+                  }}
                   className="text-sm font-medium text-rose-600 hover:text-rose-700 focus:outline-none focus-visible:underline"
                 >
                   Delete

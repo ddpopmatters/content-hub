@@ -3,26 +3,33 @@ import { Button, Label } from '../../components/ui';
 import type { OrgEvent } from '../../types/models';
 import { GANTT_COLOUR_SWATCHES } from './CampaignModal';
 
-const PRESET_ORG_TYPES = ['conference', 'policy', 'fundraising', 'internal', 'report', 'partnership'] as const;
-type PresetOrgType = typeof PRESET_ORG_TYPES[number];
+const PRESET_ORG_TYPES = [
+  'conference',
+  'policy',
+  'fundraising',
+  'internal',
+  'report',
+  'partnership',
+] as const;
+type PresetOrgType = (typeof PRESET_ORG_TYPES)[number];
 
 const CUSTOM_SENTINEL = '__custom__';
 
 const ORG_EVENT_TYPE_LABELS: Record<PresetOrgType, string> = {
-  conference:  'Conference / event',
-  policy:      'Policy moment',
+  conference: 'Conference / event',
+  policy: 'Policy moment',
   fundraising: 'Fundraising',
-  internal:    'Internal milestone',
-  report:      'Report / publication',
+  internal: 'Internal milestone',
+  report: 'Report / publication',
   partnership: 'Partnership',
 };
 
 const TYPE_DEFAULT_COLOURS: Record<PresetOrgType, string> = {
-  conference:  '#7c3aed',
-  policy:      '#d97706',
+  conference: '#7c3aed',
+  policy: '#d97706',
   fundraising: '#059669',
-  internal:    '#475569',
-  report:      '#0284c7',
+  internal: '#475569',
+  report: '#0284c7',
   partnership: '#db2777',
 };
 
@@ -35,7 +42,10 @@ function isPreset(t: string): t is PresetOrgType {
 interface OrgEventModalProps {
   event?: OrgEvent;
   onSave: (data: Omit<OrgEvent, 'id' | 'createdBy' | 'createdAt'>) => void;
-  onUpdate?: (id: string, updates: Partial<Omit<OrgEvent, 'id' | 'createdBy' | 'createdAt'>>) => void;
+  onUpdate?: (
+    id: string,
+    updates: Partial<Omit<OrgEvent, 'id' | 'createdBy' | 'createdAt'>>,
+  ) => void;
   onDelete?: (id: string) => void;
   onClose: () => void;
 }
@@ -124,7 +134,9 @@ export function OrgEventModal({
       aria-modal="true"
       aria-label={isEditMode ? 'Edit org event' : 'Add org event'}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
         {/* Header */}
@@ -143,7 +155,10 @@ export function OrgEventModal({
         </div>
 
         <form
-          onSubmit={(e) => { e.preventDefault(); handleSave(); }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSave();
+          }}
           className="flex flex-col gap-4 px-5 py-4"
         >
           {/* Name */}
@@ -170,7 +185,9 @@ export function OrgEventModal({
               className={inputClass}
             >
               {PRESET_ORG_TYPES.map((t) => (
-                <option key={t} value={t}>{ORG_EVENT_TYPE_LABELS[t]}</option>
+                <option key={t} value={t}>
+                  {ORG_EVENT_TYPE_LABELS[t]}
+                </option>
               ))}
               <option disabled>──────────</option>
               <option value={CUSTOM_SENTINEL}>Custom…</option>
@@ -261,7 +278,10 @@ export function OrgEventModal({
               {isEditMode && onDelete && (
                 <button
                   type="button"
-                  onClick={() => { onDelete(event.id); onClose(); }}
+                  onClick={() => {
+                    onDelete(event.id);
+                    onClose();
+                  }}
                   className="text-sm font-medium text-rose-600 hover:text-rose-700 focus:outline-none focus-visible:underline"
                 >
                   Delete

@@ -19,7 +19,7 @@ function daysInYear(year: number): number {
 }
 
 const MONTH_DAYS_NORMAL = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-const MONTH_DAYS_LEAP   = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+const MONTH_DAYS_LEAP = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 function monthWidthPcts(year: number): number[] {
   const days = isLeapYear(year) ? MONTH_DAYS_LEAP : MONTH_DAYS_NORMAL;
@@ -69,25 +69,25 @@ function todayBarPosition(year: number): number | null {
 
 const CAMPAIGN_BADGE_CLASSES: Record<string, string> = {
   campaign: 'bg-ocean-100 text-ocean-700',
-  theme:    'bg-purple-100 text-purple-700',
-  series:   'bg-amber-100 text-amber-700',
+  theme: 'bg-purple-100 text-purple-700',
+  series: 'bg-amber-100 text-amber-700',
 };
 
 const ORG_TYPE_LABELS: Record<string, string> = {
-  conference:  'Conference',
-  policy:      'Policy',
+  conference: 'Conference',
+  policy: 'Policy',
   fundraising: 'Fundraising',
-  internal:    'Internal',
-  report:      'Publication',
+  internal: 'Internal',
+  report: 'Publication',
   partnership: 'Partnership',
 };
 
 const ORG_TYPE_BADGE_CLASSES: Record<string, string> = {
-  conference:  'bg-violet-100 text-violet-700',
-  policy:      'bg-amber-100 text-amber-700',
+  conference: 'bg-violet-100 text-violet-700',
+  policy: 'bg-amber-100 text-amber-700',
   fundraising: 'bg-emerald-100 text-emerald-700',
-  internal:    'bg-graystone-100 text-graystone-600',
-  report:      'bg-sky-100 text-sky-700',
+  internal: 'bg-graystone-100 text-graystone-600',
+  report: 'bg-sky-100 text-sky-700',
   partnership: 'bg-pink-100 text-pink-700',
 };
 
@@ -192,7 +192,12 @@ export function YearPlanView({
     setTooltipPos(null);
   }, []);
 
-  const { events: orgEvents, addEvent, updateEvent, deleteEvent } = useOrgEvents({
+  const {
+    events: orgEvents,
+    addEvent,
+    updateEvent,
+    deleteEvent,
+  } = useOrgEvents({
     year,
     currentUser,
   });
@@ -206,7 +211,6 @@ export function YearPlanView({
 
   return (
     <div className="flex flex-col gap-8">
-
       {/* ── Year navigation ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -275,7 +279,12 @@ export function YearPlanView({
                       <span className="truncate text-sm text-graystone-800" title={campaign.name}>
                         {campaign.name}
                       </span>
-                      <span className={cx('shrink-0 rounded px-1.5 py-0.5 text-xs font-medium', badgeClass)}>
+                      <span
+                        className={cx(
+                          'shrink-0 rounded px-1.5 py-0.5 text-xs font-medium',
+                          badgeClass,
+                        )}
+                      >
                         {campaign.type}
                       </span>
                     </div>
@@ -288,7 +297,12 @@ export function YearPlanView({
                           onMouseMove={moveTooltip}
                           onMouseLeave={hideTooltip}
                           className="absolute inset-y-0.5 truncate rounded-md px-2 text-xs font-medium text-white hover:brightness-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400 focus-visible:ring-offset-1"
-                          style={{ left: pos.left, width: pos.width, minWidth: '8px', backgroundColor: campaign.colour }}
+                          style={{
+                            left: pos.left,
+                            width: pos.width,
+                            minWidth: '8px',
+                            backgroundColor: campaign.colour,
+                          }}
                           aria-label={`${campaign.name} (${campaign.type}): ${campaign.startDate} to ${campaign.endDate} — click to edit`}
                         >
                           {campaign.name}
@@ -324,7 +338,8 @@ export function YearPlanView({
               orgEvents.map((ev) => {
                 const pos = barPosition(ev.startDate, ev.endDate, year);
                 const typeLabel = ORG_TYPE_LABELS[ev.type] ?? ev.type;
-                const badgeClass = ORG_TYPE_BADGE_CLASSES[ev.type] ?? 'bg-graystone-100 text-graystone-600';
+                const badgeClass =
+                  ORG_TYPE_BADGE_CLASSES[ev.type] ?? 'bg-graystone-100 text-graystone-600';
                 const tooltipItem: GanttTooltipItem = {
                   name: ev.name,
                   type: ev.type,
@@ -342,7 +357,12 @@ export function YearPlanView({
                       <span className="truncate text-sm text-graystone-800" title={ev.name}>
                         {ev.name}
                       </span>
-                      <span className={cx('shrink-0 rounded px-1.5 py-0.5 text-xs font-medium', badgeClass)}>
+                      <span
+                        className={cx(
+                          'shrink-0 rounded px-1.5 py-0.5 text-xs font-medium',
+                          badgeClass,
+                        )}
+                      >
                         {typeLabel}
                       </span>
                     </div>
@@ -355,7 +375,12 @@ export function YearPlanView({
                           onMouseMove={moveTooltip}
                           onMouseLeave={hideTooltip}
                           className="absolute inset-y-0.5 truncate rounded-md px-2 text-xs font-medium text-white hover:brightness-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400 focus-visible:ring-offset-1"
-                          style={{ left: pos.left, width: pos.width, minWidth: '8px', backgroundColor: ev.colour }}
+                          style={{
+                            left: pos.left,
+                            width: pos.width,
+                            minWidth: '8px',
+                            backgroundColor: ev.colour,
+                          }}
                           aria-label={`${ev.name} (${typeLabel}): ${ev.startDate} to ${ev.endDate} — click to edit`}
                         >
                           {ev.name}

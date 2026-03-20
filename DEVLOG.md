@@ -42,6 +42,15 @@
   - Re-ran lint, typecheck, and tests after the lockfile update
 - Status: Complete
 
+## 2026-03-20 — Align calendar files with Prettier for CI
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Reformatted `CampaignModal.tsx`, `GanttTooltip.tsx`, `OrgEventModal.tsx`, `YearPlanView.tsx`, `useOrgEvents.ts`, and `models.ts`
+  - Verified the exact Prettier check reported by CI now passes on those six files
+- Status: Complete
+
 ## 2026-03-20 — Fix disappearing entries + Supabase keep-alive
 
 - Tool: Claude Code (Sonnet 4.6)

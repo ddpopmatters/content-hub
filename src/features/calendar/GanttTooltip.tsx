@@ -97,9 +97,7 @@ export function GanttTooltip({ item, anchorPos }: GanttTooltipProps): React.Reac
       <div className="px-3 py-2.5 flex flex-col gap-1.5">
         {/* Name + type */}
         <div className="flex items-start justify-between gap-2">
-          <span className="text-sm font-semibold text-graystone-900 leading-snug">
-            {item.name}
-          </span>
+          <span className="text-sm font-semibold text-graystone-900 leading-snug">{item.name}</span>
           <span className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${item.badgeClass}`}>
             {item.typeLabel}
           </span>
@@ -107,8 +105,17 @@ export function GanttTooltip({ item, anchorPos }: GanttTooltipProps): React.Reac
 
         {/* Dates */}
         <div className="flex items-center gap-1 text-xs text-graystone-500">
-          <svg aria-hidden="true" width="11" height="11" viewBox="0 0 12 12" fill="none"
-            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            aria-hidden="true"
+            width="11"
+            height="11"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <rect x="1" y="2" width="10" height="9" rx="1.5" />
             <line x1="1" y1="5" x2="11" y2="5" />
             <line x1="4" y1="1" x2="4" y2="3" />
@@ -117,7 +124,9 @@ export function GanttTooltip({ item, anchorPos }: GanttTooltipProps): React.Reac
           {sameDay ? (
             <span>{formatDate(item.startDate)}</span>
           ) : (
-            <span>{formatDate(item.startDate)} – {formatDate(item.endDate)}</span>
+            <span>
+              {formatDate(item.startDate)} – {formatDate(item.endDate)}
+            </span>
           )}
         </div>
 

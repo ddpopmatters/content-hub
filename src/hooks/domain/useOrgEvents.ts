@@ -25,7 +25,10 @@ export function useOrgEvents({ year, currentUser }: UseOrgEventsOptions) {
   const addEvent = useCallback(
     (data: Omit<OrgEvent, 'id' | 'createdBy' | 'createdAt'>) => {
       SUPABASE_API.saveOrgEvent({ ...data, createdBy: null }, currentUser).then((saved) => {
-        if (saved) setEvents((prev) => [...prev, saved].sort((a, b) => a.startDate.localeCompare(b.startDate)));
+        if (saved)
+          setEvents((prev) =>
+            [...prev, saved].sort((a, b) => a.startDate.localeCompare(b.startDate)),
+          );
       });
     },
     [currentUser],
@@ -38,7 +41,8 @@ export function useOrgEvents({ year, currentUser }: UseOrgEventsOptions) {
         if (!existing) return prev;
         const merged = { ...existing, ...updates };
         SUPABASE_API.saveOrgEvent(merged, currentUser);
-        return prev.map((e) => (e.id === id ? merged : e))
+        return prev
+          .map((e) => (e.id === id ? merged : e))
           .sort((a, b) => a.startDate.localeCompare(b.startDate));
       });
     },
