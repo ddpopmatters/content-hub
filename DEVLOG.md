@@ -2,6 +2,18 @@
 
 <!-- Current month. Older entries rotate to devlog/YYYY-MM.md -->
 
+## 2026-03-20 — Fix disappearing entries + Supabase keep-alive
+
+- Tool: Claude Code (Sonnet 4.6)
+- Branch: main
+- Changes:
+  - Fixed bug: entries disappeared immediately after creation — `saveEntry` returned `null` on DB error instead of throwing, so `runSyncTask` always called `refreshEntries()` and wiped the optimistic entry; fixed by throwing instead
+  - Added GitHub Actions keep-alive cron (daily 08:00 UTC) to prevent Supabase free-tier auto-pause
+  - Schema recovery migration for missing migration 013 columns (content_category, series_name, etc.)
+  - Fixed 3 conflicting migration version keys and `CREATE POLICY IF NOT EXISTS` syntax error
+  - Added `20260320_seed_guidelines_default.sql` — upserts default guidelines row (prevents 406 on fresh project); apply via Supabase SQL editor
+- Status: Complete (seed migration needs applying to production)
+
 ## 2026-03-18 — Draft post cards on monthly planning calendar
 
 - Tool: Claude Code (Sonnet 4.6)
@@ -106,5 +118,22 @@
 - `src/lib/terminology.test.ts` — 16 tests locking in PM messaging compliance gate (checkTerminology, hasTerminologyIssues, all 5 banned terms, index/length accuracy)
 
 **Test count:** 81 → 197
+
+**Status:** Complete
+
+---
+
+## 2026-03-20: Fix realtime sync + repair production schema
+
+**Tool:** Claude Code (claude-sonnet-4-6)
+**Branch:** `main`
+
+**Changes:**
+
+- `src/hooks/domain/useEntries.ts` — Added realtime subscription via `SUPABASE_API.subscribeToEntries` so all team members see each other's entries live without manual refresh
+- `src/features/calendar/CalendarView.tsx` — Added Refresh button to calendar toolbar
+- `src/app.jsx` — Wired `onRefresh={refreshEntries}` to CalendarView
+- `supabase/migrations/20260320_restore_missing_013_columns.sql` — Restored 15 missing columns from migration 013 (content_category, partner_org, alt_text_status, utm_status, cta_type, etc.) that were absent from production despite being recorded as applied — caused all entry saves to fail with 400
+- Renamed 3 migration files that shared timestamp prefixes with already-applied migrations (causing `duplicate key` errors on push); fixed `CREATE POLICY IF NOT EXISTS` syntax errors in two migration files
 
 **Status:** Complete
