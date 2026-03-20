@@ -195,3 +195,18 @@
 - Renamed 3 migration files that shared timestamp prefixes with already-applied migrations (causing `duplicate key` errors on push); fixed `CREATE POLICY IF NOT EXISTS` syntax errors in two migration files
 
 **Status:** Complete
+
+---
+
+## 2026-03-20: Tolerate legacy entries schema in production
+
+**Tool:** Codex
+**Branch:** `main`
+
+**Changes:**
+
+- `src/lib/supabase.ts` — added `entries` upsert retry logic that detects PostgREST `PGRST204` missing-column errors, caches unsupported columns, and retries the save without those fields
+- `src/lib/supabase.ts` — hardened `saveEntry` so static deployments can keep writing to older production schemas instead of leaving creates stuck in the sync queue
+- Verified the change with `npm run typecheck`
+
+**Status:** Complete
