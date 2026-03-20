@@ -3,7 +3,11 @@ import { loadGuidelines, saveGuidelines, normalizeGuidelines } from '../../lib/g
 import { SUPABASE_API } from '../../lib/supabase';
 
 interface UseGuidelinesDeps {
-  runSyncTask: (label: string, action: () => Promise<unknown>) => Promise<boolean>;
+  runSyncTask: (
+    label: string,
+    action: () => Promise<unknown>,
+    options?: { requiresApi?: boolean },
+  ) => Promise<boolean>;
 }
 
 export function useGuidelines({ runSyncTask }: UseGuidelinesDeps) {
@@ -15,7 +19,9 @@ export function useGuidelines({ runSyncTask }: UseGuidelinesDeps) {
       const normalized = normalizeGuidelines(next);
       setGuidelines(normalized);
       saveGuidelines(normalized);
-      runSyncTask('Save guidelines', () => SUPABASE_API.saveGuidelines(normalized));
+      runSyncTask('Save guidelines', () => SUPABASE_API.saveGuidelines(normalized), {
+        requiresApi: false,
+      });
       setGuidelinesOpen(false);
     },
     [runSyncTask],

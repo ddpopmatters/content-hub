@@ -17,7 +17,11 @@ import { KANBAN_STATUSES } from '../../constants';
 import type { Entry } from '../../types/models';
 
 interface UseEntriesDeps {
-  runSyncTask: (label: string, fn: () => Promise<unknown>) => Promise<unknown>;
+  runSyncTask: (
+    label: string,
+    fn: () => Promise<unknown>,
+    options?: { requiresApi?: boolean },
+  ) => Promise<unknown>;
   pushSyncToast: (message: string, variant?: string) => void;
   currentUser: string;
   currentUserIsAdmin: boolean;
@@ -301,8 +305,10 @@ export function useEntries({
             testingFrameworkName: entry.testingFrameworkName,
             user: currentUser,
           };
-          runSyncTask(`Create entry (${entry.id})`, () =>
-            SUPABASE_API.saveEntry(entry as Partial<Entry>, currentUser || ''),
+          runSyncTask(
+            `Create entry (${entry.id})`,
+            () => SUPABASE_API.saveEntry(entry as Partial<Entry>, currentUser || ''),
+            { requiresApi: false },
           ).then((ok: unknown) => {
             if (ok) {
               onEntryCreated?.(entry);
@@ -495,8 +501,10 @@ export function useEntries({
           delete payload._sourceIdeaId;
 
           if (isNewEntry) {
-            runSyncTask(`Create entry (${updated.id})`, () =>
-              SUPABASE_API.saveEntry(updated as Partial<Entry>, currentUser || ''),
+            runSyncTask(
+              `Create entry (${updated.id})`,
+              () => SUPABASE_API.saveEntry(updated as Partial<Entry>, currentUser || ''),
+              { requiresApi: false },
             ).then((ok: unknown) => {
               if (ok) {
                 setEntries((prev) =>
@@ -511,8 +519,10 @@ export function useEntries({
               }
             });
           } else {
-            runSyncTask(`Update entry (${updated.id})`, () =>
-              SUPABASE_API.saveEntry(updated as Partial<Entry>, currentUser || ''),
+            runSyncTask(
+              `Update entry (${updated.id})`,
+              () => SUPABASE_API.saveEntry(updated as Partial<Entry>, currentUser || ''),
+              { requiresApi: false },
             ).then((ok: unknown) => {
               if (ok) refreshEntries();
             });
@@ -584,17 +594,20 @@ export function useEntries({
       );
       if (nextStatusForServer) {
         try {
-          runSyncTask(`Update approval (${id})`, () =>
-            SUPABASE_API.saveEntry(
-              {
-                ...entryRecord,
-                id,
-                status: nextStatusForServer as string,
-                workflowStatus: (nextWorkflowStatusForServer ?? undefined) as string | undefined,
-                approvedAt: nextStatusForServer === 'Approved' ? timestamp : undefined,
-              },
-              currentUser || '',
-            ),
+          runSyncTask(
+            `Update approval (${id})`,
+            () =>
+              SUPABASE_API.saveEntry(
+                {
+                  ...entryRecord,
+                  id,
+                  status: nextStatusForServer as string,
+                  workflowStatus: (nextWorkflowStatusForServer ?? undefined) as string | undefined,
+                  approvedAt: nextStatusForServer === 'Approved' ? timestamp : undefined,
+                },
+                currentUser || '',
+              ),
+            { requiresApi: false },
           ).then((ok: unknown) => {
             if (ok) refreshEntries();
           });
@@ -794,8 +807,11 @@ export function useEntries({
 
       const entry = entries.find((e) => e.id === id);
       if (entry) {
-        runSyncTask(`Toggle evergreen (${id})`, () =>
-          SUPABASE_API.saveEntry({ ...entry, evergreen: !entry.evergreen }, currentUser || ''),
+        runSyncTask(
+          `Toggle evergreen (${id})`,
+          () =>
+            SUPABASE_API.saveEntry({ ...entry, evergreen: !entry.evergreen }, currentUser || ''),
+          { requiresApi: false },
         );
       }
     },
@@ -814,8 +830,10 @@ export function useEntries({
 
       {
         const dateEntry = entries.find((e) => e.id === id);
-        runSyncTask(`Change date (${id})`, () =>
-          SUPABASE_API.saveEntry({ ...dateEntry, id, date: newDate }, currentUser || ''),
+        runSyncTask(
+          `Change date (${id})`,
+          () => SUPABASE_API.saveEntry({ ...dateEntry, id, date: newDate }, currentUser || ''),
+          { requiresApi: false },
         );
       }
 
@@ -861,11 +879,14 @@ export function useEntries({
       {
         originalDates.forEach((originalDate, entryId) => {
           const shiftEntry = entries.find((e) => e.id === entryId);
-          runSyncTask(`Shift date (${entryId})`, () =>
-            SUPABASE_API.saveEntry(
-              { ...shiftEntry, id: entryId, date: shiftDate(originalDate) },
-              currentUser || '',
-            ),
+          runSyncTask(
+            `Shift date (${entryId})`,
+            () =>
+              SUPABASE_API.saveEntry(
+                { ...shiftEntry, id: entryId, date: shiftDate(originalDate) },
+                currentUser || '',
+              ),
+            { requiresApi: false },
           );
         });
       }
@@ -904,17 +925,20 @@ export function useEntries({
       );
       const workflowEntry = entries.find((e) => e.id === id);
       try {
-        runSyncTask(`Update workflow (${id})`, () =>
-          SUPABASE_API.saveEntry(
-            {
-              ...workflowEntry,
-              id,
-              workflowStatus: nextStatus,
-              status: syncedStatus,
-              approvedAt: syncedStatus === 'Approved' ? timestamp : workflowEntry?.approvedAt,
-            },
-            currentUser || '',
-          ),
+        runSyncTask(
+          `Update workflow (${id})`,
+          () =>
+            SUPABASE_API.saveEntry(
+              {
+                ...workflowEntry,
+                id,
+                workflowStatus: nextStatus,
+                status: syncedStatus,
+                approvedAt: syncedStatus === 'Approved' ? timestamp : workflowEntry?.approvedAt,
+              },
+              currentUser || '',
+            ),
+          { requiresApi: false },
         ).then((ok: unknown) => {
           if (ok) refreshEntries();
         });
@@ -941,11 +965,11 @@ export function useEntries({
       );
       if (viewingId === id) closeEntry();
       try {
-        runSyncTask(`Delete entry (${id})`, () => SUPABASE_API.deleteEntry(id)).then(
-          (ok: unknown) => {
-            if (ok) refreshEntries();
-          },
-        );
+        runSyncTask(`Delete entry (${id})`, () => SUPABASE_API.deleteEntry(id), {
+          requiresApi: false,
+        }).then((ok: unknown) => {
+          if (ok) refreshEntries();
+        });
       } catch {
         /* sync failure handled by queue */
       }
@@ -963,11 +987,11 @@ export function useEntries({
         ),
       );
       try {
-        runSyncTask(`Restore entry (${id})`, () => SUPABASE_API.restoreEntry(id)).then(
-          (ok: unknown) => {
-            if (ok) refreshEntries();
-          },
-        );
+        runSyncTask(`Restore entry (${id})`, () => SUPABASE_API.restoreEntry(id), {
+          requiresApi: false,
+        }).then((ok: unknown) => {
+          if (ok) refreshEntries();
+        });
       } catch {
         /* sync failure handled by queue */
       }
@@ -983,9 +1007,9 @@ export function useEntries({
       setEntries((prev) => prev.filter((entry) => entry.id !== id));
       if (viewingId === id) closeEntry();
       try {
-        runSyncTask(`Delete entry permanently (${id})`, () =>
-          SUPABASE_API.hardDeleteEntry(id),
-        ).then((ok: unknown) => {
+        runSyncTask(`Delete entry permanently (${id})`, () => SUPABASE_API.hardDeleteEntry(id), {
+          requiresApi: false,
+        }).then((ok: unknown) => {
           if (ok) refreshEntries();
         });
       } catch {

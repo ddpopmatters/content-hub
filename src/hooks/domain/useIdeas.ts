@@ -6,7 +6,11 @@ import { SUPABASE_API } from '../../lib/supabase';
 
 interface UseIdeasDeps {
   currentUser: string;
-  runSyncTask: (label: string, action: () => Promise<unknown>) => Promise<boolean>;
+  runSyncTask: (
+    label: string,
+    action: () => Promise<unknown>,
+    options?: { requiresApi?: boolean },
+  ) => Promise<boolean>;
   pushSyncToast: (message: string, variant?: string) => void;
 }
 
@@ -33,8 +37,10 @@ export function useIdeas({ currentUser, runSyncTask, pushSyncToast }: UseIdeasDe
       });
       if (!sanitized) return;
       setIdeas((prev) => [sanitized, ...prev]);
-      runSyncTask(`Create idea (${sanitized.id})`, () =>
-        SUPABASE_API.saveIdea(sanitized, currentUser || ''),
+      runSyncTask(
+        `Create idea (${sanitized.id})`,
+        () => SUPABASE_API.saveIdea(sanitized, currentUser || ''),
+        { requiresApi: false },
       ).then((ok) => {
         if (ok) refreshIdeas();
       });
@@ -50,7 +56,9 @@ export function useIdeas({ currentUser, runSyncTask, pushSyncToast }: UseIdeasDe
   const deleteIdea = useCallback(
     (id: string) => {
       setIdeas((prev) => prev.filter((idea) => idea.id !== id));
-      runSyncTask(`Delete idea (${id})`, () => SUPABASE_API.deleteIdea(id)).then((ok) => {
+      runSyncTask(`Delete idea (${id})`, () => SUPABASE_API.deleteIdea(id), {
+        requiresApi: false,
+      }).then((ok) => {
         if (ok) refreshIdeas();
       });
       appendAudit({ user: currentUser, action: 'idea-delete', meta: { id } });
@@ -74,11 +82,14 @@ export function useIdeas({ currentUser, runSyncTask, pushSyncToast }: UseIdeasDe
       );
       const ideaToUpdate = ideas.find((i) => i.id === id);
       if (ideaToUpdate) {
-        runSyncTask(`Update idea conversion (${id})`, () =>
-          SUPABASE_API.saveIdea(
-            { ...ideaToUpdate, convertedToEntryId: convertedEntryId || undefined, convertedAt },
-            currentUser || '',
-          ),
+        runSyncTask(
+          `Update idea conversion (${id})`,
+          () =>
+            SUPABASE_API.saveIdea(
+              { ...ideaToUpdate, convertedToEntryId: convertedEntryId || undefined, convertedAt },
+              currentUser || '',
+            ),
+          { requiresApi: false },
         ).then((ok) => {
           if (ok) refreshIdeas();
         });

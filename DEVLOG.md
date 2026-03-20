@@ -51,6 +51,15 @@
   - Verified the exact Prettier check reported by CI now passes on those six files
 - Status: Complete
 
+## 2026-03-20 — Stop static sync queue from treating Supabase writes as offline
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Marked `useEntries.ts` sync tasks as `requiresApi: false` so GitHub Pages entry saves, updates, restores, and deletes go straight to `SUPABASE_API` instead of being queued behind `window.api.enabled`
+  - Applied the same direct-Supabase sync flag to `useIdeas.ts`, `useGuidelines.ts`, and `useYearPlan.ts` for consistency on the static host
+- Status: Complete
+
 ## 2026-03-20 — Fix disappearing entries + Supabase keep-alive
 
 - Tool: Claude Code (Sonnet 4.6)
