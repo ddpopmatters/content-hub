@@ -35,14 +35,20 @@ export interface AppConfig {
   FEATURES: FeatureFlags;
 }
 
+const supabaseUrl = import.meta.env.SUPABASE_URL || 'https://dvhjvtxtkmtsqlnurhfg.supabase.co';
+const supabaseAnonKey =
+  import.meta.env.SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aGp2dHh0a210c3FsbnVyaGZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5OTI0OTYsImV4cCI6MjA4MzU2ODQ5Nn0.c4yIpOZXqU8Doci2IN6uNKA_rWwrrMzbMDkMx9HCjcc';
+const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
+
 export const APP_CONFIG: AppConfig = {
   // Supabase configuration — injected by esbuild from .env at build time
-  SUPABASE_URL: import.meta.env.SUPABASE_URL || 'https://dvhjvtxtkmtsqlnurhfg.supabase.co',
-  SUPABASE_ANON_KEY: import.meta.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aGp2dHh0a210c3FsbnVyaGZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5OTI0OTYsImV4cCI6MjA4MzU2ODQ5Nn0.c4yIpOZXqU8Doci2IN6uNKA_rWwrrMzbMDkMx9HCjcc',
-  SUPABASE_ENABLED: true,
+  SUPABASE_URL: supabaseUrl,
+  SUPABASE_ANON_KEY: supabaseAnonKey,
+  SUPABASE_ENABLED: hasSupabaseConfig,
 
   // Authentication
-  AUTH_ENABLED: true,
+  AUTH_ENABLED: hasSupabaseConfig,
 
   // Organization branding
   ORG_NAME: 'Population Matters',

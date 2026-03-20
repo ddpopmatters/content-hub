@@ -8,6 +8,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = 'https://dvhjvtxtkmtsqlnurhfg.supabase.co';
 const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aGp2dHh0a210c3FsbnVyaGZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5OTI0OTYsImV4cCI6MjA4MzU2ODQ5Nn0.c4yIpOZXqU8Doci2IN6uNKA_rWwrrMzbMDkMx9HCjcc';
+const SUPABASE_ENABLED = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 const DEBUG_MODE = window.location.protocol === 'file:' || window.location.hostname === 'localhost';
 
 // Logger
@@ -18,8 +19,58 @@ const Logger = {
 
 // Supabase client
 let supabaseClient = null;
+let apiDisabledForSession = !SUPABASE_ENABLED;
+
+function isNetworkLikeError(error) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : typeof error?.message === 'string'
+          ? error.message
+          : '';
+
+  return [
+    'Failed to fetch',
+    'Load failed',
+    'NetworkError',
+    'ERR_NAME_NOT_RESOLVED',
+    'ERR_FAILED',
+    'fetch failed',
+  ].some((pattern) => message.includes(pattern));
+}
+
+function disableApiForSession() {
+  apiDisabledForSession = true;
+  try {
+    supabaseClient?.auth?.stopAutoRefresh?.();
+  } catch {}
+}
+
+async function verifySupabaseConnection() {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/`, {
+      method: 'GET',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      cache: 'no-store',
+    });
+    return true;
+  } catch (error) {
+    if (isNetworkLikeError(error)) {
+      disableApiForSession();
+      return false;
+    }
+    Logger.error(error, 'verifySupabaseConnection');
+    return false;
+  }
+}
 
 async function initSupabase() {
+  if (apiDisabledForSession) return null;
   if (supabaseClient) return supabaseClient;
 
   try {
@@ -31,9 +82,19 @@ async function initSupabase() {
       },
     });
 
+    const reachable = await verifySupabaseConnection();
+    if (!reachable) {
+      supabaseClient = null;
+      return null;
+    }
+
     Logger.debug('Supabase client initialized');
     return supabaseClient;
   } catch (error) {
+    if (isNetworkLikeError(error)) {
+      disableApiForSession();
+      return null;
+    }
     Logger.error(error, 'Failed to initialize Supabase');
     return null;
   }
@@ -440,9 +501,9 @@ async function getGuidelines() {
       .from('guidelines')
       .select('*')
       .eq('id', 'default')
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') throw error;
+    if (error) throw error;
     return data ? mapGuidelinesToApp(data) : null;
   } catch (error) {
     Logger.error(error, 'getGuidelines');
@@ -1187,65 +1248,72 @@ function mapGuidelinesToDb(guidelines) {
 (async () => {
   try {
     await initSupabase();
-    const enabled = supabaseClient !== null;
+    const api = {
+      // Entries
+      listEntries,
+      createEntry,
+      updateEntry,
+      deleteEntry,
+      // Ideas
+      listIdeas,
+      createIdea,
+      updateIdea,
+      deleteIdea,
+      // LinkedIn
+      listLinkedIn,
+      createLinkedIn,
+      updateLinkedIn,
+      deleteLinkedIn,
+      // Testing Frameworks
+      listTestingFrameworks,
+      createTestingFramework,
+      updateTestingFramework,
+      deleteTestingFramework,
+      // Guidelines
+      getGuidelines,
+      saveGuidelines,
+      // Users
+      listUsers,
+      getCurrentUser,
+      createUser,
+      updateUser,
+      deleteUser,
+      updateProfile,
+      listApprovers,
+      // Auth
+      signUp,
+      login,
+      signInWithMagicLink,
+      logout,
+      getSession,
+      onAuthStateChange,
+      ensureUserProfile,
+      acceptInvite,
+      changePassword,
+      // Audit
+      logAudit,
+      listAudit,
+      // Notifications
+      notify,
+    };
+    Object.defineProperty(api, 'enabled', {
+      enumerable: true,
+      get() {
+        return !apiDisabledForSession && supabaseClient !== null;
+      },
+    });
 
     if (typeof window !== 'undefined') {
-      window.api = Object.freeze({
-        enabled,
-        // Entries
-        listEntries,
-        createEntry,
-        updateEntry,
-        deleteEntry,
-        // Ideas
-        listIdeas,
-        createIdea,
-        updateIdea,
-        deleteIdea,
-        // LinkedIn
-        listLinkedIn,
-        createLinkedIn,
-        updateLinkedIn,
-        deleteLinkedIn,
-        // Testing Frameworks
-        listTestingFrameworks,
-        createTestingFramework,
-        updateTestingFramework,
-        deleteTestingFramework,
-        // Guidelines
-        getGuidelines,
-        saveGuidelines,
-        // Users
-        listUsers,
-        getCurrentUser,
-        createUser,
-        updateUser,
-        deleteUser,
-        updateProfile,
-        listApprovers,
-        // Auth
-        signUp,
-        login,
-        signInWithMagicLink,
-        logout,
-        getSession,
-        onAuthStateChange,
-        ensureUserProfile,
-        acceptInvite,
-        changePassword,
-        // Audit
-        logAudit,
-        listAudit,
-        // Notifications
-        notify,
-      });
+      window.api = Object.freeze(api);
 
       // Despatch ready event
       try {
-        window.dispatchEvent(new CustomEvent('pm-api-ready', { detail: { enabled } }));
+        window.dispatchEvent(
+          new CustomEvent('pm-api-ready', { detail: { enabled: window.api.enabled } }),
+        );
       } catch {}
 
-      Logger.debug('Supabase API client ready, enabled:', enabled);
+      Logger.debug('Supabase API client ready, enabled:', window.api.enabled);
     }
   } catch (error) {
     Logger.error(error, 'API initialization failed');

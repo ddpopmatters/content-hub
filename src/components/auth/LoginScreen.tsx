@@ -27,12 +27,20 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [apiReady, setApiReady] = useState(false);
+  const [apiUnavailable, setApiUnavailable] = useState(false);
 
   // Wait for API to be ready
   useEffect(() => {
     const checkApi = (): boolean => {
-      if ((window as unknown as { api?: { enabled?: boolean } }).api?.enabled) {
+      const enabled = (window as unknown as { api?: { enabled?: boolean } }).api?.enabled;
+      if (enabled) {
         setApiReady(true);
+        setApiUnavailable(false);
+        return true;
+      }
+      if (typeof enabled === 'boolean' && !enabled) {
+        setApiReady(false);
+        setApiUnavailable(true);
         return true;
       }
       return false;
@@ -232,6 +240,13 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
         {error && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
+          </div>
+        )}
+
+        {apiUnavailable && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Live authentication is currently unavailable. The app has paused backend requests for
+            this session to avoid repeated network errors.
           </div>
         )}
 

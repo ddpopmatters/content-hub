@@ -2,6 +2,26 @@
 
 <!-- Current month. Older entries rotate to devlog/YYYY-MM.md -->
 
+## 2026-03-20 — Quiet Supabase startup failures on static deploys
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Removed the bundled app's hardcoded Supabase fallback so direct client mode only activates when build-time credentials are actually provided
+  - Added a one-shot Supabase reachability probe plus session circuit breaker in both `src/lib/supabase.ts` and `public/js/supabaseClient.js` to stop repeated auth refresh and table fetch storms after DNS/CORS failures
+  - Switched guideline, current-user-profile, and custom-niche lookups to `maybeSingle()` so missing default rows no longer surface as noisy 406-style errors
+  - Updated `LoginScreen.tsx` to surface backend-unavailable state instead of waiting forever for `window.api.enabled`
+- Status: Complete
+
+## 2026-03-20 — Restore bundled Supabase credentials
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Reinserted the provided Supabase URL and anon key as the fallback bundled config in `src/lib/config.ts`
+  - Kept the session-level startup guard in place so unreachable/CORS-blocked Supabase does not trigger repeated request storms
+- Status: Complete
+
 ## 2026-03-20 — Fix disappearing entries + Supabase keep-alive
 
 - Tool: Claude Code (Sonnet 4.6)

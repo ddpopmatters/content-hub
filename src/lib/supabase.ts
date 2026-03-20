@@ -676,14 +676,69 @@ interface AuthResult {
 let supabase: SupabaseClient | null = null;
 // In-flight init promise — prevents multiple concurrent createClient calls
 let initPromise: Promise<SupabaseClient | null> | null = null;
+let supabaseDisabledForSession = !APP_CONFIG.SUPABASE_ENABLED;
+
+const isNetworkLikeError = (error: unknown): boolean => {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : typeof error === 'object' &&
+            error !== null &&
+            typeof (error as { message?: unknown }).message === 'string'
+          ? String((error as { message: string }).message)
+          : '';
+
+  return [
+    'Failed to fetch',
+    'Load failed',
+    'NetworkError',
+    'ERR_NAME_NOT_RESOLVED',
+    'ERR_FAILED',
+    'fetch failed',
+  ].some((pattern) => message.includes(pattern));
+};
+
+const disableSupabaseForSession = () => {
+  supabaseDisabledForSession = true;
+  initPromise = null;
+  try {
+    supabase?.auth.stopAutoRefresh?.();
+  } catch {
+    // Ignore stopAutoRefresh availability differences across SDK builds.
+  }
+};
+
+const verifySupabaseConnection = async (): Promise<boolean> => {
+  try {
+    await fetch(`${APP_CONFIG.SUPABASE_URL}/rest/v1/`, {
+      method: 'GET',
+      headers: {
+        apikey: APP_CONFIG.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${APP_CONFIG.SUPABASE_ANON_KEY}`,
+      },
+      cache: 'no-store',
+    });
+    return true;
+  } catch (error) {
+    if (isNetworkLikeError(error)) {
+      disableSupabaseForSession();
+      return false;
+    }
+    Logger.error(error, 'verifySupabaseConnection');
+    return false;
+  }
+};
 
 // Initialise Supabase client
 export const initSupabase = async (): Promise<SupabaseClient | null> => {
+  if (supabaseDisabledForSession) return null;
   if (supabase) return supabase;
   if (initPromise) return initPromise;
 
   if (!APP_CONFIG.SUPABASE_ENABLED) {
-    Logger.warn('Supabase is disabled in config');
+    disableSupabaseForSession();
     return null;
   }
 
@@ -704,10 +759,19 @@ export const initSupabase = async (): Promise<SupabaseClient | null> => {
         },
       });
 
+      const reachable = await verifySupabaseConnection();
+      if (!reachable) {
+        supabase = null;
+        return null;
+      }
+
       Logger.debug('Supabase client initialized');
       return supabase;
     } catch (error) {
       Logger.error(error, 'Failed to initialize Supabase');
+      if (isNetworkLikeError(error)) {
+        disableSupabaseForSession();
+      }
       initPromise = null; // allow retry on failure
       return null;
     }
@@ -1906,10 +1970,9 @@ export const SUPABASE_API = {
         .from('guidelines')
         .select('*')
         .eq('id', 'default')
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        // Not found is ok
+      if (error) {
         Logger.error(error, 'fetchGuidelines');
         return null;
       }
@@ -2034,7 +2097,7 @@ export const SUPABASE_API = {
         .from('user_profiles')
         .select('*')
         .eq('auth_user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         Logger.error(error, 'fetchCurrentUserProfile');
@@ -2225,10 +2288,9 @@ export const SUPABASE_API = {
         .from('custom_niches')
         .select('niches')
         .eq('id', 'default')
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        // Not found is ok
+      if (error) {
         Logger.error(error, 'fetchCustomNiches');
         return [];
       }
