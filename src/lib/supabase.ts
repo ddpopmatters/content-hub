@@ -677,6 +677,7 @@ let supabase: SupabaseClient | null = null;
 // In-flight init promise — prevents multiple concurrent createClient calls
 let initPromise: Promise<SupabaseClient | null> | null = null;
 let supabaseDisabledForSession = !APP_CONFIG.SUPABASE_ENABLED;
+const unsupportedEntryColumns = new Set<string>();
 
 const isNetworkLikeError = (error: unknown): boolean => {
   const message =
@@ -729,6 +730,56 @@ const verifySupabaseConnection = async (): Promise<boolean> => {
     Logger.error(error, 'verifySupabaseConnection');
     return false;
   }
+};
+
+const getMissingSchemaColumn = (error: unknown): string | null => {
+  if (!error || typeof error !== 'object') return null;
+  const code =
+    typeof (error as { code?: unknown }).code === 'string' ? (error as { code: string }).code : '';
+  const message =
+    typeof (error as { message?: unknown }).message === 'string'
+      ? (error as { message: string }).message
+      : '';
+
+  if (code !== 'PGRST204' || !message) return null;
+  const match = message.match(/Could not find the '([^']+)' column/i);
+  return match?.[1] ?? null;
+};
+
+const stripUnsupportedEntryColumns = (row: Record<string, unknown>): Record<string, unknown> => {
+  if (!unsupportedEntryColumns.size) return row;
+  const sanitized = { ...row };
+  unsupportedEntryColumns.forEach((column) => {
+    delete sanitized[column];
+  });
+  return sanitized;
+};
+
+const upsertEntryWithSchemaFallback = async (
+  row: Record<string, unknown>,
+): Promise<{ data: EntryRow | null; error: unknown | null }> => {
+  if (!supabase) {
+    return { data: null, error: new Error('Supabase not initialized') };
+  }
+
+  let dbRow = stripUnsupportedEntryColumns(row);
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { data, error } = await supabase.from('entries').upsert(dbRow).select().single();
+    if (!error) {
+      return { data: (data as EntryRow) ?? null, error: null };
+    }
+
+    const missingColumn = getMissingSchemaColumn(error);
+    if (!missingColumn) {
+      return { data: null, error };
+    }
+
+    unsupportedEntryColumns.add(missingColumn);
+    dbRow = stripUnsupportedEntryColumns(dbRow);
+  }
+
+  return { data: null, error: new Error('Entries schema is missing too many expected columns') };
 };
 
 // Initialise Supabase client
@@ -848,9 +899,8 @@ export const SUPABASE_API = {
     if (!supabase) return null;
 
     try {
-      const dbEntry = SUPABASE_API.mapEntryToDb(entry, userEmail);
-
-      const { data, error } = await supabase.from('entries').upsert(dbEntry).select().single();
+      const dbEntry = SUPABASE_API.mapEntryToDb(entry, userEmail) as Record<string, unknown>;
+      const { data, error } = await upsertEntryWithSchemaFallback(dbEntry);
 
       if (error) {
         Logger.error(error, 'saveEntry');
