@@ -790,7 +790,7 @@ export const SUPABASE_API = {
 
       if (error) {
         Logger.error(error, 'saveEntry');
-        return null;
+        throw error;
       }
 
       // Log activity
@@ -805,7 +805,7 @@ export const SUPABASE_API = {
       return data ? SUPABASE_API.mapEntryToApp(data as EntryRow) : null;
     } catch (error) {
       Logger.error(error, 'saveEntry');
-      return null;
+      throw error;
     }
   },
 
@@ -2960,7 +2960,10 @@ export const SUPABASE_API = {
         .gte('end_date', `${year}-01-01`)
         .order('start_date', { ascending: true });
 
-      if (error) { Logger.error(error, 'fetchOrgEvents'); return []; }
+      if (error) {
+        Logger.error(error, 'fetchOrgEvents');
+        return [];
+      }
 
       return (data ?? []).map((row) => ({
         id: row.id as string,
@@ -3004,16 +3007,42 @@ export const SUPABASE_API = {
           .eq('id', event.id)
           .select()
           .single();
-        if (error) { Logger.error(error, 'saveOrgEvent/update'); return null; }
-        return data ? { id: data.id, name: data.name, type: data.type, startDate: data.start_date, endDate: data.end_date, colour: data.colour, notes: data.notes, createdBy: data.created_by, createdAt: data.created_at } : null;
+        if (error) {
+          Logger.error(error, 'saveOrgEvent/update');
+          return null;
+        }
+        return data
+          ? {
+              id: data.id,
+              name: data.name,
+              type: data.type,
+              startDate: data.start_date,
+              endDate: data.end_date,
+              colour: data.colour,
+              notes: data.notes,
+              createdBy: data.created_by,
+              createdAt: data.created_at,
+            }
+          : null;
       } else {
-        const { data, error } = await supabase
-          .from('org_events')
-          .insert(row)
-          .select()
-          .single();
-        if (error) { Logger.error(error, 'saveOrgEvent/insert'); return null; }
-        return data ? { id: data.id, name: data.name, type: data.type, startDate: data.start_date, endDate: data.end_date, colour: data.colour, notes: data.notes, createdBy: data.created_by, createdAt: data.created_at } : null;
+        const { data, error } = await supabase.from('org_events').insert(row).select().single();
+        if (error) {
+          Logger.error(error, 'saveOrgEvent/insert');
+          return null;
+        }
+        return data
+          ? {
+              id: data.id,
+              name: data.name,
+              type: data.type,
+              startDate: data.start_date,
+              endDate: data.end_date,
+              colour: data.colour,
+              notes: data.notes,
+              createdBy: data.created_by,
+              createdAt: data.created_at,
+            }
+          : null;
       }
     } catch (error) {
       Logger.error(error, 'saveOrgEvent');
@@ -3027,7 +3056,10 @@ export const SUPABASE_API = {
 
     try {
       const { error } = await supabase.from('org_events').delete().eq('id', id);
-      if (error) { Logger.error(error, 'deleteOrgEvent'); return false; }
+      if (error) {
+        Logger.error(error, 'deleteOrgEvent');
+        return false;
+      }
       return true;
     } catch (error) {
       Logger.error(error, 'deleteOrgEvent');
@@ -3100,9 +3132,21 @@ export const SUPABASE_API = {
           .select()
           .single();
 
-        if (error) { Logger.error(error, 'saveDraftPost/update'); return null; }
+        if (error) {
+          Logger.error(error, 'saveDraftPost/update');
+          return null;
+        }
         return data
-          ? { id: data.id, date: data.date, platform: data.platform, topic: data.topic, assetType: data.asset_type, notes: data.notes, createdBy: data.created_by, createdAt: data.created_at }
+          ? {
+              id: data.id,
+              date: data.date,
+              platform: data.platform,
+              topic: data.topic,
+              assetType: data.asset_type,
+              notes: data.notes,
+              createdBy: data.created_by,
+              createdAt: data.created_at,
+            }
           : null;
       } else {
         const { data, error } = await supabase
@@ -3111,9 +3155,21 @@ export const SUPABASE_API = {
           .select()
           .single();
 
-        if (error) { Logger.error(error, 'saveDraftPost/insert'); return null; }
+        if (error) {
+          Logger.error(error, 'saveDraftPost/insert');
+          return null;
+        }
         return data
-          ? { id: data.id, date: data.date, platform: data.platform, topic: data.topic, assetType: data.asset_type, notes: data.notes, createdBy: data.created_by, createdAt: data.created_at }
+          ? {
+              id: data.id,
+              date: data.date,
+              platform: data.platform,
+              topic: data.topic,
+              assetType: data.asset_type,
+              notes: data.notes,
+              createdBy: data.created_by,
+              createdAt: data.created_at,
+            }
           : null;
       }
     } catch (error) {
@@ -3128,14 +3184,17 @@ export const SUPABASE_API = {
 
     try {
       const { error } = await supabase.from('planning_draft_posts').delete().eq('id', id);
-      if (error) { Logger.error(error, 'deleteDraftPost'); return false; }
+      if (error) {
+        Logger.error(error, 'deleteDraftPost');
+        return false;
+      }
       return true;
     } catch (error) {
       Logger.error(error, 'deleteDraftPost');
       return false;
     }
   },
-};// ============================================
+}; // ============================================
 
 export const AUTH = {
   signIn: async (email: string, password: string): Promise<AuthResult> => {
