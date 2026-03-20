@@ -1,11 +1,5 @@
 import React, { useState, useId } from 'react';
-import {
-  Modal,
-  ModalHeader,
-  ModalContent,
-  ModalFooter,
-  Button,
-} from '../../components/ui';
+import { Modal, ModalHeader, ModalContent, ModalFooter, Button } from '../../components/ui';
 import { ALL_PLATFORMS, ASSET_TYPES } from '../../constants';
 import type { DraftPost } from '../../types/models';
 
@@ -47,23 +41,26 @@ export function DraftPostModal({
 }: DraftPostModalProps): React.ReactElement {
   const headingId = useId();
   const isEditing = !!existing;
+  const initialPlatform = existing?.platform ?? ALL_PLATFORMS[0];
+  const initialTopic = existing?.topic ?? '';
+  const initialAssetType = existing?.assetType ?? ASSET_TYPES[0];
+  const initialNotes = existing?.notes ?? '';
 
-  const [platform, setPlatform] = useState(existing?.platform ?? ALL_PLATFORMS[0]);
-  const [topic, setTopic] = useState(existing?.topic ?? '');
-  const [assetType, setAssetType] = useState(existing?.assetType ?? ASSET_TYPES[0]);
-  const [notes, setNotes] = useState(existing?.notes ?? '');
+  const [platform, setPlatform] = useState(initialPlatform);
+  const [topic, setTopic] = useState(initialTopic);
+  const [assetType, setAssetType] = useState(initialAssetType);
+  const [notes, setNotes] = useState(initialNotes);
 
   // Reset form when modal opens for a new post or a different existing post
   const postId = existing?.id;
   React.useEffect(() => {
     if (open) {
-      setPlatform(existing?.platform ?? ALL_PLATFORMS[0]);
-      setTopic(existing?.topic ?? '');
-      setAssetType(existing?.assetType ?? ASSET_TYPES[0]);
-      setNotes(existing?.notes ?? '');
+      setPlatform(initialPlatform);
+      setTopic(initialTopic);
+      setAssetType(initialAssetType);
+      setNotes(initialNotes);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, postId]);
+  }, [open, postId, initialPlatform, initialTopic, initialAssetType, initialNotes]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -31,6 +31,17 @@
   - Updated `useApprovals.ts` to wait for `pm-api-ready` and avoid `/api/approvers` fallback when the static Supabase bridge script is present
 - Status: Complete
 
+## 2026-03-20 — Clear deploy audit gate and DraftPost lint error
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Removed the invalid `react-hooks/exhaustive-deps` suppression in `DraftPostModal.tsx` by making the reset effect dependency-safe
+  - Refreshed `package-lock.json` via `npm audit fix --package-lock-only`, upgrading `jspdf` to `4.2.1`, `dompurify` to `3.3.3`, and `flatted` to `3.4.2`
+  - Verified `npm audit --audit-level=critical` now returns 0 vulnerabilities
+  - Re-ran lint, typecheck, and tests after the lockfile update
+- Status: Complete
+
 ## 2026-03-20 — Fix disappearing entries + Supabase keep-alive
 
 - Tool: Claude Code (Sonnet 4.6)
