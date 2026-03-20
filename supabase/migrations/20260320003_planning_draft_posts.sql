@@ -14,14 +14,18 @@ CREATE INDEX IF NOT EXISTS planning_draft_posts_date_idx ON planning_draft_posts
 
 ALTER TABLE planning_draft_posts ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Authenticated users can read planning draft posts"
+DROP POLICY IF EXISTS "Authenticated users can read planning draft posts" ON planning_draft_posts;
+CREATE POLICY "Authenticated users can read planning draft posts"
   ON planning_draft_posts FOR SELECT TO authenticated USING (true);
 
-CREATE POLICY IF NOT EXISTS "Authenticated users can insert planning draft posts"
+DROP POLICY IF EXISTS "Authenticated users can insert planning draft posts" ON planning_draft_posts;
+CREATE POLICY "Authenticated users can insert planning draft posts"
   ON planning_draft_posts FOR INSERT TO authenticated WITH CHECK (true);
 
-CREATE POLICY IF NOT EXISTS "Authenticated users can update planning draft posts"
+DROP POLICY IF EXISTS "Authenticated users can update planning draft posts" ON planning_draft_posts;
+CREATE POLICY "Authenticated users can update planning draft posts"
   ON planning_draft_posts FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
-CREATE POLICY IF NOT EXISTS "Authenticated users can delete planning draft posts"
+DROP POLICY IF EXISTS "Authenticated users can delete planning draft posts" ON planning_draft_posts;
+CREATE POLICY "Authenticated users can delete planning draft posts"
   ON planning_draft_posts FOR DELETE TO authenticated USING (true);

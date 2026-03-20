@@ -9,11 +9,14 @@ CREATE TABLE IF NOT EXISTS planning_notes (
 
 ALTER TABLE planning_notes ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Authenticated users can read planning notes" ON planning_notes;
 CREATE POLICY "Authenticated users can read planning notes"
   ON planning_notes FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Authenticated users can insert planning notes" ON planning_notes;
 CREATE POLICY "Authenticated users can insert planning notes"
   ON planning_notes FOR INSERT TO authenticated WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Authenticated users can update planning notes" ON planning_notes;
 CREATE POLICY "Authenticated users can update planning notes"
   ON planning_notes FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
