@@ -1,6 +1,11 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { DEFAULT_APPROVERS } from '../../constants';
 
+const hasStaticApiBridgeScript = (): boolean => {
+  if (typeof document === 'undefined') return false;
+  return Boolean(document.querySelector('script[src*="supabaseClient.js"]'));
+};
+
 interface UseApprovalsDeps {
   apiGet: (url: string) => Promise<unknown>;
   entries: Record<string, unknown>[];
@@ -20,6 +25,9 @@ export function useApprovals({ apiGet, entries, viewerMatchesValue }: UseApprova
         payload = await (
           window.api as Record<string, (...args: unknown[]) => Promise<unknown>>
         ).listApprovers();
+      } else if (hasStaticApiBridgeScript()) {
+        setApproverDirectory(DEFAULT_APPROVERS);
+        return;
       } else {
         payload = await apiGet('/api/approvers');
       }
@@ -46,6 +54,14 @@ export function useApprovals({ apiGet, entries, viewerMatchesValue }: UseApprova
 
   useEffect(() => {
     refreshApprovers();
+  }, [refreshApprovers]);
+
+  useEffect(() => {
+    const handleApiReady = () => {
+      refreshApprovers();
+    };
+    window.addEventListener('pm-api-ready', handleApiReady);
+    return () => window.removeEventListener('pm-api-ready', handleApiReady);
   }, [refreshApprovers]);
 
   const outstandingApprovals = useMemo(

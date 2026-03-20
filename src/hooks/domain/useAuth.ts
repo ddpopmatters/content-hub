@@ -3,6 +3,11 @@ import { ensurePeopleArray, normalizeEmail, storageAvailable, STORAGE_KEYS } fro
 import { ensureFeaturesList } from '../../lib/users';
 const USER_STORAGE_KEY = STORAGE_KEYS.USER;
 
+const hasStaticApiBridgeScript = (): boolean => {
+  if (typeof document === 'undefined') return false;
+  return Boolean(document.querySelector('script[src*="supabaseClient.js"]'));
+};
+
 interface UseAuthDeps {
   apiGet: (url: string) => Promise<unknown>;
   apiPost: (url: string, body: unknown) => Promise<unknown>;
@@ -212,7 +217,11 @@ export function useAuth({ apiGet, apiPost, apiPut }: UseAuthDeps) {
     setAuthError('');
     try {
       let payload: Record<string, unknown> | null = null;
-      if (window.api && window.api.enabled) {
+      if (
+        window.api &&
+        typeof (window.api as Record<string, unknown>).getSession === 'function' &&
+        typeof (window.api as Record<string, unknown>).getCurrentUser === 'function'
+      ) {
         const session = await (
           window.api as Record<string, (...args: unknown[]) => Promise<unknown>>
         ).getSession?.();
@@ -226,6 +235,8 @@ export function useAuth({ apiGet, apiPost, apiPut }: UseAuthDeps) {
           ).getCurrentUser()) as Record<string, unknown>;
         }
         if (!payload) throw new Error('No authenticated session');
+      } else if (hasStaticApiBridgeScript()) {
+        throw new Error('Static API bridge not ready');
       } else {
         payload = (await apiGet('/api/user')) as Record<string, unknown>;
       }
@@ -242,7 +253,9 @@ export function useAuth({ apiGet, apiPost, apiPut }: UseAuthDeps) {
       setCurrentUserHasPassword(Boolean(payload?.hasPassword));
       setAuthStatus('ready');
     } catch (error) {
-      console.warn('Failed to fetch authenticated user', error);
+      if (!(error instanceof Error && error.message === 'Static API bridge not ready')) {
+        console.warn('Failed to fetch authenticated user', error);
+      }
       setCurrentUser('');
       setCurrentUserEmail('');
       setCurrentUserAvatar('');
@@ -257,6 +270,14 @@ export function useAuth({ apiGet, apiPost, apiPut }: UseAuthDeps) {
 
   useEffect(() => {
     hydrateCurrentUser();
+  }, [hydrateCurrentUser]);
+
+  useEffect(() => {
+    const handleApiReady = () => {
+      hydrateCurrentUser();
+    };
+    window.addEventListener('pm-api-ready', handleApiReady);
+    return () => window.removeEventListener('pm-api-ready', handleApiReady);
   }, [hydrateCurrentUser]);
 
   useEffect(() => {

@@ -22,6 +22,15 @@
   - Kept the session-level startup guard in place so unreachable/CORS-blocked Supabase does not trigger repeated request storms
 - Status: Complete
 
+## 2026-03-20 — Avoid `/api` fallback on static host boot
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Updated `useAuth.ts` to wait for the static `window.api` bridge before attempting auth hydration instead of calling `/api/user` on GitHub Pages
+  - Updated `useApprovals.ts` to wait for `pm-api-ready` and avoid `/api/approvers` fallback when the static Supabase bridge script is present
+- Status: Complete
+
 ## 2026-03-20 — Fix disappearing entries + Supabase keep-alive
 
 - Tool: Claude Code (Sonnet 4.6)
