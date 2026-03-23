@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { uuid, ensurePeopleArray } from '../../lib/utils';
 import {
   sanitizeEntry,
@@ -24,6 +24,7 @@ interface UseEntriesDeps {
   ) => Promise<unknown>;
   pushSyncToast: (message: string, variant?: string) => void;
   currentUser: string;
+  currentUserEmail: string;
   currentUserIsAdmin: boolean;
   viewerIsAuthor: (entry: Record<string, unknown>) => boolean;
   viewerIsApprover: (entry: Record<string, unknown>) => boolean;
@@ -45,6 +46,7 @@ export function useEntries({
   runSyncTask,
   pushSyncToast,
   currentUser,
+  currentUserEmail,
   currentUserIsAdmin,
   viewerIsAuthor,
   viewerIsApprover,
@@ -61,6 +63,7 @@ export function useEntries({
   const [entries, setEntries] = useState<Record<string, unknown>[]>([]);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [viewingSnapshot, setViewingSnapshot] = useState<Record<string, unknown> | null>(null);
+  const refreshRequestIdRef = useRef(0);
   const [previewEntryId, setPreviewEntryId] = useState('');
   const [previewEntryContext, setPreviewEntryContext] = useState('default');
   const [deepLinkEntryId, setDeepLinkEntryId] = useState<string>(() => {
@@ -90,10 +93,24 @@ export function useEntries({
     setEntries(loadEntries());
   }, []);
 
-  const refreshEntries = useCallback(() => {
-    SUPABASE_API.fetchEntries()
-      .then((payload: unknown) => Array.isArray(payload) && setEntries(payload))
-      .catch(() => pushSyncToast('Unable to refresh entries from the server.', 'warning'));
+  const refreshEntries = useCallback(async () => {
+    const requestId = refreshRequestIdRef.current + 1;
+    refreshRequestIdRef.current = requestId;
+
+    try {
+      const payload = await SUPABASE_API.fetchEntries();
+      if (requestId !== refreshRequestIdRef.current) return false;
+      if (Array.isArray(payload)) {
+        setEntries(payload);
+        return true;
+      }
+      return false;
+    } catch {
+      if (requestId === refreshRequestIdRef.current) {
+        pushSyncToast('Unable to refresh entries from the server.', 'warning');
+      }
+      return false;
+    }
   }, [pushSyncToast]);
 
   // Subscribe to realtime changes so all team members see each other's entries live
@@ -307,7 +324,11 @@ export function useEntries({
           };
           runSyncTask(
             `Create entry (${entry.id})`,
-            () => SUPABASE_API.saveEntry(entry as Partial<Entry>, currentUser || ''),
+            () =>
+              SUPABASE_API.saveEntry(
+                entry as Partial<Entry>,
+                currentUserEmail || currentUser || '',
+              ),
             { requiresApi: false },
           ).then((ok: unknown) => {
             if (ok) {
@@ -333,6 +354,7 @@ export function useEntries({
     },
     [
       currentUser,
+      currentUserEmail,
       addNotifications,
       buildApprovalNotifications,
       notifyViaServer,
@@ -503,7 +525,11 @@ export function useEntries({
           if (isNewEntry) {
             runSyncTask(
               `Create entry (${updated.id})`,
-              () => SUPABASE_API.saveEntry(updated as Partial<Entry>, currentUser || ''),
+              () =>
+                SUPABASE_API.saveEntry(
+                  updated as Partial<Entry>,
+                  currentUserEmail || currentUser || '',
+                ),
               { requiresApi: false },
             ).then((ok: unknown) => {
               if (ok) {
@@ -521,7 +547,11 @@ export function useEntries({
           } else {
             runSyncTask(
               `Update entry (${updated.id})`,
-              () => SUPABASE_API.saveEntry(updated as Partial<Entry>, currentUser || ''),
+              () =>
+                SUPABASE_API.saveEntry(
+                  updated as Partial<Entry>,
+                  currentUserEmail || currentUser || '',
+                ),
               { requiresApi: false },
             ).then((ok: unknown) => {
               if (ok) refreshEntries();
@@ -539,6 +569,7 @@ export function useEntries({
     },
     [
       currentUser,
+      currentUserEmail,
       entries,
       addNotifications,
       buildApprovalNotifications,
@@ -554,6 +585,7 @@ export function useEntries({
   const toggleApprove = useCallback(
     (id: string) => {
       const entryRecord = entries.find((entry) => entry.id === id) || null;
+      if (!entryRecord) return;
       const approving = entryRecord?.status !== 'Approved';
       const blockers = approving ? getWorkflowBlockers(entryRecord as Partial<Entry>) : [];
       if (approving && blockers.length) {
@@ -601,11 +633,16 @@ export function useEntries({
                 workflowStatus: nextWorkflowStatus,
                 approvedAt: nextStatus === 'Approved' ? timestamp : undefined,
               },
-              currentUser || '',
+              currentUserEmail || currentUser || '',
             ),
           { requiresApi: false },
         ).then((ok: unknown) => {
-          if (ok) refreshEntries();
+          if (ok) {
+            refreshEntries();
+            return;
+          }
+          pushSyncToast('Approval change failed to save. Reloaded server state.', 'warning');
+          refreshEntries();
         });
       } catch {
         /* sync failure handled by queue */
@@ -677,7 +714,16 @@ export function useEntries({
         }
       }
     },
-    [entries, currentUser, guidelines, runSyncTask, refreshEntries, notifyViaServer],
+    [
+      entries,
+      currentUser,
+      currentUserEmail,
+      guidelines,
+      runSyncTask,
+      refreshEntries,
+      notifyViaServer,
+      pushSyncToast,
+    ],
   );
 
   const handlePublishEntry = useCallback(
@@ -716,7 +762,10 @@ export function useEntries({
         setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
 
         try {
-          await SUPABASE_API.saveEntry({ id, ...updates } as Partial<Entry>, currentUser || '');
+          await SUPABASE_API.saveEntry(
+            { ...entry, ...updates } as Partial<Entry>,
+            currentUserEmail || currentUser || '',
+          );
         } catch (err) {
           console.error('Failed to persist publish status:', err);
         }
@@ -737,8 +786,8 @@ export function useEntries({
 
         try {
           await SUPABASE_API.saveEntry(
-            { id, publishStatus: failedStatus } as Partial<Entry>,
-            currentUser || '',
+            { ...entry, publishStatus: failedStatus } as Partial<Entry>,
+            currentUserEmail || currentUser || '',
           );
         } catch (err) {
           console.error('Failed to persist publish failure:', err);
@@ -751,7 +800,7 @@ export function useEntries({
         action: 'entry-publish-trigger',
       });
     },
-    [entries, publishSettings, currentUser],
+    [entries, publishSettings, currentUser, currentUserEmail],
   );
 
   const handlePostAgain = useCallback(
@@ -805,12 +854,15 @@ export function useEntries({
         runSyncTask(
           `Toggle evergreen (${id})`,
           () =>
-            SUPABASE_API.saveEntry({ ...entry, evergreen: !entry.evergreen }, currentUser || ''),
+            SUPABASE_API.saveEntry(
+              { ...entry, evergreen: !entry.evergreen },
+              currentUserEmail || currentUser || '',
+            ),
           { requiresApi: false },
         );
       }
     },
-    [entries, runSyncTask],
+    [entries, currentUser, currentUserEmail, runSyncTask],
   );
 
   const handleEntryDateChange = useCallback(
@@ -827,7 +879,11 @@ export function useEntries({
         const dateEntry = entries.find((e) => e.id === id);
         runSyncTask(
           `Change date (${id})`,
-          () => SUPABASE_API.saveEntry({ ...dateEntry, id, date: newDate }, currentUser || ''),
+          () =>
+            SUPABASE_API.saveEntry(
+              { ...dateEntry, id, date: newDate },
+              currentUserEmail || currentUser || '',
+            ),
           { requiresApi: false },
         );
       }
@@ -839,7 +895,7 @@ export function useEntries({
         meta: { newDate },
       });
     },
-    [currentUser, runSyncTask],
+    [entries, currentUser, currentUserEmail, runSyncTask],
   );
 
   const handleBulkDateShift = useCallback(
@@ -879,7 +935,7 @@ export function useEntries({
             () =>
               SUPABASE_API.saveEntry(
                 { ...shiftEntry, id: entryId, date: shiftDate(originalDate) },
-                currentUser || '',
+                currentUserEmail || currentUser || '',
               ),
             { requiresApi: false },
           );
@@ -892,7 +948,7 @@ export function useEntries({
         meta: { entryIds, daysDelta },
       });
     },
-    [entries, currentUser, runSyncTask],
+    [entries, currentUser, currentUserEmail, runSyncTask],
   );
 
   const updateWorkflowStatus = useCallback(
@@ -931,7 +987,7 @@ export function useEntries({
                 status: syncedStatus,
                 approvedAt: syncedStatus === 'Approved' ? timestamp : workflowEntry?.approvedAt,
               },
-              currentUser || '',
+              currentUserEmail || currentUser || '',
             ),
           { requiresApi: false },
         ).then((ok: unknown) => {
@@ -947,7 +1003,7 @@ export function useEntries({
         meta: { to: nextStatus },
       });
     },
-    [currentUser, runSyncTask, refreshEntries],
+    [currentUser, currentUserEmail, runSyncTask, refreshEntries],
   );
 
   const softDelete = useCallback(

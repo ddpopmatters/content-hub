@@ -1,19 +1,23 @@
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { useEntries } from '../useEntries';
 
-const { mockGetWorkflowBlockers, mockSanitizeEntry } = vi.hoisted(() => ({
-  mockGetWorkflowBlockers: vi.fn<
-    () => Array<{
-      key: string;
-      label: string;
-      detail: string;
-      required: boolean;
-      complete: boolean;
-    }>
-  >(() => []),
-  mockSanitizeEntry: vi.fn((e: Record<string, unknown>) => ({ ...e, _sanitized: true })),
-}));
+const { mockFetchEntries, mockGetWorkflowBlockers, mockSanitizeEntry, mockSaveEntry } = vi.hoisted(
+  () => ({
+    mockFetchEntries: vi.fn(() => Promise.resolve([])),
+    mockGetWorkflowBlockers: vi.fn<
+      () => Array<{
+        key: string;
+        label: string;
+        detail: string;
+        required: boolean;
+        complete: boolean;
+      }>
+    >(() => []),
+    mockSanitizeEntry: vi.fn((e: Record<string, unknown>) => ({ ...e, _sanitized: true })),
+    mockSaveEntry: vi.fn(() => Promise.resolve({ id: 'saved-entry' })),
+  }),
+);
 
 // Mock all external dependencies
 vi.mock('../../../lib/utils', () => ({
@@ -51,6 +55,17 @@ vi.mock('../../../lib/storage', () => ({
   saveEntries: vi.fn(),
 }));
 
+vi.mock('../../../lib/supabase', () => ({
+  SUPABASE_API: {
+    fetchEntries: mockFetchEntries,
+    subscribeToEntries: vi.fn(() => ({ unsubscribe: vi.fn() })),
+    saveEntry: mockSaveEntry,
+    deleteEntry: vi.fn(() => Promise.resolve(true)),
+    restoreEntry: vi.fn(() => Promise.resolve(true)),
+    hardDeleteEntry: vi.fn(() => Promise.resolve(true)),
+  },
+}));
+
 vi.mock('../../../features/publishing', () => ({
   triggerPublish: vi.fn(),
   initializePublishStatus: (e: Record<string, unknown>) => e,
@@ -66,6 +81,7 @@ function mockDeps(overrides: Partial<Parameters<typeof useEntries>[0]> = {}) {
     runSyncTask: vi.fn().mockResolvedValue(true),
     pushSyncToast: vi.fn(),
     currentUser: 'Dan Smith',
+    currentUserEmail: 'dan@example.com',
     currentUserIsAdmin: false,
     viewerIsAuthor: vi.fn(() => true),
     viewerIsApprover: vi.fn(() => false),
@@ -85,6 +101,8 @@ describe('useEntries', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetWorkflowBlockers.mockReturnValue([]);
+    mockFetchEntries.mockResolvedValue([]);
+    mockSaveEntry.mockResolvedValue({ id: 'saved-entry' });
   });
 
   describe('addEntry', () => {
@@ -415,6 +433,72 @@ describe('useEntries', () => {
         expect.any(Function),
         expect.objectContaining({ requiresApi: false }),
       );
+    });
+
+    it('passes currentUserEmail into the approval save action', async () => {
+      const deps = mockDeps();
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.addEntry({
+          date: '2026-03-15',
+          assetType: 'Blog',
+          approvers: ['Jane Doe'],
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      act(() => {
+        result.current.toggleApprove(id);
+      });
+
+      const runSyncTaskMock = deps.runSyncTask as Mock;
+      const approvalCall = runSyncTaskMock.mock.calls.find(([label]) =>
+        String(label).includes('Update approval'),
+      );
+      const action = approvalCall?.[1] as (() => Promise<unknown>) | undefined;
+
+      expect(action).toBeTypeOf('function');
+
+      await act(async () => {
+        await action?.();
+      });
+
+      expect(mockSaveEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id,
+          status: 'Approved',
+          workflowStatus: 'Approved',
+        }),
+        'dan@example.com',
+      );
+    });
+
+    it('shows an explicit approval error toast when persistence fails', async () => {
+      const deps = mockDeps({
+        runSyncTask: vi.fn().mockResolvedValue(false),
+      });
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.addEntry({
+          date: '2026-03-15',
+          assetType: 'Blog',
+          approvers: ['Jane Doe'],
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      await act(async () => {
+        result.current.toggleApprove(id);
+        await Promise.resolve();
+      });
+
+      expect(deps.pushSyncToast).toHaveBeenCalledWith(
+        'Approval change failed to save. Reloaded server state.',
+        'warning',
+      );
+      expect(mockFetchEntries).toHaveBeenCalled();
     });
   });
 

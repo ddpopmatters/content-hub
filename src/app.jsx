@@ -248,6 +248,7 @@ function ContentDashboard() {
     runSyncTask,
     pushSyncToast,
     currentUser,
+    currentUserEmail,
     currentUserIsAdmin,
     viewerIsAuthor,
     viewerIsApprover,

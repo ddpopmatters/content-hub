@@ -64,7 +64,15 @@ export function useSyncQueue() {
         return false;
       }
       try {
-        await action();
+        const result = await action();
+        if (result === false || result === null) {
+          const error = new Error(
+            result === false ? 'Action reported failure' : 'Action returned no data',
+          );
+          console.warn(`${label} failed`, error);
+          enqueueSyncTask(label, action, error, requiresApi);
+          return false;
+        }
         return true;
       } catch (error) {
         console.warn(`${label} failed`, error);

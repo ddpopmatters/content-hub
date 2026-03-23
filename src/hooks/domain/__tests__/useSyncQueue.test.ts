@@ -45,6 +45,34 @@ describe('useSyncQueue', () => {
       expect(result.current.syncQueue[0].attempts).toBe(1);
     });
 
+    it('treats a null result as a failed sync', async () => {
+      const { result } = renderHook(() => useSyncQueue());
+      const action = vi.fn().mockResolvedValue(null);
+
+      let success: boolean | undefined;
+      await act(async () => {
+        success = (await result.current.runSyncTask('Save entry', action)) as boolean;
+      });
+
+      expect(success).toBe(false);
+      expect(result.current.syncQueue).toHaveLength(1);
+      expect(result.current.syncQueue[0].lastError).toBe('Action returned no data');
+    });
+
+    it('treats a false result as a failed sync', async () => {
+      const { result } = renderHook(() => useSyncQueue());
+      const action = vi.fn().mockResolvedValue(false);
+
+      let success: boolean | undefined;
+      await act(async () => {
+        success = (await result.current.runSyncTask('Save entry', action)) as boolean;
+      });
+
+      expect(success).toBe(false);
+      expect(result.current.syncQueue).toHaveLength(1);
+      expect(result.current.syncQueue[0].lastError).toBe('Action reported failure');
+    });
+
     it('enqueues when API is offline', async () => {
       window.api = { enabled: false };
       const { result } = renderHook(() => useSyncQueue());

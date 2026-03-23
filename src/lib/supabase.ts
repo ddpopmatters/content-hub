@@ -347,6 +347,7 @@ interface EntryRow {
   priority_tier: string;
   approvers: string[];
   author: string;
+  author_email: string | null;
   campaign: string;
   content_pillar: string;
   content_category: string | null;
@@ -755,6 +756,12 @@ const stripUnsupportedEntryColumns = (row: Record<string, unknown>): Record<stri
   return sanitized;
 };
 
+const resolveEntryActorEmail = (userEmail: string | undefined): string | null => {
+  const trimmed = typeof userEmail === 'string' ? userEmail.trim() : '';
+  if (trimmed.includes('@')) return trimmed;
+  return getCurrentUserEmail() ?? (trimmed || null);
+};
+
 const upsertEntryWithSchemaFallback = async (
   row: Record<string, unknown>,
 ): Promise<{ data: EntryRow | null; error: unknown | null }> => {
@@ -777,6 +784,41 @@ const upsertEntryWithSchemaFallback = async (
 
     unsupportedEntryColumns.add(missingColumn);
     dbRow = stripUnsupportedEntryColumns(dbRow);
+  }
+
+  return { data: null, error: new Error('Entries schema is missing too many expected columns') };
+};
+
+const updateEntryWithSchemaFallback = async (
+  id: string,
+  row: Record<string, unknown>,
+): Promise<{ data: EntryRow | null; error: unknown | null }> => {
+  if (!supabase) {
+    return { data: null, error: new Error('Supabase not initialized') };
+  }
+
+  let dbRow = stripUnsupportedEntryColumns(row);
+  delete dbRow.id;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { data, error } = await supabase
+      .from('entries')
+      .update(dbRow)
+      .eq('id', id)
+      .select()
+      .single();
+    if (!error) {
+      return { data: (data as EntryRow) ?? null, error: null };
+    }
+
+    const missingColumn = getMissingSchemaColumn(error);
+    if (!missingColumn) {
+      return { data: null, error };
+    }
+
+    unsupportedEntryColumns.add(missingColumn);
+    dbRow = stripUnsupportedEntryColumns(dbRow);
+    delete dbRow.id;
   }
 
   return { data: null, error: new Error('Entries schema is missing too many expected columns') };
@@ -896,15 +938,40 @@ export const SUPABASE_API = {
 
   saveEntry: async (entry: Partial<Entry>, userEmail: string): Promise<Entry | null> => {
     await initSupabase();
-    if (!supabase) return null;
+    if (!supabase) {
+      throw new Error('Supabase not initialized');
+    }
 
     try {
-      const dbEntry = SUPABASE_API.mapEntryToDb(entry, userEmail) as Record<string, unknown>;
-      const { data, error } = await upsertEntryWithSchemaFallback(dbEntry);
+      let existingRow: EntryRow | null = null;
+      if (entry.id) {
+        const { data, error } = await supabase
+          .from('entries')
+          .select('*')
+          .eq('id', entry.id)
+          .maybeSingle();
+        if (error) {
+          Logger.error(error, 'saveEntry');
+          throw error;
+        }
+        existingRow = (data as EntryRow | null) ?? null;
+      }
 
-      if (error) {
-        Logger.error(error, 'saveEntry');
-        throw error;
+      const mergedEntry = existingRow
+        ? { ...SUPABASE_API.mapEntryToApp(existingRow), ...entry }
+        : entry;
+      const dbEntry = SUPABASE_API.mapEntryToDb(
+        mergedEntry,
+        existingRow?.author_email ?? resolveEntryActorEmail(userEmail) ?? '',
+      ) as Record<string, unknown>;
+      const { data, error } = existingRow
+        ? await updateEntryWithSchemaFallback(existingRow.id, dbEntry)
+        : await upsertEntryWithSchemaFallback(dbEntry);
+
+      if (error || !data) {
+        const saveError = error ?? new Error('Entry save returned no data');
+        Logger.error(saveError, 'saveEntry');
+        throw saveError;
       }
 
       // Log activity

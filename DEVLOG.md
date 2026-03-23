@@ -1,13 +1,46 @@
 # Content Hub — Dev Log
 
+## 2026-03-23 — Fix approval persistence save path
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - `src/hooks/domain/useEntries.ts` now passes `currentUserEmail` into all entry save operations, shows an explicit approval failure toast, refreshes server state on failed approval saves, and sequences refresh requests to avoid stale realtime/refresh overwrites
+  - `src/lib/supabase.ts` now updates existing `entries` rows in place instead of full-row upserting them, preserves the original `author_email`, merges partial updates with the current DB row, and throws when an entry save returns no row
+  - `src/hooks/domain/useSyncQueue.ts` now treats resolved `null` and `false` results as sync failures instead of silent successes
+  - Added regression coverage in `src/hooks/domain/__tests__/useEntries.test.ts` and `src/hooks/domain/__tests__/useSyncQueue.test.ts` for approval email persistence, approval failure feedback, and null/false sync results
+- Status: Complete
+
+## 2026-03-23 — Fix toggleApprove state-updater antipattern + apply RLS migration
+
+- Tool: Claude Code (Sonnet 4.6)
+- Branch: main
+- Changes:
+  - `toggleApprove` in `useEntries.ts`: `nextStatus` and `nextWorkflowStatus` are now pre-computed from `entryRecord` before the `setEntries` call — eliminates the fragile pattern of setting closure variables as side effects inside a state updater
+  - `runSyncTask` now called unconditionally (no `if (nextStatusForServer)` guard) — removes possibility of skipping DB save
+  - Test added: `'calls runSyncTask to persist the approval to the database'` asserting `runSyncTask` is called with the approval label and `requiresApi: false`
+  - `supabase/migrations/20260323_ensure_entries_rls_open.sql` — idempotent migration confirming `entries_update` policy is `USING (true) WITH CHECK (true)`; applied to production via `supabase db push --include-all`
+  - Also applied `20260320_restore_missing_013_columns.sql` (previously local-only, all no-ops — columns already existed)
+- Status: Complete
+
+## 2026-03-23 — Fix approval persistence + final advisory copy
+
+- Tool: Claude Code (Sonnet 4.6)
+- Branch: main
+- Changes:
+  - `EntryModal`: "Approval is blocked until..." → "Heads up — these items are incomplete:" (last remaining hard-block copy)
+  - `mapEntryToDb`: add `approved_at` field so approval timestamp persists to DB on save
+- Status: Complete
+
 ## 2026-03-23 — Soft-block approval flow — missing fields are advisory only
 
-- Tool: Claude Code (Opus 4.6)
-- Branch: fix/approval-flow-soft-blockers
+- Tool: Claude Code (Sonnet 4.6)
+- Branch: main
 - Changes:
   - `determineWorkflowStatus` no longer returns 'Draft' when execution fields (sourceVerified, ctaType, alt text, UTM, etc.) are incomplete — only requires approvers to be set
-  - `ApprovalsView` 'Mark approved' button is always enabled; blockers displayed as 'Heads up' advisory panel instead of hard gate
-  - Test updated: `sanitizers.test.ts` reflects soft-blocker behaviour
+  - `ApprovalsView` 'Mark approved' button always enabled; blockers displayed as 'Heads up' advisory panel instead of hard gate
+  - `toggleApprove` in useEntries: removed early return on blockers — approval now proceeds to DB save
+  - Tests updated across sanitizers, useEntries
 - Status: Complete
 
 <!-- Current month. Older entries rotate to devlog/YYYY-MM.md -->
