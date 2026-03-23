@@ -813,9 +813,7 @@ export function EntryModal({
             <p className="text-sm text-emerald-700">This entry is ready for review and approval.</p>
           ) : (
             <>
-              <p className="text-sm text-amber-700">
-                Approval is blocked until the following items are complete.
-              </p>
+              <p className="text-sm text-amber-700">Heads up — these items are incomplete:</p>
               <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-graystone-700">
                 {approvalBlockers.map((item) => (
                   <li key={item.key}>

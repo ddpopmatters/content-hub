@@ -2503,6 +2503,7 @@ export const SUPABASE_API = {
     script: entry.script || null,
     design_copy: entry.designCopy || null,
     carousel_slides: entry.carouselSlides || [],
+    approved_at: entry.approvedAt ?? null,
   }),
 
   mapMonthlyReportToApp: (row: MonthlyReportRow): MonthlyReport => ({
