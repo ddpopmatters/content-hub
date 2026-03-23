@@ -179,6 +179,17 @@
 
 **Status:** Complete
 
+## 2026-03-21 — Add audience simulation and Claude iteration workflow
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Added the new `src/features/audience-sim/` module with typed simulation models, PM persona config, Supabase helpers, `useAudienceSim`, `useIterate`, UI panels, and three Vitest coverage files
+  - Added `supabase/functions/simulate-audience/index.ts` and `supabase/functions/iterate-content/index.ts` to run persona simulation and Claude-guided revision flows against `audience_simulations`
+  - Wired a new `Audience Sim` tab into `src/features/entry/EntryModal.jsx` and passed the current draft entry into the panel so simulations run against in-modal copy
+  - Re-exported the audience simulation types from `src/types/models.ts` and verified the feature with lint, typecheck, and the full test suite
+- Status: Complete
+
 ---
 
 ## 2026-03-20: Fix realtime sync + repair production schema
