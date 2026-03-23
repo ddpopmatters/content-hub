@@ -47,3 +47,35 @@ See DEVLOG.md for latest activity and active branches.
 - Progress files in `.claude/progress/`
 - Existing Codex specs in `.codex-specs/`
 - Platform docs: `docs/platform-docs.md` (auto-generated reference)
+
+## Design Context
+
+Full context in `.impeccable.md`. Summary for every session:
+
+**Users:** Dan + Fran — two-person team, daily use, first tool they open. Emotional goal: calm confidence.
+
+**Brand personality:** Purposeful. Warm. Direct. Small team — the tool can have personality.
+
+**Colour tokens** (`src/styles/app.css`):
+
+- `ocean-600` (#0e4d63) — primary actions, buttons, active states
+- `ocean-400` (#1fb1c7) — hover, interactive highlights
+- `aqua-500` (#00ffff) — accent only, use sparingly
+- Status: `emerald`=published, `amber`=scheduled, `sky`=in review, `rose`=blocked
+- Use token names always — never raw hex in components
+
+**Typography:** Neue Haas Grotesk (font-sans). Semibold labels/buttons, regular body/metadata.
+
+**Shape language:** rounded-xl buttons, rounded-3xl modals/menus, shadow-sm cards, shadow-2xl elevated panels.
+
+**Microcopy:** "Add content" not "Create new item". "In review" not "PENDING_REVIEW". Encouraging empty states.
+
+**Anti-patterns — never build:** clinical white + grey-on-grey, glassmorphism, generic charity blue/white, cards-on-cards noise, SCREAMING_LABELS, "No data available" empty states.
+
+**Design principles:**
+
+1. Calendar is the hero surface — everything else serves it
+2. Glanceable: type, status, assignee visible without clicking in
+3. Status colours do work — don't waste them on decoration
+4. Warm, not corporate — two colleagues who want to open this daily
+5. Reduce cognitive load on context switches between content types
