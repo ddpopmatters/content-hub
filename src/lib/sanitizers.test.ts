@@ -38,7 +38,7 @@ describe('workflow readiness helpers', () => {
     expect(blockers.map((item) => item.label)).toEqual(['UTM plan ready', 'Alt text ready']);
   });
 
-  it('marks entries ready for review only when approvers exist and blockers are clear', () => {
+  it('marks entries ready for review when approvers exist, regardless of incomplete fields', () => {
     expect(
       determineWorkflowStatus({
         approvers: ['Fran'],
@@ -51,18 +51,19 @@ describe('workflow readiness helpers', () => {
       }),
     ).toBe('Ready for Review');
 
+    // incomplete fields (altTextStatus Pending) should not block approval
     expect(
       determineWorkflowStatus({
         approvers: ['Fran'],
         assetType: 'Design',
         previewUrl: 'https://cdn.pm/image.png',
         altTextStatus: 'Pending',
-        sourceVerified: true,
-        ctaType: 'Donate',
+        sourceVerified: false,
         platforms: ['Instagram'],
       }),
-    ).toBe('Draft');
+    ).toBe('Ready for Review');
 
+    // no approvers → still Draft
     expect(
       determineWorkflowStatus({
         approvers: [],
