@@ -331,7 +331,7 @@ describe('useEntries', () => {
       expect(entry?.approvedAt).toBeFalsy();
     });
 
-    it('blocks approval when workflow blockers remain', () => {
+    it('approves despite workflow blockers, showing an advisory toast', () => {
       mockGetWorkflowBlockers.mockReturnValue([
         {
           key: 'sourceVerified',
@@ -357,11 +357,10 @@ describe('useEntries', () => {
         result.current.toggleApprove(id);
       });
 
-      expect(result.current.entries.find((e) => e.id === id)?.status).toBe('Pending');
-      expect(deps.pushSyncToast).toHaveBeenCalledWith(
-        'Approval blocked: Source verified',
-        'warning',
-      );
+      // approval proceeds — status flips to Approved
+      expect(result.current.entries.find((e) => e.id === id)?.status).toBe('Approved');
+      // advisory toast shown, not a hard block
+      expect(deps.pushSyncToast).toHaveBeenCalledWith('Heads up: Source verified', 'warning');
     });
   });
 

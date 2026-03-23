@@ -558,13 +558,12 @@ export function useEntries({
       const blockers = approving ? getWorkflowBlockers(entryRecord as Partial<Entry>) : [];
       if (approving && blockers.length) {
         pushSyncToast(
-          `Approval blocked: ${blockers
+          `Heads up: ${blockers
             .map((item) => item.label)
             .slice(0, 3)
             .join(', ')}`,
           'warning',
         );
-        return;
       }
       const timestamp = new Date().toISOString();
       let nextStatusForServer: string | null = null;
