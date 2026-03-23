@@ -1720,7 +1720,7 @@ export function EntryModal({
                   variant="outline"
                   onClick={() => onApprove(draft.id)}
                   className="gap-2"
-                  disabled={!canApproveReadiness}
+                  disabled={false}
                 >
                   Mark as approved
                 </Button>
@@ -1763,9 +1763,13 @@ export function EntryModal({
               )}
             </div>
             <div className="flex items-center gap-3">
-              {!canApproveReadiness && isApproverView && draft.status !== 'Approved' ? (
+              {approvalBlockers.length > 0 && isApproverView && draft.status !== 'Approved' ? (
                 <span className="text-xs text-amber-700">
-                  Approval blocked until review readiness is complete.
+                  Heads up:{' '}
+                  {approvalBlockers
+                    .map((b) => b.label)
+                    .slice(0, 2)
+                    .join(', ')}
                 </span>
               ) : null}
               <Button variant="ghost" onClick={onClose}>
