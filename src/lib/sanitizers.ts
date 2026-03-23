@@ -532,13 +532,9 @@ export const getWorkflowBlockers = (
 };
 
 // Determine workflow status
-export const determineWorkflowStatus = ({
-  approvers = [],
-  ...entry
-}: DetermineWorkflowParams): string => {
+export const determineWorkflowStatus = ({ approvers = [] }: DetermineWorkflowParams): string => {
   const hasApprovers = Array.isArray(approvers) && approvers.length > 0;
   if (!hasApprovers) return 'Draft';
-  if (getWorkflowBlockers({ approvers, ...entry }).length) return 'Draft';
   return 'Ready for Review';
 };
 
