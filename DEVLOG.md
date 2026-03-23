@@ -1,5 +1,15 @@
 # Content Hub — Dev Log
 
+## 2026-03-23 — Soft-block approval flow — missing fields are advisory only
+
+- Tool: Claude Code (Opus 4.6)
+- Branch: fix/approval-flow-soft-blockers
+- Changes:
+  - `determineWorkflowStatus` no longer returns 'Draft' when execution fields (sourceVerified, ctaType, alt text, UTM, etc.) are incomplete — only requires approvers to be set
+  - `ApprovalsView` 'Mark approved' button is always enabled; blockers displayed as 'Heads up' advisory panel instead of hard gate
+  - Test updated: `sanitizers.test.ts` reflects soft-blocker behaviour
+- Status: Complete
+
 <!-- Current month. Older entries rotate to devlog/YYYY-MM.md -->
 
 ## 2026-03-20 — Quiet Supabase startup failures on static deploys
