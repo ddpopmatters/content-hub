@@ -566,25 +566,22 @@ export function useEntries({
         );
       }
       const timestamp = new Date().toISOString();
-      let nextStatusForServer: string | null = null;
-      let nextWorkflowStatusForServer: string | null = null;
+      // Pre-compute before setEntries — derived from entryRecord, no side effects in updater
+      const nextStatus = approving ? 'Approved' : 'Pending';
+      const nextWorkflowStatus = nextStatus === 'Approved' ? 'Approved' : 'Ready for Review';
       setEntries((prev) =>
         prev.map((entry) => {
           if (entry.id !== id) return entry;
-          const toggled = entry.status === 'Approved' ? 'Pending' : 'Approved';
-          nextStatusForServer = toggled;
-          const workflowStatus = toggled === 'Approved' ? 'Approved' : 'Ready for Review';
           const updatedEntry = sanitizeEntry({
             ...entry,
-            status: toggled,
-            workflowStatus,
-            approvedAt: toggled === 'Approved' ? timestamp : undefined,
+            status: nextStatus,
+            workflowStatus: nextWorkflowStatus,
+            approvedAt: nextStatus === 'Approved' ? timestamp : undefined,
             updatedAt: timestamp,
           });
-          nextWorkflowStatusForServer = workflowStatus;
           const normalized = {
             ...updatedEntry,
-            workflowStatus,
+            workflowStatus: nextWorkflowStatus,
           };
           return {
             ...normalized,
@@ -592,33 +589,31 @@ export function useEntries({
           };
         }),
       );
-      if (nextStatusForServer) {
-        try {
-          runSyncTask(
-            `Update approval (${id})`,
-            () =>
-              SUPABASE_API.saveEntry(
-                {
-                  ...entryRecord,
-                  id,
-                  status: nextStatusForServer as string,
-                  workflowStatus: (nextWorkflowStatusForServer ?? undefined) as string | undefined,
-                  approvedAt: nextStatusForServer === 'Approved' ? timestamp : undefined,
-                },
-                currentUser || '',
-              ),
-            { requiresApi: false },
-          ).then((ok: unknown) => {
-            if (ok) refreshEntries();
-          });
-        } catch {
-          /* sync failure handled by queue */
-        }
+      try {
+        runSyncTask(
+          `Update approval (${id})`,
+          () =>
+            SUPABASE_API.saveEntry(
+              {
+                ...entryRecord,
+                id,
+                status: nextStatus,
+                workflowStatus: nextWorkflowStatus,
+                approvedAt: nextStatus === 'Approved' ? timestamp : undefined,
+              },
+              currentUser || '',
+            ),
+          { requiresApi: false },
+        ).then((ok: unknown) => {
+          if (ok) refreshEntries();
+        });
+      } catch {
+        /* sync failure handled by queue */
       }
       appendAudit({
         user: currentUser,
         entryId: id,
-        action: nextStatusForServer === 'Approved' ? 'entry-approve' : 'entry-unapprove',
+        action: nextStatus === 'Approved' ? 'entry-approve' : 'entry-unapprove',
       });
       const entryApprovers = ensurePeopleArray(entryRecord?.approvers);
       const descriptor =
@@ -631,7 +626,7 @@ export function useEntries({
         (guidelines as Record<string, unknown>)?.teamsWebhookUrl || entryApprovers.length;
       if (shouldNotify) {
         try {
-          const statusMsg = nextStatusForServer === 'Approved' ? 'approved' : 'unapproved';
+          const statusMsg = nextStatus === 'Approved' ? 'approved' : 'unapproved';
           const subjectLabel =
             (entryRecord?.campaign as string) ||
             (entryRecord?.contentPillar as string) ||
@@ -665,7 +660,7 @@ export function useEntries({
         }
       }
       const requestorNames = ensurePeopleArray(entryRecord?.author);
-      if (nextStatusForServer === 'Approved' && requestorNames.length) {
+      if (nextStatus === 'Approved' && requestorNames.length) {
         try {
           const subjectApproved = `[PM Dashboard] Approved: ${descriptor}`;
           const textApproved = `${currentUser} approved ${descriptor}.`;

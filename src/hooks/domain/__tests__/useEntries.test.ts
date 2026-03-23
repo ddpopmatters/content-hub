@@ -391,6 +391,31 @@ describe('useEntries', () => {
       // advisory toast shown, not a hard block
       expect(deps.pushSyncToast).toHaveBeenCalledWith('Heads up: Source verified', 'warning');
     });
+
+    it('calls runSyncTask to persist the approval to the database', () => {
+      const deps = mockDeps();
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.addEntry({
+          date: '2026-03-15',
+          assetType: 'Blog',
+          approvers: ['Jane Doe'],
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      act(() => {
+        result.current.toggleApprove(id);
+      });
+
+      // runSyncTask must have been called with the approval label
+      expect(deps.runSyncTask).toHaveBeenCalledWith(
+        expect.stringContaining('Update approval'),
+        expect.any(Function),
+        expect.objectContaining({ requiresApi: false }),
+      );
+    });
   });
 
   describe('reset', () => {
