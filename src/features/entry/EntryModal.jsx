@@ -61,6 +61,7 @@ import {
   ArrowUpIcon,
   ArrowPathIcon,
   TrashIcon,
+  CheckCircleIcon,
 } from '../../components/common';
 import { SocialPreview } from '../social';
 import { ApproverMulti } from './ApproverMulti';
@@ -746,6 +747,38 @@ export function EntryModal({
 
   const renderApproverContent = () => (
     <div className="space-y-6">
+      {isApproverView && draft.status !== 'Approved' ? (
+        <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <div className="text-sm text-emerald-800">
+            {approvalBlockers.length > 0 ? (
+              <span className="text-amber-700">
+                Heads up —{' '}
+                {approvalBlockers
+                  .map((b) => b.label)
+                  .slice(0, 2)
+                  .join(', ')}{' '}
+                incomplete
+              </span>
+            ) : (
+              <span>Ready for approval</span>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onApprove(draft.id)}
+            className="gap-2 border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50"
+          >
+            <CheckCircleIcon className="h-4 w-4 text-emerald-600" />
+            Mark as approved
+          </Button>
+        </div>
+      ) : draft.status === 'Approved' ? (
+        <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          <CheckCircleIcon className="h-4 w-4 text-emerald-600" />
+          Approved
+        </div>
+      ) : null}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-graystone-200 bg-graystone-50 px-4 py-4">
           <div className="text-[11px] uppercase tracking-wide text-graystone-500">Scheduled</div>
@@ -762,70 +795,13 @@ export function EntryModal({
           </div>
         </div>
       </div>
-      {(draft.contentCategory ||
-        draft.responseMode ||
-        draft.contentPeak ||
-        draft.partnerOrg ||
-        draft.seriesName ||
-        draft.signOffRoute) && (
-        <div className="space-y-3">
-          <div className="text-sm font-semibold text-graystone-800">Strategy context</div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-graystone-200 bg-graystone-50 px-4 py-4">
-              <div className="flex flex-wrap gap-2">
-                {draft.contentCategory ? (
-                  <Badge variant="outline">{draft.contentCategory}</Badge>
-                ) : null}
-                {draft.responseMode ? <Badge variant="outline">{draft.responseMode}</Badge> : null}
-                {draft.contentPillar ? (
-                  <Badge variant="outline">{draft.contentPillar}</Badge>
-                ) : null}
-                {draft.campaign ? <Badge variant="outline">{draft.campaign}</Badge> : null}
-              </div>
-              {(draft.seriesName || draft.episodeNumber) && (
-                <div className="mt-3 text-sm text-graystone-700">
-                  Series: {draft.seriesName || 'Untitled'}{' '}
-                  {draft.episodeNumber ? `· Episode ${draft.episodeNumber}` : ''}
-                </div>
-              )}
-            </div>
-            <div className="rounded-2xl border border-graystone-200 bg-graystone-50 px-4 py-4 text-sm text-graystone-700">
-              <div>
-                <span className="font-semibold text-graystone-800">Peak:</span>{' '}
-                {draft.contentPeak || 'Not set'}
-              </div>
-              <div className="mt-2">
-                <span className="font-semibold text-graystone-800">Partner:</span>{' '}
-                {draft.partnerOrg || 'Not set'}
-              </div>
-              <div className="mt-2">
-                <span className="font-semibold text-graystone-800">Sign-off route:</span>{' '}
-                {draft.signOffRoute || 'Manual approvers'}
-              </div>
-            </div>
-          </div>
+      {draft.campaign || draft.contentPillar || draft.contentCategory ? (
+        <div className="flex flex-wrap gap-2">
+          {draft.campaign ? <Badge variant="outline">{draft.campaign}</Badge> : null}
+          {draft.contentPillar ? <Badge variant="outline">{draft.contentPillar}</Badge> : null}
+          {draft.contentCategory ? <Badge variant="outline">{draft.contentCategory}</Badge> : null}
         </div>
-      )}
-      <div className="space-y-3">
-        <div className="text-sm font-semibold text-graystone-800">Execution readiness</div>
-        <div className="rounded-2xl border border-graystone-200 bg-white p-4 shadow-sm">
-          {approvalBlockers.length === 0 ? (
-            <p className="text-sm text-emerald-700">This entry is ready for review and approval.</p>
-          ) : (
-            <>
-              <p className="text-sm text-amber-700">Heads up — these items are incomplete:</p>
-              <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-graystone-700">
-                {approvalBlockers.map((item) => (
-                  <li key={item.key}>
-                    <span className="font-medium text-graystone-800">{item.label}:</span>{' '}
-                    {item.detail}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-      </div>
+      ) : null}
       <div className="space-y-3">
         <div className="text-sm font-semibold text-graystone-800">Planned platforms</div>
         <div className="grid gap-4 lg:grid-cols-2">

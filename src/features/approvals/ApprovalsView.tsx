@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardHeader, CardContent, CardTitle, Badge, Button } from '../../components/ui';
-import { CheckCircleIcon, LoaderIcon, PlusIcon } from '../../components/common';
+import { CheckCircleIcon, LoaderIcon } from '../../components/common';
 import { cx } from '../../lib/utils';
 import { getChecklistItemsForEntry } from '../../constants';
 import { getWorkflowBlockers } from '../../lib/sanitizers';
@@ -173,14 +173,11 @@ export function ApprovalsView({
 }: ApprovalsViewProps): React.ReactElement {
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <Button variant="ghost" onClick={onBackToMenu}>
-            Back to menu
-          </Button>
-          <Button variant="ghost" onClick={onGoToCalendar} disabled={!canUseCalendar}>
-            Go to calendar
-          </Button>
+      <div className="flex items-center justify-between gap-3">
+        <Button variant="ghost" onClick={onBackToMenu}>
+          ← Back
+        </Button>
+        <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs">
             {outstandingCount} waiting
           </Badge>
@@ -189,19 +186,6 @@ export function ApprovalsView({
               {unreadMentionsCount} mentions
             </Badge>
           )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={onCreateContent} className="gap-2">
-            <PlusIcon className="h-4 w-4 text-white" />
-            Create content
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={onSwitchUser}
-            className="heading-font text-sm normal-case"
-          >
-            Switch user
-          </Button>
         </div>
       </div>
 
