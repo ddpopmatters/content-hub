@@ -573,13 +573,14 @@ export function useEntries({
           if (entry.id !== id) return entry;
           const toggled = entry.status === 'Approved' ? 'Pending' : 'Approved';
           nextStatusForServer = toggled;
+          const workflowStatus = toggled === 'Approved' ? 'Approved' : 'Ready for Review';
           const updatedEntry = sanitizeEntry({
             ...entry,
             status: toggled,
+            workflowStatus,
             approvedAt: toggled === 'Approved' ? timestamp : undefined,
             updatedAt: timestamp,
           });
-          const workflowStatus = toggled === 'Approved' ? 'Approved' : 'Ready for Review';
           nextWorkflowStatusForServer = workflowStatus;
           const normalized = {
             ...updatedEntry,

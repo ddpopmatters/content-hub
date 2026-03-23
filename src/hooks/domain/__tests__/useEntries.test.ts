@@ -2,7 +2,7 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useEntries } from '../useEntries';
 
-const { mockGetWorkflowBlockers } = vi.hoisted(() => ({
+const { mockGetWorkflowBlockers, mockSanitizeEntry } = vi.hoisted(() => ({
   mockGetWorkflowBlockers: vi.fn<
     () => Array<{
       key: string;
@@ -12,6 +12,7 @@ const { mockGetWorkflowBlockers } = vi.hoisted(() => ({
       complete: boolean;
     }>
   >(() => []),
+  mockSanitizeEntry: vi.fn((e: Record<string, unknown>) => ({ ...e, _sanitized: true })),
 }));
 
 // Mock all external dependencies
@@ -29,7 +30,7 @@ vi.mock('../../../lib/utils', () => ({
 }));
 
 vi.mock('../../../lib/sanitizers', () => ({
-  sanitizeEntry: (e: Record<string, unknown>) => ({ ...e, _sanitized: true }),
+  sanitizeEntry: mockSanitizeEntry,
   computeStatusDetail: () => 'ok',
   createEmptyChecklist: () => ({ items: [] }),
   entrySignature: () => 'sig',
@@ -329,6 +330,34 @@ describe('useEntries', () => {
       const entry = result.current.entries.find((e) => e.id === id);
       expect(entry?.status).toBe('Pending');
       expect(entry?.approvedAt).toBeFalsy();
+    });
+
+    it('passes new workflowStatus to sanitizeEntry so status derives correctly', () => {
+      const deps = mockDeps();
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.addEntry({
+          date: '2026-03-15',
+          assetType: 'Blog',
+          approvers: ['Jane Doe'],
+          workflowStatus: 'Ready for Review',
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      mockSanitizeEntry.mockClear();
+
+      act(() => {
+        result.current.toggleApprove(id);
+      });
+
+      // sanitizeEntry must be called with workflowStatus: 'Approved' so that it
+      // can derive status: 'Approved' — without this, status remains 'Pending'
+      const callForEntry = mockSanitizeEntry.mock.calls.find(
+        ([e]) => (e as Record<string, unknown>).id === id,
+      );
+      expect(callForEntry?.[0]).toMatchObject({ workflowStatus: 'Approved' });
     });
 
     it('approves despite workflow blockers, showing an advisory toast', () => {
