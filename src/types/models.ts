@@ -19,6 +19,13 @@ export type {
   ResponseMode,
   SignOffRoute,
 };
+export type {
+  AudienceSim,
+  ContentType,
+  DiffChunk,
+  SegmentResult,
+  SimStatus,
+} from '../features/audience-sim/types';
 
 /**
  * Attachment model - file attachments with metadata

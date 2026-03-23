@@ -74,6 +74,7 @@ import {
 import { TerminologyAlert } from './TerminologyAlert';
 import { PlatformGuidancePanel } from './PlatformGuidancePanel';
 import { checkTerminology } from '../../lib/terminology';
+import { AudienceSimPanel } from '../../features/audience-sim';
 
 const { useState, useMemo, useEffect, useCallback, useRef } = React;
 
@@ -126,6 +127,7 @@ export function EntryModal({
   );
   const [commentDraft, setCommentDraft] = useState('');
   const [mentionState, setMentionState] = useState(null);
+  const [activeMainTab, setActiveMainTab] = useState('details');
   const [activeCaptionTab, setActiveCaptionTab] = useState('Main');
   const [activePreviewPlatform, setActivePreviewPlatform] = useState('Main');
   const [timelineOpen, setTimelineOpen] = useState(false);
@@ -147,6 +149,7 @@ export function EntryModal({
     setAllPlatforms(sanitizedEntry.platforms.length === ALL_PLATFORMS.length);
     setCommentDraft('');
     setMentionState(null);
+    setActiveMainTab('details');
   }, [sanitizedEntry]);
 
   const terminologyMatches = useMemo(
@@ -956,6 +959,24 @@ export function EntryModal({
           </div>
 
           <div className="max-h-[70vh] space-y-6 overflow-y-auto px-6 py-6">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={activeMainTab === 'details' ? 'default' : 'outline'}
+                onClick={() => setActiveMainTab('details')}
+              >
+                Details
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={activeMainTab === 'audience-sim' ? 'default' : 'outline'}
+                onClick={() => setActiveMainTab('audience-sim')}
+              >
+                Audience Sim
+              </Button>
+            </div>
             {showDraftRecovery && savedDraftInfo && (
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
                 <div className="text-sm text-amber-800">
@@ -978,7 +999,9 @@ export function EntryModal({
                 </div>
               </div>
             )}
-            {showApproverContent ? (
+            {activeMainTab === 'audience-sim' ? (
+              <AudienceSimPanel entry={draft} />
+            ) : showApproverContent ? (
               renderApproverContent()
             ) : (
               <>
