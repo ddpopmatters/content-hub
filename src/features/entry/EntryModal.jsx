@@ -690,29 +690,6 @@ export function EntryModal({
         >
           <div className="text-sm font-semibold text-ocean-800">Script</div>
           <p className="whitespace-pre-wrap text-sm text-graystone-700">{draft.script.trim()}</p>
-          {isApproverView && draft.status !== 'Approved' && (
-            <div className="flex justify-end pt-1">
-              <button
-                type="button"
-                onClick={() => setApprovedItems((prev) => new Set([...prev, 'asset:script']))}
-                disabled={approvedItems.has('asset:script')}
-                className={cx(
-                  'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-                  approvedItems.has('asset:script')
-                    ? 'cursor-default bg-emerald-100 text-emerald-700'
-                    : 'bg-graystone-100 text-graystone-600 hover:bg-emerald-50 hover:text-emerald-700',
-                )}
-              >
-                <CheckCircleIcon
-                  className={cx(
-                    'h-3.5 w-3.5',
-                    approvedItems.has('asset:script') ? 'text-emerald-600' : 'text-graystone-400',
-                  )}
-                />
-                {approvedItems.has('asset:script') ? 'Script approved' : 'Approve script'}
-              </button>
-            </div>
-          )}
         </div>,
       );
     }
@@ -730,29 +707,6 @@ export function EntryModal({
           <p className="whitespace-pre-wrap text-sm text-graystone-700">
             {draft.designCopy.trim()}
           </p>
-          {isApproverView && draft.status !== 'Approved' && (
-            <div className="flex justify-end pt-1">
-              <button
-                type="button"
-                onClick={() => setApprovedItems((prev) => new Set([...prev, 'asset:design']))}
-                disabled={approvedItems.has('asset:design')}
-                className={cx(
-                  'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-                  approvedItems.has('asset:design')
-                    ? 'cursor-default bg-emerald-100 text-emerald-700'
-                    : 'bg-graystone-100 text-graystone-600 hover:bg-emerald-50 hover:text-emerald-700',
-                )}
-              >
-                <CheckCircleIcon
-                  className={cx(
-                    'h-3.5 w-3.5',
-                    approvedItems.has('asset:design') ? 'text-emerald-600' : 'text-graystone-400',
-                  )}
-                />
-                {approvedItems.has('asset:design') ? 'Design copy approved' : 'Approve design copy'}
-              </button>
-            </div>
-          )}
         </div>,
       );
     }
@@ -814,33 +768,6 @@ export function EntryModal({
                     <p className="text-sm leading-relaxed text-graystone-800 whitespace-pre-wrap">
                       {slide.trim()}
                     </p>
-                    {isApproverView && draft.status !== 'Approved' && (
-                      <div className="mt-4 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setApprovedItems((prev) => new Set([...prev, `slide:${index}`]))
-                          }
-                          disabled={approvedItems.has(`slide:${index}`)}
-                          className={cx(
-                            'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-                            approvedItems.has(`slide:${index}`)
-                              ? 'cursor-default bg-emerald-100 text-emerald-700'
-                              : 'bg-graystone-100 text-graystone-600 hover:bg-emerald-50 hover:text-emerald-700',
-                          )}
-                        >
-                          <CheckCircleIcon
-                            className={cx(
-                              'h-3.5 w-3.5',
-                              approvedItems.has(`slide:${index}`)
-                                ? 'text-emerald-600'
-                                : 'text-graystone-400',
-                            )}
-                          />
-                          {approvedItems.has(`slide:${index}`) ? 'Slide approved' : 'Approve slide'}
-                        </button>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -880,55 +807,89 @@ export function EntryModal({
     const approvedCount = allItems.filter((key) => approvedItems.has(key)).length;
     const allApproved = allItems.length > 0 && approvedCount === allItems.length;
 
-    return (
-      <div className="space-y-6">
-        {isApproverView && draft.status !== 'Approved' ? (
-          <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-emerald-800">
-                {allApproved ? (
-                  <span className="font-medium">All items reviewed — ready to sign off</span>
-                ) : approvalBlockers.length > 0 ? (
-                  <span className="text-amber-700">
-                    Heads up —{' '}
-                    {approvalBlockers
-                      .map((b) => b.label)
-                      .slice(0, 2)
-                      .join(', ')}{' '}
-                    incomplete
-                  </span>
-                ) : (
-                  <span>Review each caption and asset below, then sign off</span>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!allApproved}
-                onClick={() => onApprove(draft.id)}
-                className={cx(
-                  'gap-2',
-                  allApproved
-                    ? 'border-emerald-300 bg-emerald-600 text-white hover:bg-emerald-700'
-                    : 'cursor-not-allowed border-graystone-200 text-graystone-400 opacity-50',
-                )}
-              >
-                <CheckCircleIcon className="h-4 w-4" />
-                Sign off
-              </Button>
+    const getItemLabel = (key) => {
+      if (key.startsWith('caption:')) {
+        const p = key.replace('caption:', '');
+        return p === 'Main' ? 'Main copy' : `${p} caption`;
+      }
+      if (key.startsWith('slide:')) return `Slide ${parseInt(key.replace('slide:', ''), 10) + 1}`;
+      if (key === 'asset:script') return 'Script';
+      if (key === 'asset:design') return 'Design copy';
+      return key;
+    };
+
+    const getApproveLabel = (key) => {
+      if (key.startsWith('caption:')) return 'Approve caption';
+      if (key.startsWith('slide:')) return 'Approve slide';
+      if (key === 'asset:script') return 'Approve script';
+      if (key === 'asset:design') return 'Approve design copy';
+      return 'Approve';
+    };
+
+    const renderItemContent = (key) => {
+      if (key.startsWith('caption:')) {
+        const platform = key.replace('caption:', '');
+        const previewPlatformName = platform === 'Main' ? defaultPreviewPlatform : platform;
+        const captionForPlatform = getPlatformCaption(
+          draft.caption,
+          draft.platformCaptions,
+          platform,
+        );
+        return (
+          <>
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-ocean-700">
+              <PlatformIcon platform={previewPlatformName} />
+              {platform === 'Main' ? 'Main copy' : platform}
+              <span className="ml-auto text-xs text-graystone-400">
+                {(captionForPlatform || '').length} chars
+              </span>
             </div>
-            {allItems.length > 0 && (
-              <div className="text-xs text-emerald-600">
-                {approvedCount} of {allItems.length} item{allItems.length !== 1 ? 's' : ''} reviewed
-              </div>
-            )}
-          </div>
-        ) : draft.status === 'Approved' ? (
-          <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            <CheckCircleIcon className="h-4 w-4 text-emerald-600" />
-            Approved
-          </div>
-        ) : null}
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-graystone-800">
+              {captionForPlatform && captionForPlatform.trim().length ? (
+                captionForPlatform
+              ) : (
+                <span className="italic text-graystone-400">No caption provided.</span>
+              )}
+            </p>
+          </>
+        );
+      }
+      if (key.startsWith('slide:')) {
+        const index = parseInt(key.replace('slide:', ''), 10);
+        return (
+          <>
+            <div className="mb-2 text-[11px] uppercase tracking-wide text-graystone-400">
+              Slide {index + 1}
+            </div>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-graystone-800">
+              {carouselSlides[index]?.trim()}
+            </p>
+          </>
+        );
+      }
+      if (key === 'asset:script') {
+        return (
+          <>
+            <div className="mb-2 text-sm font-semibold text-ocean-800">Script</div>
+            <p className="whitespace-pre-wrap text-sm text-graystone-700">{draft.script?.trim()}</p>
+          </>
+        );
+      }
+      if (key === 'asset:design') {
+        return (
+          <>
+            <div className="mb-2 text-sm font-semibold text-ocean-800">Design copy</div>
+            <p className="whitespace-pre-wrap text-sm text-graystone-700">
+              {draft.designCopy?.trim()}
+            </p>
+          </>
+        );
+      }
+      return null;
+    };
+
+    const metaSection = (
+      <>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-graystone-200 bg-graystone-50 px-4 py-4">
             <div className="text-[11px] uppercase tracking-wide text-graystone-500">Scheduled</div>
@@ -954,6 +915,100 @@ export function EntryModal({
             ) : null}
           </div>
         ) : null}
+      </>
+    );
+
+    // Wizard step view — one item at a time
+    if (isApproverView && draft.status !== 'Approved' && !allApproved) {
+      const currentIndex = approvedCount;
+      const currentKey = allItems[currentIndex];
+      const progressPct = allItems.length > 0 ? (currentIndex / allItems.length) * 100 : 0;
+
+      return (
+        <div className="space-y-6">
+          {metaSection}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs text-graystone-500">
+              <span>
+                {currentIndex + 1} of {allItems.length}
+              </span>
+              <span className="font-medium text-graystone-700">{getItemLabel(currentKey)}</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-graystone-100">
+              <div
+                className="h-full rounded-full bg-ocean-500 transition-all duration-500"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+          </div>
+          <div className="rounded-2xl border border-graystone-200 bg-white p-6 shadow-sm">
+            {renderItemContent(currentKey)}
+          </div>
+          <div className="flex justify-end">
+            <Button
+              onClick={() => setApprovedItems((prev) => new Set([...prev, currentKey]))}
+              className="gap-2 bg-ocean-600 text-white hover:bg-ocean-700"
+            >
+              <CheckCircleIcon className="h-4 w-4" />
+              {getApproveLabel(currentKey)}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    // Summary view — all items approved, final check before sign-off
+    if (isApproverView && draft.status !== 'Approved' && allApproved) {
+      return (
+        <div className="space-y-6">
+          {metaSection}
+          <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <div>
+              <div className="text-sm font-semibold text-emerald-800">
+                All items reviewed — final check
+              </div>
+              <div className="text-xs text-emerald-600">
+                {allItems.length} item{allItems.length !== 1 ? 's' : ''} approved
+              </div>
+            </div>
+            <Button
+              onClick={() => onApprove(draft.id)}
+              className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              <CheckCircleIcon className="h-4 w-4" />
+              Sign off
+            </Button>
+          </div>
+          <div className="space-y-3">
+            {allItems.map((key) => (
+              <div
+                key={key}
+                className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm"
+              >
+                <div className="mb-3 flex items-center gap-2">
+                  <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-500" />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                    {getItemLabel(key)}
+                  </span>
+                </div>
+                {renderItemContent(key)}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Already-approved or non-approver view — full layout
+    return (
+      <div className="space-y-6">
+        {draft.status === 'Approved' ? (
+          <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            <CheckCircleIcon className="h-4 w-4 text-emerald-600" />
+            Approved
+          </div>
+        ) : null}
+        {metaSection}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-graystone-800">Content</div>
@@ -1014,42 +1069,13 @@ export function EntryModal({
                         {(captionForPlatform || '').length} chars
                       </span>
                     </div>
-                    <p className="text-sm leading-relaxed text-graystone-800 whitespace-pre-wrap">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-graystone-800">
                       {captionForPlatform && captionForPlatform.trim().length ? (
                         captionForPlatform
                       ) : (
-                        <span className="text-graystone-400 italic">No caption provided.</span>
+                        <span className="italic text-graystone-400">No caption provided.</span>
                       )}
                     </p>
-                    {isApproverView && draft.status !== 'Approved' && (
-                      <div className="mt-4 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setApprovedItems((prev) => new Set([...prev, `caption:${platform}`]))
-                          }
-                          disabled={approvedItems.has(`caption:${platform}`)}
-                          className={cx(
-                            'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-                            approvedItems.has(`caption:${platform}`)
-                              ? 'cursor-default bg-emerald-100 text-emerald-700'
-                              : 'bg-graystone-100 text-graystone-600 hover:bg-emerald-50 hover:text-emerald-700',
-                          )}
-                        >
-                          <CheckCircleIcon
-                            className={cx(
-                              'h-3.5 w-3.5',
-                              approvedItems.has(`caption:${platform}`)
-                                ? 'text-emerald-600'
-                                : 'text-graystone-400',
-                            )}
-                          />
-                          {approvedItems.has(`caption:${platform}`)
-                            ? 'Caption approved'
-                            : 'Approve caption'}
-                        </button>
-                      </div>
-                    )}
                   </div>
                 );
               })}
