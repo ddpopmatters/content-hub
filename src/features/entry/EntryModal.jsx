@@ -863,19 +863,6 @@ export function EntryModal({
                       {(captionForPlatform || '').length} chars
                     </span>
                   </div>
-                  {previewUrl && (previewIsImage || previewIsVideo) && (
-                    <div className="mb-4 overflow-hidden rounded-xl">
-                      {previewIsImage ? (
-                        <img
-                          src={previewUrl}
-                          alt="Content preview"
-                          className="w-full object-cover"
-                        />
-                      ) : (
-                        <video src={previewUrl} controls className="w-full rounded-xl" />
-                      )}
-                    </div>
-                  )}
                   <p className="text-sm leading-relaxed text-graystone-800 whitespace-pre-wrap">
                     {captionForPlatform && captionForPlatform.trim().length ? (
                       captionForPlatform
