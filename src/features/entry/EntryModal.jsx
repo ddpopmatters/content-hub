@@ -137,6 +137,7 @@ export function EntryModal({
   const [savedDraftInfo, setSavedDraftInfo] = useState(null);
   const [approverSlide, setApproverSlide] = useState(0);
   const [carouselSlideIndex, setCarouselSlideIndex] = useState(0);
+  const [approvedItems, setApprovedItems] = useState(new Set());
   const { get: apiGet } = useApi();
 
   useEffect(() => {
@@ -150,6 +151,7 @@ export function EntryModal({
     setAllPlatforms(sanitizedEntry.platforms.length === ALL_PLATFORMS.length);
     setCommentDraft('');
     setMentionState(null);
+    setApprovedItems(new Set());
   }, [sanitizedEntry]);
 
   const terminologyMatches = useMemo(
@@ -688,6 +690,29 @@ export function EntryModal({
         >
           <div className="text-sm font-semibold text-ocean-800">Script</div>
           <p className="whitespace-pre-wrap text-sm text-graystone-700">{draft.script.trim()}</p>
+          {isApproverView && draft.status !== 'Approved' && (
+            <div className="flex justify-end pt-1">
+              <button
+                type="button"
+                onClick={() => setApprovedItems((prev) => new Set([...prev, 'asset:script']))}
+                disabled={approvedItems.has('asset:script')}
+                className={cx(
+                  'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                  approvedItems.has('asset:script')
+                    ? 'cursor-default bg-emerald-100 text-emerald-700'
+                    : 'bg-graystone-100 text-graystone-600 hover:bg-emerald-50 hover:text-emerald-700',
+                )}
+              >
+                <CheckCircleIcon
+                  className={cx(
+                    'h-3.5 w-3.5',
+                    approvedItems.has('asset:script') ? 'text-emerald-600' : 'text-graystone-400',
+                  )}
+                />
+                {approvedItems.has('asset:script') ? 'Script approved' : 'Approve script'}
+              </button>
+            </div>
+          )}
         </div>,
       );
     }
@@ -705,6 +730,29 @@ export function EntryModal({
           <p className="whitespace-pre-wrap text-sm text-graystone-700">
             {draft.designCopy.trim()}
           </p>
+          {isApproverView && draft.status !== 'Approved' && (
+            <div className="flex justify-end pt-1">
+              <button
+                type="button"
+                onClick={() => setApprovedItems((prev) => new Set([...prev, 'asset:design']))}
+                disabled={approvedItems.has('asset:design')}
+                className={cx(
+                  'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                  approvedItems.has('asset:design')
+                    ? 'cursor-default bg-emerald-100 text-emerald-700'
+                    : 'bg-graystone-100 text-graystone-600 hover:bg-emerald-50 hover:text-emerald-700',
+                )}
+              >
+                <CheckCircleIcon
+                  className={cx(
+                    'h-3.5 w-3.5',
+                    approvedItems.has('asset:design') ? 'text-emerald-600' : 'text-graystone-400',
+                  )}
+                />
+                {approvedItems.has('asset:design') ? 'Design copy approved' : 'Approve design copy'}
+              </button>
+            </div>
+          )}
         </div>,
       );
     }
@@ -766,6 +814,33 @@ export function EntryModal({
                     <p className="text-sm leading-relaxed text-graystone-800 whitespace-pre-wrap">
                       {slide.trim()}
                     </p>
+                    {isApproverView && draft.status !== 'Approved' && (
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setApprovedItems((prev) => new Set([...prev, `slide:${index}`]))
+                          }
+                          disabled={approvedItems.has(`slide:${index}`)}
+                          className={cx(
+                            'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                            approvedItems.has(`slide:${index}`)
+                              ? 'cursor-default bg-emerald-100 text-emerald-700'
+                              : 'bg-graystone-100 text-graystone-600 hover:bg-emerald-50 hover:text-emerald-700',
+                          )}
+                        >
+                          <CheckCircleIcon
+                            className={cx(
+                              'h-3.5 w-3.5',
+                              approvedItems.has(`slide:${index}`)
+                                ? 'text-emerald-600'
+                                : 'text-graystone-400',
+                            )}
+                          />
+                          {approvedItems.has(`slide:${index}`) ? 'Slide approved' : 'Approve slide'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -785,139 +860,206 @@ export function EntryModal({
 
   const mentionSuggestions = mentionState?.suggestions || [];
 
-  const renderApproverContent = () => (
-    <div className="space-y-6">
-      {isApproverView && draft.status !== 'Approved' ? (
-        <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-          <div className="text-sm text-emerald-800">
-            {approvalBlockers.length > 0 ? (
-              <span className="text-amber-700">
-                Heads up —{' '}
-                {approvalBlockers
-                  .map((b) => b.label)
-                  .slice(0, 2)
-                  .join(', ')}{' '}
-                incomplete
-              </span>
-            ) : (
-              <span>Ready for approval</span>
+  const renderApproverContent = () => {
+    const carouselSlides =
+      draft.assetType === 'Carousel' && Array.isArray(draft.carouselSlides)
+        ? draft.carouselSlides.filter((s) => s && s.trim())
+        : [];
+    const hasScript =
+      draft.assetType === 'Video' && typeof draft.script === 'string' && draft.script.trim();
+    const hasDesignCopy =
+      draft.assetType === 'Design' &&
+      typeof draft.designCopy === 'string' &&
+      draft.designCopy.trim();
+    const allItems = [
+      ...plannedPlatforms.map((p) => `caption:${p}`),
+      ...carouselSlides.map((_, i) => `slide:${i}`),
+      ...(hasScript ? ['asset:script'] : []),
+      ...(hasDesignCopy ? ['asset:design'] : []),
+    ];
+    const approvedCount = allItems.filter((key) => approvedItems.has(key)).length;
+    const allApproved = allItems.length > 0 && approvedCount === allItems.length;
+
+    return (
+      <div className="space-y-6">
+        {isApproverView && draft.status !== 'Approved' ? (
+          <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-emerald-800">
+                {allApproved ? (
+                  <span className="font-medium">All items reviewed — ready to sign off</span>
+                ) : approvalBlockers.length > 0 ? (
+                  <span className="text-amber-700">
+                    Heads up —{' '}
+                    {approvalBlockers
+                      .map((b) => b.label)
+                      .slice(0, 2)
+                      .join(', ')}{' '}
+                    incomplete
+                  </span>
+                ) : (
+                  <span>Review each caption and asset below, then sign off</span>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!allApproved}
+                onClick={() => onApprove(draft.id)}
+                className={cx(
+                  'gap-2',
+                  allApproved
+                    ? 'border-emerald-300 bg-emerald-600 text-white hover:bg-emerald-700'
+                    : 'cursor-not-allowed border-graystone-200 text-graystone-400 opacity-50',
+                )}
+              >
+                <CheckCircleIcon className="h-4 w-4" />
+                Sign off
+              </Button>
+            </div>
+            {allItems.length > 0 && (
+              <div className="text-xs text-emerald-600">
+                {approvedCount} of {allItems.length} item{allItems.length !== 1 ? 's' : ''} reviewed
+              </div>
             )}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onApprove(draft.id)}
-            className="gap-2 border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50"
-          >
+        ) : draft.status === 'Approved' ? (
+          <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
             <CheckCircleIcon className="h-4 w-4 text-emerald-600" />
-            Mark as approved
-          </Button>
-        </div>
-      ) : draft.status === 'Approved' ? (
-        <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          <CheckCircleIcon className="h-4 w-4 text-emerald-600" />
-          Approved
-        </div>
-      ) : null}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-graystone-200 bg-graystone-50 px-4 py-4">
-          <div className="text-[11px] uppercase tracking-wide text-graystone-500">Scheduled</div>
-          <div className="text-lg font-semibold text-ocean-800">
-            {formatFriendlyDate(draft.date)}
+            Approved
           </div>
-        </div>
-        <div className="rounded-2xl border border-graystone-200 bg-graystone-50 px-4 py-4">
-          <div className="text-[11px] uppercase tracking-wide text-graystone-500">
-            Approval deadline
-          </div>
-          <div className="text-lg font-semibold text-ocean-800">
-            {draft.approvalDeadline ? formatFriendlyDate(draft.approvalDeadline) : 'Not set'}
-          </div>
-        </div>
-      </div>
-      {draft.campaign || draft.contentPillar || draft.contentCategory ? (
-        <div className="flex flex-wrap gap-2">
-          {draft.campaign ? <Badge variant="outline">{draft.campaign}</Badge> : null}
-          {draft.contentPillar ? <Badge variant="outline">{draft.contentPillar}</Badge> : null}
-          {draft.contentCategory ? <Badge variant="outline">{draft.contentCategory}</Badge> : null}
-        </div>
-      ) : null}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold text-graystone-800">Content</div>
-          {plannedPlatforms.length > 1 && (
-            <div className="flex items-center gap-2 text-xs text-graystone-500">
-              <button
-                type="button"
-                onClick={() => setApproverSlide((s) => Math.max(0, s - 1))}
-                disabled={approverSlide === 0}
-                className="rounded-full px-2 py-0.5 hover:bg-graystone-100 disabled:opacity-30"
-              >
-                ‹
-              </button>
-              {plannedPlatforms.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setApproverSlide(i)}
-                  className={cx(
-                    'h-1.5 w-1.5 rounded-full transition-colors',
-                    i === approverSlide ? 'bg-ocean-600' : 'bg-graystone-300',
-                  )}
-                />
-              ))}
-              <button
-                type="button"
-                onClick={() =>
-                  setApproverSlide((s) => Math.min(plannedPlatforms.length - 1, s + 1))
-                }
-                disabled={approverSlide === plannedPlatforms.length - 1}
-                className="rounded-full px-2 py-0.5 hover:bg-graystone-100 disabled:opacity-30"
-              >
-                ›
-              </button>
+        ) : null}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl border border-graystone-200 bg-graystone-50 px-4 py-4">
+            <div className="text-[11px] uppercase tracking-wide text-graystone-500">Scheduled</div>
+            <div className="text-lg font-semibold text-ocean-800">
+              {formatFriendlyDate(draft.date)}
             </div>
-          )}
-        </div>
-        <div className="overflow-hidden rounded-2xl border border-graystone-200">
-          <div
-            className="flex transition-transform duration-300 ease-in-out"
-            style={{ transform: `translateX(-${approverSlide * 100}%)` }}
-          >
-            {plannedPlatforms.map((platform) => {
-              const previewPlatformName = platform === 'Main' ? defaultPreviewPlatform : platform;
-              const captionForPlatform = getPlatformCaption(
-                draft.caption,
-                draft.platformCaptions,
-                platform,
-              );
-              return (
-                <div key={platform} className="min-w-full p-6">
-                  <div className="mb-4 flex items-center justify-between">
-                    <span className="inline-flex items-center gap-2 text-sm font-semibold text-ocean-700">
-                      <PlatformIcon platform={previewPlatformName} />
-                      {platform === 'Main' ? 'Main copy' : platform}
-                    </span>
-                    <span className="text-xs text-graystone-400">
-                      {(captionForPlatform || '').length} chars
-                    </span>
-                  </div>
-                  <p className="text-sm leading-relaxed text-graystone-800 whitespace-pre-wrap">
-                    {captionForPlatform && captionForPlatform.trim().length ? (
-                      captionForPlatform
-                    ) : (
-                      <span className="text-graystone-400 italic">No caption provided.</span>
-                    )}
-                  </p>
-                </div>
-              );
-            })}
+          </div>
+          <div className="rounded-2xl border border-graystone-200 bg-graystone-50 px-4 py-4">
+            <div className="text-[11px] uppercase tracking-wide text-graystone-500">
+              Approval deadline
+            </div>
+            <div className="text-lg font-semibold text-ocean-800">
+              {draft.approvalDeadline ? formatFriendlyDate(draft.approvalDeadline) : 'Not set'}
+            </div>
           </div>
         </div>
+        {draft.campaign || draft.contentPillar || draft.contentCategory ? (
+          <div className="flex flex-wrap gap-2">
+            {draft.campaign ? <Badge variant="outline">{draft.campaign}</Badge> : null}
+            {draft.contentPillar ? <Badge variant="outline">{draft.contentPillar}</Badge> : null}
+            {draft.contentCategory ? (
+              <Badge variant="outline">{draft.contentCategory}</Badge>
+            ) : null}
+          </div>
+        ) : null}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold text-graystone-800">Content</div>
+            {plannedPlatforms.length > 1 && (
+              <div className="flex items-center gap-2 text-xs text-graystone-500">
+                <button
+                  type="button"
+                  onClick={() => setApproverSlide((s) => Math.max(0, s - 1))}
+                  disabled={approverSlide === 0}
+                  className="rounded-full px-2 py-0.5 hover:bg-graystone-100 disabled:opacity-30"
+                >
+                  ‹
+                </button>
+                {plannedPlatforms.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setApproverSlide(i)}
+                    className={cx(
+                      'h-1.5 w-1.5 rounded-full transition-colors',
+                      i === approverSlide ? 'bg-ocean-600' : 'bg-graystone-300',
+                    )}
+                  />
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setApproverSlide((s) => Math.min(plannedPlatforms.length - 1, s + 1))
+                  }
+                  disabled={approverSlide === plannedPlatforms.length - 1}
+                  className="rounded-full px-2 py-0.5 hover:bg-graystone-100 disabled:opacity-30"
+                >
+                  ›
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="overflow-hidden rounded-2xl border border-graystone-200">
+            <div
+              className="flex transition-transform duration-300 ease-in-out"
+              style={{ transform: `translateX(-${approverSlide * 100}%)` }}
+            >
+              {plannedPlatforms.map((platform) => {
+                const previewPlatformName = platform === 'Main' ? defaultPreviewPlatform : platform;
+                const captionForPlatform = getPlatformCaption(
+                  draft.caption,
+                  draft.platformCaptions,
+                  platform,
+                );
+                return (
+                  <div key={platform} className="min-w-full p-6">
+                    <div className="mb-4 flex items-center justify-between">
+                      <span className="inline-flex items-center gap-2 text-sm font-semibold text-ocean-700">
+                        <PlatformIcon platform={previewPlatformName} />
+                        {platform === 'Main' ? 'Main copy' : platform}
+                      </span>
+                      <span className="text-xs text-graystone-400">
+                        {(captionForPlatform || '').length} chars
+                      </span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-graystone-800 whitespace-pre-wrap">
+                      {captionForPlatform && captionForPlatform.trim().length ? (
+                        captionForPlatform
+                      ) : (
+                        <span className="text-graystone-400 italic">No caption provided.</span>
+                      )}
+                    </p>
+                    {isApproverView && draft.status !== 'Approved' && (
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setApprovedItems((prev) => new Set([...prev, `caption:${platform}`]))
+                          }
+                          disabled={approvedItems.has(`caption:${platform}`)}
+                          className={cx(
+                            'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                            approvedItems.has(`caption:${platform}`)
+                              ? 'cursor-default bg-emerald-100 text-emerald-700'
+                              : 'bg-graystone-100 text-graystone-600 hover:bg-emerald-50 hover:text-emerald-700',
+                          )}
+                        >
+                          <CheckCircleIcon
+                            className={cx(
+                              'h-3.5 w-3.5',
+                              approvedItems.has(`caption:${platform}`)
+                                ? 'text-emerald-600'
+                                : 'text-graystone-400',
+                            )}
+                          />
+                          {approvedItems.has(`caption:${platform}`)
+                            ? 'Caption approved'
+                            : 'Approve caption'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        {renderAssetNotes()}
       </div>
-      {renderAssetNotes()}
-    </div>
-  );
+    );
+  };
 
   const renderCommentsSection = () => (
     <div className="space-y-3">
