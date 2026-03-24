@@ -47,6 +47,7 @@ import { AudienceSelector } from './AudienceSelector';
 import { PlatformGuidancePanel } from './PlatformGuidancePanel';
 import { TerminologyAlert } from './TerminologyAlert';
 import { useCategories } from '../../hooks/domain/useCategories';
+import { SUPABASE_API } from '../../lib/supabase';
 import { buildUtmUrl, normalizeContentApproach } from './formUtils';
 import { checkTerminology } from '../../lib/terminology';
 
@@ -78,9 +79,8 @@ type EntryFormInitialValues = Partial<Entry> & {
 };
 
 const FIELD_ERROR_MESSAGES = {
-  date: 'Date is required.',
   platforms: 'At least one platform is required.',
-  assetType: 'Asset type is required.',
+  caption: 'A caption is required.',
   script: 'Video script is required.',
   designCopy: 'Design copy is required.',
   carouselSlides: 'At least one carousel slide needs copy.',
@@ -157,6 +157,10 @@ export function EntryForm({
   const [ctaType, setCtaType] = useState<string>('');
   const [priorityTier, setPriorityTier] = useState<string>('Medium');
   const [influencerId, setInfluencerId] = useState<string | undefined>('');
+  const [showNewInfluencerModal, setShowNewInfluencerModal] = useState(false);
+  const [newInfluencerName, setNewInfluencerName] = useState('');
+  const [newInfluencerPlatform, setNewInfluencerPlatform] = useState('');
+  const [localInfluencers, setLocalInfluencers] = useState<Influencer[]>([]);
   const [audienceSegments, setAudienceSegments] = useState<string[]>([]);
   const [quickAssessment, setQuickAssessment] = useState<Record<string, boolean>>({});
   const [goldenThread, setGoldenThread] = useState<Record<string, boolean>>({});
@@ -432,11 +436,10 @@ export function EntryForm({
 
   const validateEntry = (): EntryValidationError[] => {
     const errors: EntryValidationError[] = [];
-    if (!date) errors.push({ field: 'date', message: FIELD_ERROR_MESSAGES.date });
     const resolvedPlatforms = allPlatforms ? [...ALL_PLATFORMS] : platforms;
     if (!resolvedPlatforms.length)
       errors.push({ field: 'platforms', message: FIELD_ERROR_MESSAGES.platforms });
-    if (!assetType) errors.push({ field: 'assetType', message: FIELD_ERROR_MESSAGES.assetType });
+    if (!caption.trim()) errors.push({ field: 'caption', message: FIELD_ERROR_MESSAGES.caption });
     if (assetType === 'Video' && !script.trim())
       errors.push({ field: 'script', message: FIELD_ERROR_MESSAGES.script });
     if (assetType === 'Design' && !designCopy.trim())
@@ -454,6 +457,30 @@ export function EntryForm({
 
   const derivedAuthor = currentAuthorName || currentUserEmail || '';
   const resolvedPlatforms = allPlatforms ? [...ALL_PLATFORMS] : platforms;
+
+  const handleCreateInfluencer = async () => {
+    if (!newInfluencerName.trim() || !newInfluencerPlatform.trim()) return;
+    const created = await SUPABASE_API.saveInfluencer({
+      id: '',
+      createdAt: new Date().toISOString(),
+      createdBy: currentUserEmail || '',
+      name: newInfluencerName.trim(),
+      handle: '',
+      profileUrl: '',
+      platform: newInfluencerPlatform.trim(),
+      followerCount: 0,
+      contactEmail: '',
+      niche: '',
+      notes: '',
+      status: 'Collaborate',
+    } as Influencer);
+    if (created) {
+      setLocalInfluencers((prev) => [...prev, created]);
+      setInfluencerId(created.id);
+      onInfluencerChange?.(created.id);
+    }
+    setShowNewInfluencerModal(false);
+  };
 
   const submitEntry = () => {
     const requestInitialValues = initialValues as EntryFormInitialValues | null;
@@ -831,7 +858,7 @@ export function EntryForm({
                 </select>
                 {hasAssetTypeError ? (
                   <p id="asset-type-error" className="text-xs text-rose-600">
-                    {FIELD_ERROR_MESSAGES.assetType}
+                    {'Select an asset type'}
                   </p>
                 ) : null}
               </div>
@@ -943,7 +970,7 @@ export function EntryForm({
                 />
                 {hasDateError ? (
                   <p id="entry-date-error" className="text-xs text-rose-600">
-                    {FIELD_ERROR_MESSAGES.date}
+                    {'Date is required.'}
                   </p>
                 ) : null}
               </div>
@@ -1308,15 +1335,20 @@ export function EntryForm({
                       />
                     </div>
 
-                    {influencers.length > 0 && (
+                    {(influencers.length > 0 || localInfluencers.length > 0) && (
                       <InfluencerPicker
-                        influencers={influencers}
+                        influencers={[...influencers, ...localInfluencers]}
                         value={influencerId}
                         onChange={(id) => {
                           setInfluencerId(id);
                           onInfluencerChange?.(id);
                         }}
-                        showOnlyActive={true}
+                        onCreateNew={() => {
+                          setNewInfluencerName('');
+                          setNewInfluencerPlatform('');
+                          setShowNewInfluencerModal(true);
+                        }}
+                        showOnlyActive={false}
                         label="Influencer collaboration"
                       />
                     )}
@@ -1336,43 +1368,6 @@ export function EntryForm({
                           </option>
                         ))}
                       </select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="sign-off-route">Sign-off route</Label>
-                      <select
-                        id="sign-off-route"
-                        value={signOffRoute}
-                        onChange={(event) => {
-                          setAutoSignOffRoute(false);
-                          setSignOffRoute(event.target.value);
-                        }}
-                        className={cx(selectBaseClasses, 'w-full')}
-                      >
-                        <option value="">Use manual approvers only</option>
-                        {SIGN_OFF_ROUTES.map((route) => (
-                          <option key={route} value={route}>
-                            {route}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="flex items-center justify-between gap-3 text-xs text-graystone-500">
-                        <span>
-                          Recommended from strategy metadata: {recommendedSignOffRoute || 'None'}
-                        </span>
-                        {!autoSignOffRoute && signOffRoute !== recommendedSignOffRoute ? (
-                          <button
-                            type="button"
-                            className="font-medium text-ocean-700 underline-offset-2 hover:underline"
-                            onClick={() => {
-                              setAutoSignOffRoute(true);
-                              setSignOffRoute(recommendedSignOffRoute);
-                            }}
-                          >
-                            Use recommendation
-                          </button>
-                        ) : null}
-                      </div>
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">
@@ -1670,6 +1665,53 @@ export function EntryForm({
           )}
         </form>
       </CardContent>
+
+      {/* Quick-create influencer modal */}
+      {showNewInfluencerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-4 text-base font-semibold text-graystone-900">New influencer</h3>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="new-influencer-name">Name</Label>
+                <Input
+                  id="new-influencer-name"
+                  value={newInfluencerName}
+                  onChange={(e) => setNewInfluencerName(e.target.value)}
+                  placeholder="Influencer name"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="new-influencer-platform">Platform</Label>
+                <Input
+                  id="new-influencer-platform"
+                  value={newInfluencerPlatform}
+                  onChange={(e) => setNewInfluencerPlatform(e.target.value)}
+                  placeholder="Instagram, TikTok, YouTube..."
+                />
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowNewInfluencerModal(false)}
+                className="rounded-xl px-4 py-2 text-sm text-graystone-600 hover:bg-graystone-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateInfluencer}
+                disabled={!newInfluencerName.trim() || !newInfluencerPlatform.trim()}
+                className="rounded-xl bg-ocean-600 px-4 py-2 text-sm font-medium text-white hover:bg-ocean-500 disabled:opacity-40"
+              >
+                Add influencer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

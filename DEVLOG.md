@@ -1,5 +1,15 @@
 # Content Hub — Dev Log
 
+## 2026-03-24 — Implement Instagram, Facebook, and LinkedIn publishers
+
+- Tool: Claude Code (claude-sonnet-4-6) + Codex
+- Branch: main
+- Changes:
+  - `supabase/functions/publish-entry/index.ts`: implemented full publish flows for Instagram (user token → page token → IG business account → media container → publish), Facebook (page token + photo or feed post), and LinkedIn (UGC Posts API with optional image upload via registerUpload; post URN from x-restli-id response header)
+  - YouTube: improved stub message explaining video file requirement
+  - All publishers follow existing try/catch/error pattern from Bluesky
+- Status: Complete
+
 ## 2026-03-24 — Refine entry category, approach, UTM, and asset inputs
 
 - Tool: Codex
@@ -7,7 +17,7 @@
 - Changes:
   - `src/lib/supabase.ts` and new `src/hooks/domain/useCategories.ts`: added distinct category lookup from the `entries.campaign` column so both entry forms can autocomplete existing categories while still accepting free text
   - `src/features/entry/EntryForm.tsx` and new `src/features/entry/formUtils.ts`: replaced Campaign with a Category datalist input, moved response mode to a Proactive/Reactive pill toggle in the main form, added the collapsible UTM builder, and extended preview uploads to support PDF badges alongside image thumbnails
-  - `src/features/entry/EntryModal.jsx`: mirrored the Category autocomplete, main-form content-approach toggle, UTM builder, and image-or-PDF asset preview handling; legacy response modes now normalize to `Planned` or `Reactive` on save/update paths
+  - `src/features/entry/EntryModal.jsx`: mirrored the Category autocomplete, main-form content-approach toggle, UTM builder, and image-or-PDF asset preview handling; legacy response modes now normalise to `Planned` or `Reactive` on save/update paths
   - Verified with `npm run typecheck` and `npm test`
 - Status: Complete
 

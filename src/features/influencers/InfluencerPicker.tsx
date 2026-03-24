@@ -8,6 +8,7 @@ export interface InfluencerPickerProps {
   influencers: Influencer[];
   value: string | undefined;
   onChange: (influencerId: string | undefined) => void;
+  onCreateNew?: () => void;
   showOnlyActive?: boolean;
   label?: string;
   className?: string;
@@ -17,6 +18,7 @@ export const InfluencerPicker: React.FC<InfluencerPickerProps> = ({
   influencers,
   value,
   onChange,
+  onCreateNew,
   showOnlyActive = true,
   label = 'Influencer',
   className,
@@ -27,7 +29,20 @@ export const InfluencerPicker: React.FC<InfluencerPickerProps> = ({
 
   return (
     <div className={className}>
-      {label && <Label className="mb-1">{label}</Label>}
+      {label && (
+        <div className="mb-1 flex items-center justify-between">
+          <Label>{label}</Label>
+          {onCreateNew && (
+            <button
+              type="button"
+              onClick={onCreateNew}
+              className="text-xs font-medium text-ocean-600 hover:text-ocean-400"
+            >
+              + New influencer
+            </button>
+          )}
+        </div>
+      )}
       <select
         value={value || ''}
         onChange={(e) => onChange(e.target.value || undefined)}
