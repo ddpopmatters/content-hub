@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardHeader, CardContent, CardTitle, Badge, Button } from '../../components/ui';
+import { Badge, Button } from '../../components/ui';
 import { CheckCircleIcon, LoaderIcon } from '../../components/common';
 import { cx } from '../../lib/utils';
 import { getChecklistItemsForEntry } from '../../constants';
@@ -189,15 +189,13 @@ export function ApprovalsView({
         </div>
       </div>
 
-      <Card className="shadow-xl">
-        <CardHeader>
-          <CardTitle className="text-lg text-ocean-900">Your Approvals</CardTitle>
-          <p className="mt-2 text-sm text-graystone-500">
-            Items assigned to you that still need approval. Click an item to review, comment, or
-            approve.
-          </p>
-        </CardHeader>
-        <CardContent>
+      <div>
+        <h2 className="text-lg font-semibold text-ocean-900">Your Approvals</h2>
+        <p className="mt-1 text-sm text-graystone-500">
+          Items assigned to you that still need approval. Click an item to review, comment, or
+          approve.
+        </p>
+        <div className="mt-4">
           {approvals.length === 0 ? (
             <p className="text-sm text-graystone-500">
               Everything looks good. Nothing needs your approval right now.
@@ -214,8 +212,8 @@ export function ApprovalsView({
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
