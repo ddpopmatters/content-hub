@@ -343,6 +343,11 @@ interface EntryRow {
   platform_captions: Record<string, string>;
   first_comment: string;
   approval_deadline: string;
+  first_check_date: string | null;
+  second_check_date: string | null;
+  asset_production_date: string | null;
+  final_check_date: string | null;
+  asset_previews: string[] | null;
   status: string;
   priority_tier: string;
   approvers: string[];
@@ -2468,6 +2473,11 @@ export const SUPABASE_API = {
     platformCaptions: row.platform_captions || {},
     firstComment: row.first_comment,
     approvalDeadline: row.approval_deadline,
+    firstCheckDate: row.first_check_date || '',
+    secondCheckDate: row.second_check_date || '',
+    assetProductionDate: row.asset_production_date || '',
+    finalCheckDate: row.final_check_date || '',
+    assetPreviews: Array.isArray(row.asset_previews) ? row.asset_previews : [],
     status: row.status,
     priorityTier: mapPriorityTierFromDb(row.priority_tier),
     approvers: row.approvers || [],
@@ -2527,6 +2537,11 @@ export const SUPABASE_API = {
     platform_captions: entry.platformCaptions || {},
     first_comment: entry.firstComment,
     approval_deadline: dateOrNull(entry.approvalDeadline),
+    first_check_date: dateOrNull(entry.firstCheckDate),
+    second_check_date: dateOrNull(entry.secondCheckDate),
+    asset_production_date: dateOrNull(entry.assetProductionDate),
+    final_check_date: dateOrNull(entry.finalCheckDate),
+    asset_previews: entry.assetPreviews ?? [],
     status: entry.status || 'Pending',
     priority_tier: mapPriorityTierToDb(entry.priorityTier),
     approvers: entry.approvers || [],

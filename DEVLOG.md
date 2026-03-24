@@ -1,5 +1,14 @@
 # Content Hub — Dev Log
 
+## 2026-03-24 — Step-by-step wizard approval flow
+
+- Tool: Claude Code (Sonnet 4.6)
+- Branch: main
+- Changes:
+  - `EntryModal.jsx`: `renderApproverContent()` rewritten as a wizard — shows one content item at a time with a progress bar (`N of M`); once all items approved, transitions to a summary view showing every item for final review before Sign off becomes active
+  - Removed per-item approve buttons from `renderAssetNotes()` (script, design copy, carousel slides) — approval now lives entirely in the wizard
+- Status: Complete
+
 ## 2026-03-24 — Per-item approval flow + remove footer bypass
 
 - Tool: Claude Code (Sonnet 4.6)

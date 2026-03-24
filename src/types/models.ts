@@ -185,8 +185,13 @@ export interface Entry {
   script?: string;
   designCopy?: string;
   carouselSlides?: string[];
-  // Derived/transient fields (not persisted)
   approvalDeadline?: string;
+  firstCheckDate?: string;
+  secondCheckDate?: string;
+  assetProductionDate?: string;
+  finalCheckDate?: string;
+  assetPreviews?: string[];
+  // Derived/transient fields (not persisted)
   analyticsUpdatedAt?: string;
   comments?: Comment[];
   links?: string[];

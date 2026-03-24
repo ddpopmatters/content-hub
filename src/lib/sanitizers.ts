@@ -164,6 +164,13 @@ export const sanitizeEntry = (entry: unknown): Entry | null => {
     caption,
     url,
     approvalDeadline: typeof raw.approvalDeadline === 'string' ? raw.approvalDeadline : '',
+    firstCheckDate: typeof raw.firstCheckDate === 'string' ? raw.firstCheckDate : '',
+    secondCheckDate: typeof raw.secondCheckDate === 'string' ? raw.secondCheckDate : '',
+    assetProductionDate: typeof raw.assetProductionDate === 'string' ? raw.assetProductionDate : '',
+    finalCheckDate: typeof raw.finalCheckDate === 'string' ? raw.finalCheckDate : '',
+    assetPreviews: Array.isArray(raw.assetPreviews)
+      ? (raw.assetPreviews as string[]).filter((u) => typeof u === 'string')
+      : [],
     campaign:
       typeof raw.campaign === 'string' && isInArray(CAMPAIGNS, raw.campaign) ? raw.campaign : '',
     contentPillar:

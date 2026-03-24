@@ -62,6 +62,7 @@ import {
   ArrowPathIcon,
   TrashIcon,
   CheckCircleIcon,
+  XIcon,
 } from '../../components/common';
 import { SocialPreview } from '../social';
 import { ApproverMulti } from './ApproverMulti';
@@ -200,16 +201,6 @@ export function EntryModal({
     setActiveCaptionTab('Main');
     setActivePreviewPlatform(sanitizedEntry.platforms[0] || 'Main');
   }, [sanitizedSignature]);
-
-  useEffect(() => {
-    if (!draft) return;
-    if ((draft.approvers || []).length > 0) return;
-    if (!recommendedApprovers.length) return;
-    setDraft((prev) => {
-      if (!prev || (prev.approvers || []).length > 0) return prev;
-      return normalizeEntry({ ...prev, approvers: recommendedApprovers });
-    });
-  }, [draft, recommendedApprovers]);
 
   useEffect(() => {
     if (!sanitizedEntry) return;
@@ -433,23 +424,46 @@ export function EntryModal({
   };
 
   const handleFileUpload = (event) => {
-    const file = event.target.files && event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const url = typeof reader.result === 'string' ? reader.result : '';
-      setDraft((prev) => {
-        const next = normalizeEntry({ ...prev, previewUrl: url });
-        if (onUpdate) onUpdate(next);
-        return next;
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const url = typeof reader.result === 'string' ? reader.result : '';
+        setDraft((prev) => {
+          const existing = Array.isArray(prev.assetPreviews) ? prev.assetPreviews : [];
+          // Also keep previewUrl in sync with the first uploaded asset
+          const isFirst = existing.length === 0 && !prev.previewUrl;
+          const next = normalizeEntry({
+            ...prev,
+            assetPreviews: [...existing, url],
+            previewUrl: isFirst ? url : prev.previewUrl,
+          });
+          if (onUpdate) onUpdate(next);
+          return next;
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+    event.target.value = '';
+  };
+
+  const handleRemoveAssetPreview = (index) => {
+    setDraft((prev) => {
+      const existing = Array.isArray(prev.assetPreviews) ? prev.assetPreviews : [];
+      const next = normalizeEntry({
+        ...prev,
+        assetPreviews: existing.filter((_, i) => i !== index),
+        previewUrl: index === 0 ? existing[1] || '' : prev.previewUrl,
       });
-    };
-    reader.readAsDataURL(file);
+      if (onUpdate) onUpdate(next);
+      return next;
+    });
   };
 
   const handleClearPreview = () => {
     setDraft((prev) => {
-      const next = normalizeEntry({ ...prev, previewUrl: '' });
+      const next = normalizeEntry({ ...prev, previewUrl: '', assetPreviews: [] });
       if (onUpdate) onUpdate(next);
       return next;
     });
@@ -1204,6 +1218,27 @@ export function EntryModal({
                   />
                 </FieldRow>
 
+                <FieldRow label="Workflow dates">
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: 'First check', key: 'firstCheckDate' },
+                      { label: 'Second check', key: 'secondCheckDate' },
+                      { label: 'Asset production', key: 'assetProductionDate' },
+                      { label: 'Final check', key: 'finalCheckDate' },
+                      { label: 'Approval deadline', key: 'approvalDeadline' },
+                    ].map(({ label, key }) => (
+                      <div key={key} className="space-y-1">
+                        <div className="text-xs text-graystone-500">{label}</div>
+                        <Input
+                          type="date"
+                          value={draft[key] || ''}
+                          onChange={(event) => update(key, event.target.value || undefined)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </FieldRow>
+
                 <FieldRow label="Approvers">
                   <div className="space-y-2">
                     <ApproverMulti
@@ -1556,35 +1591,34 @@ export function EntryModal({
                       <span className="text-sm text-graystone-600">Select all platforms</span>
                     </div>
                     {!allPlatforms && (
-                      <div className="grid grid-cols-2 gap-2">
-                        {ALL_PLATFORMS.map((platform) => (
-                          <label
-                            key={platform}
-                            className="flex items-center gap-2 rounded-xl border border-aqua-200 bg-aqua-50 px-3 py-2 text-sm text-graystone-700 hover:border-aqua-300"
-                          >
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 rounded border-graystone-300"
-                              checked={draftPlatforms.includes(platform)}
-                              onChange={(event) => {
-                                const checked = event.target.checked;
+                      <div className="flex flex-wrap gap-2">
+                        {ALL_PLATFORMS.map((platform) => {
+                          const selected = draftPlatforms.includes(platform);
+                          return (
+                            <button
+                              key={platform}
+                              type="button"
+                              onClick={() => {
                                 const exists = draftPlatforms.includes(platform);
-                                let nextPlatforms = draftPlatforms;
-                                if (checked && !exists) {
-                                  nextPlatforms = [...draftPlatforms, platform];
-                                }
-                                if (!checked && exists) {
-                                  nextPlatforms = draftPlatforms.filter(
-                                    (item) => item !== platform,
-                                  );
-                                }
-                                update('platforms', nextPlatforms);
+                                update(
+                                  'platforms',
+                                  exists
+                                    ? draftPlatforms.filter((p) => p !== platform)
+                                    : [...draftPlatforms, platform],
+                                );
                               }}
-                            />
-                            <PlatformIcon platform={platform} />
-                            <span className="text-graystone-700">{platform}</span>
-                          </label>
-                        ))}
+                              className={cx(
+                                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                                selected
+                                  ? 'border-ocean-400 bg-ocean-600 text-white'
+                                  : 'border-graystone-200 bg-white text-graystone-600 hover:border-ocean-300 hover:text-ocean-700',
+                              )}
+                            >
+                              <PlatformIcon platform={platform} />
+                              {platform}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -1651,27 +1685,54 @@ export function EntryModal({
                   />
                 </FieldRow>
 
-                <FieldRow label="Preview">
+                <FieldRow label="Asset previews">
                   <div className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className={cx(fileInputClasses, 'cursor-pointer text-xs')}>
+                        <input
+                          type="file"
+                          accept="image/*,video/*"
+                          multiple
+                          onChange={handleFileUpload}
+                          className="sr-only"
+                        />
+                        Upload assets
+                      </label>
+                      {(draft.assetPreviews || []).length > 0 && (
+                        <Button variant="ghost" size="sm" onClick={handleClearPreview}>
+                          Clear all
+                        </Button>
+                      )}
+                    </div>
+                    {(draft.assetPreviews || []).length > 0 && (
+                      <div className="grid grid-cols-3 gap-2">
+                        {(draft.assetPreviews || []).map((url, idx) => (
+                          <div
+                            key={idx}
+                            className="group relative overflow-hidden rounded-xl border border-graystone-200"
+                          >
+                            <img
+                              src={url}
+                              alt={`Asset ${idx + 1}`}
+                              className="h-24 w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAssetPreview(idx)}
+                              className="absolute right-1 top-1 hidden rounded-full bg-black/60 p-0.5 text-white group-hover:flex"
+                            >
+                              <XIcon className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <Input
                       type="url"
                       value={draft.previewUrl || ''}
                       onChange={(event) => update('previewUrl', event.target.value)}
-                      placeholder="https://cdn.example.com/assets/post.png"
+                      placeholder="Or paste a preview URL"
                     />
-                    <div className="flex flex-wrap items-center gap-3">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileUpload}
-                        className={cx(fileInputClasses, 'text-xs')}
-                      />
-                      {draft.previewUrl && (
-                        <Button variant="ghost" size="sm" onClick={handleClearPreview}>
-                          Clear preview
-                        </Button>
-                      )}
-                    </div>
                     <div className="space-y-2">
                       {previewPlatforms.length > 1 && (
                         <div className="flex flex-wrap gap-2">
@@ -1825,14 +1886,6 @@ export function EntryModal({
                     </div>
                   </div>
                 )}
-
-                <FieldRow label="First comment">
-                  <Textarea
-                    value={draft.firstComment || ''}
-                    onChange={(event) => update('firstComment', event.target.value)}
-                    rows={3}
-                  />
-                </FieldRow>
 
                 <FieldRow label={`Checklist (${checklistCompleted}/${checklistTotal})`}>
                   <div className="flex flex-wrap gap-2">
