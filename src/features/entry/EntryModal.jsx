@@ -1903,16 +1903,6 @@ export function EntryModal({
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-aqua-200 bg-aqua-50 px-6 py-4">
             <div className="flex flex-wrap items-center gap-3">
-              {isApproverView && draft.status !== 'Approved' ? (
-                <Button
-                  variant="outline"
-                  onClick={() => onApprove(draft.id)}
-                  className="gap-2"
-                  disabled={false}
-                >
-                  Mark as approved
-                </Button>
-              ) : null}
               {onClone && (
                 <Button variant="outline" onClick={handleClone} className="gap-2 text-ocean-700">
                   <CopyIcon className="h-4 w-4 text-ocean-700" />
