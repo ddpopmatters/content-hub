@@ -1,5 +1,30 @@
 # Content Hub — Dev Log
 
+## 2026-03-24 — Refine entry category, approach, UTM, and asset inputs
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - `src/lib/supabase.ts` and new `src/hooks/domain/useCategories.ts`: added distinct category lookup from the `entries.campaign` column so both entry forms can autocomplete existing categories while still accepting free text
+  - `src/features/entry/EntryForm.tsx` and new `src/features/entry/formUtils.ts`: replaced Campaign with a Category datalist input, moved response mode to a Proactive/Reactive pill toggle in the main form, added the collapsible UTM builder, and extended preview uploads to support PDF badges alongside image thumbnails
+  - `src/features/entry/EntryModal.jsx`: mirrored the Category autocomplete, main-form content-approach toggle, UTM builder, and image-or-PDF asset preview handling; legacy response modes now normalize to `Planned` or `Reactive` on save/update paths
+  - Verified with `npm run typecheck` and `npm test`
+- Status: Complete
+
+## 2026-03-24 — Fix publishing API: rewire Publish button to Supabase Edge Function
+
+- Tool: Claude Code (claude-sonnet-4-6)
+- Branch: main
+- Changes:
+  - `src/hooks/domain/useEntries.ts`: replaced `triggerPublish` (Zapier no-cors webhook) with direct `fetch` to `functions/v1/publish-entry` Edge Function; uses real per-platform `PlatformResult` to set publishStatus instead of blindly marking all as published
+  - `src/types/models.ts`: added `'skipped'` to `PublishStatusState` union
+  - `src/features/publishing/publishUtils.ts`: `getAggregatePublishStatus` now treats `skipped` platforms as failed; entries where all platforms were skipped don't get `workflowStatus: 'Published'`
+  - `supabase/functions/oauth-callback/index.ts`: fixed fragile string-replace for `FUNCTION_URL`; removed hardcoded Supabase project URL as `APP_URL` fallback
+  - `supabase/config.toml`: added `[functions]` section so Edge Functions are served by `supabase start`
+  - `.env.example`: documented `APP_URL`, `LINKEDIN_CLIENT_ID`, `GOOGLE_CLIENT_ID`
+  - Added `publishUtils.test.ts` + 3 `handlePublishEntry` tests in `useEntries.test.ts` (207 tests total)
+- Status: Complete
+
 ## 2026-03-24 — Update entry form workflow and asset inputs
 
 - Tool: Codex

@@ -1,10 +1,10 @@
 {
-  "session_id": "86c5ced9-db0e-4860-bac1-fd94d83fef20",
-  "transcript_path": "/Users/dan/.claude/projects/-Users-dan-dev-population-matters-tools-Content-Hub/86c5ced9-db0e-4860-bac1-fd94d83fef20.jsonl",
+  "session_id": "5c08a1e5-80ab-48c6-91cf-46947decdb30",
+  "transcript_path": "/Users/dan/.claude/projects/-Users-dan-dev-population-matters-tools-Content-Hub/5c08a1e5-80ab-48c6-91cf-46947decdb30.jsonl",
   "hook_event_name": "PreToolUse",
   "tool_name": "Write",
   "tool_input": {
-    "file_path": "/Users/dan/dev/population_matters/tools/Content Hub/supabase/migrations/20260323_ensure_entries_rls_open.sql",
-    "content": "-- Idempotent: ensure entries_update policy is open to all authenticated users.\n-- The original 002_rls_policies.sql created a restrictive policy that only allowed\n-- authors and listed approvers to update their own entries. This blocked approval\n-- persistence for any user not matching author_email.\n-- 20260320001_fix_entries_rls.sql was meant to fix this but may not have been applied.\n\nDROP POLICY IF EXISTS \"entries_update\" ON entries;\n\nCREATE POLICY \"entries_update\" ON entries\n  FOR UPDATE TO authenticated\n  USING (true)\n  WITH CHECK (true);\n"
+    "file_path": "/Users/dan/dev/population_matters/tools/Content Hub/src/features/publishing/__tests__/publishUtils.test.ts",
+    "content": "import { describe, it, expect } from 'vitest';\nimport { getAggregatePublishStatus } from '../publishUtils';\n\ndescribe('getAggregatePublishStatus', () => {\n  it('returns failed when all platforms are skipped', () => {\n    expect(\n      getAggregatePublishStatus({\n        Instagram: { status: 'skipped', url: null, error: 'not implemented', timestamp: 't' },\n      }),\n    ).toBe('failed');\n  });\n});\n"
   }
 }

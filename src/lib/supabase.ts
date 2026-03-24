@@ -891,6 +891,35 @@ export const SUPABASE_API = {
   // ENTRIES (Content Calendar)
   // ==========================================
 
+  fetchDistinctCategories: async (): Promise<string[]> => {
+    await initSupabase();
+    if (!supabase) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('entries')
+        .select('campaign')
+        .not('campaign', 'is', null)
+        .neq('campaign', '');
+
+      if (error || !data) {
+        if (error) Logger.error(error, 'fetchDistinctCategories');
+        return [];
+      }
+
+      return [
+        ...new Set(
+          data
+            .map((row: { campaign: string | null }) => row.campaign)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ].sort();
+    } catch (error) {
+      Logger.error(error, 'fetchDistinctCategories');
+      return [];
+    }
+  },
+
   fetchEntries: async (options: FetchEntriesOptions = {}): Promise<Entry[]> => {
     await initSupabase();
     if (!supabase) return [];

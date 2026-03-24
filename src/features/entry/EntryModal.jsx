@@ -9,7 +9,12 @@ import {
   storageAvailable,
   STORAGE_KEYS,
 } from '../../lib/utils';
-import { selectBaseClasses, fileInputClasses, checklistCheckboxClass } from '../../lib/styles';
+import {
+  selectBaseClasses,
+  inputBaseClasses,
+  fileInputClasses,
+  checklistCheckboxClass,
+} from '../../lib/styles';
 import {
   sanitizeEntry,
   ensureChecklist,
@@ -26,7 +31,6 @@ import {
 import { resolveMentionCandidate, computeMentionState } from '../../lib/mentions';
 import {
   ALL_PLATFORMS,
-  CAMPAIGNS,
   CONTENT_CATEGORIES,
   CTA_TYPES,
   CONTENT_PILLARS,
@@ -41,7 +45,6 @@ import {
   PRIORITY_TIER_BADGE_CLASSES,
   recommendApproversForRoute,
   recommendSignOffRoute,
-  RESPONSE_MODES,
   SIGN_OFF_ROUTES,
 } from '../../constants';
 import {
@@ -75,6 +78,8 @@ import {
 } from '../assessment';
 import { TerminologyAlert } from './TerminologyAlert';
 import { PlatformGuidancePanel } from './PlatformGuidancePanel';
+import { useCategories } from '../../hooks/domain/useCategories';
+import { buildUtmUrl, normalizeContentApproach } from './formUtils';
 import { checkTerminology } from '../../lib/terminology';
 
 const { useState, useMemo, useEffect, useCallback, useRef } = React;
@@ -139,7 +144,14 @@ export function EntryModal({
   const [approverSlide, setApproverSlide] = useState(0);
   const [carouselSlideIndex, setCarouselSlideIndex] = useState(0);
   const [approvedItems, setApprovedItems] = useState(new Set());
+  const [showUtm, setShowUtm] = useState(false);
+  const [utmSource, setUtmSource] = useState('');
+  const [utmMedium, setUtmMedium] = useState('');
+  const [utmCampaign, setUtmCampaign] = useState('');
+  const [utmContent, setUtmContent] = useState('');
+  const [utmTerm, setUtmTerm] = useState('');
   const { get: apiGet } = useApi();
+  const categories = useCategories();
 
   useEffect(() => {
     if (!sanitizedEntry) {
@@ -153,8 +165,15 @@ export function EntryModal({
     setCommentDraft('');
     setMentionState(null);
     setApprovedItems(new Set());
+    setShowUtm(false);
+    setUtmSource('');
+    setUtmMedium('');
+    setUtmCampaign('');
+    setUtmContent('');
+    setUtmTerm('');
   }, [sanitizedEntry]);
 
+  const contentApproach = normalizeContentApproach(draft?.responseMode);
   const terminologyMatches = useMemo(
     () => (draft?.caption ? checkTerminology(draft.caption) : []),
     [draft?.caption],
@@ -165,9 +184,9 @@ export function EntryModal({
         campaign: draft?.campaign,
         contentCategory: draft?.contentCategory,
         partnerOrg: draft?.partnerOrg,
-        responseMode: draft?.responseMode,
+        responseMode: contentApproach,
       }),
-    [draft?.campaign, draft?.contentCategory, draft?.partnerOrg, draft?.responseMode],
+    [contentApproach, draft?.campaign, draft?.contentCategory, draft?.partnerOrg],
   );
   const recommendedApprovers = useMemo(
     () =>
@@ -315,6 +334,7 @@ export function EntryModal({
       checklist: ensureChecklist(raw.checklist),
       comments: ensureComments(raw.comments),
       previewUrl: raw.previewUrl || '',
+      responseMode: normalizeContentApproach(raw.responseMode),
       platformCaptions: ensurePlatformCaptions(raw.platformCaptions),
       platforms: ensureArray(Array.isArray(raw.platforms) ? raw.platforms : []),
       analytics: ensureAnalytics(raw.analytics),
@@ -343,6 +363,7 @@ export function EntryModal({
 
   const handleSave = () => {
     let next = normalizeEntry(draft);
+    next = { ...next, responseMode: normalizeContentApproach(next.responseMode) };
     const computedStatus = determineWorkflowStatus({
       approvers: next.approvers,
       assetType: next.assetType,
@@ -631,6 +652,14 @@ export function EntryModal({
     draft.caption,
     draft.platformCaptions,
     effectivePreviewPlatform,
+  );
+  const generatedUtmUrl = buildUtmUrl(
+    draft.url || '',
+    utmSource,
+    utmMedium,
+    utmCampaign,
+    utmContent,
+    utmTerm,
   );
   const currentPriorityTier = PRIORITY_TIERS.includes(draft.priorityTier)
     ? draft.priorityTier
@@ -1218,6 +1247,30 @@ export function EntryModal({
                   />
                 </FieldRow>
 
+                <FieldRow label="Content approach">
+                  <div className="flex gap-2">
+                    {['Planned', 'Reactive'].map((mode) => {
+                      const label = mode === 'Planned' ? 'Proactive' : 'Reactive';
+                      const active = contentApproach === mode;
+                      return (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => update('responseMode', mode)}
+                          className={cx(
+                            'flex-1 rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+                            active
+                              ? 'border-ocean-400 bg-ocean-600 text-white'
+                              : 'border-graystone-200 bg-white text-graystone-600 hover:border-ocean-300 hover:text-ocean-700',
+                          )}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </FieldRow>
+
                 <FieldRow label="Workflow dates">
                   <div className="grid grid-cols-2 gap-3">
                     {[
@@ -1267,19 +1320,21 @@ export function EntryModal({
                   </div>
                 </FieldRow>
 
-                <FieldRow label="Campaign">
-                  <select
-                    value={draft.campaign || ''}
-                    onChange={(event) => update('campaign', event.target.value || '')}
-                    className={cx(selectBaseClasses, 'w-full')}
-                  >
-                    <option value="">No campaign</option>
-                    {CAMPAIGNS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
+                <FieldRow label="Category">
+                  <div className="space-y-2">
+                    <input
+                      list="modal-category-options"
+                      value={draft.campaign || ''}
+                      onChange={(event) => update('campaign', event.target.value)}
+                      placeholder="Type or choose a category"
+                      className={cx(inputBaseClasses, 'w-full')}
+                    />
+                    <datalist id="modal-category-options">
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat} />
+                      ))}
+                    </datalist>
+                  </div>
                 </FieldRow>
 
                 <FieldRow label="Content pillar">
@@ -1305,20 +1360,6 @@ export function EntryModal({
                   >
                     <option value="">Not tagged</option>
                     {CONTENT_CATEGORIES.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </FieldRow>
-
-                <FieldRow label="Response mode">
-                  <select
-                    value={draft.responseMode || 'Planned'}
-                    onChange={(event) => update('responseMode', event.target.value || undefined)}
-                    className={cx(selectBaseClasses, 'w-full')}
-                  >
-                    {RESPONSE_MODES.map((option) => (
                       <option key={option} value={option}>
                         {option}
                       </option>
@@ -1678,11 +1719,87 @@ export function EntryModal({
                 {terminologyMatches.length > 0 && <TerminologyAlert matches={terminologyMatches} />}
 
                 <FieldRow label="URL">
-                  <Input
-                    type="url"
-                    value={draft.url || ''}
-                    onChange={(event) => update('url', event.target.value || undefined)}
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      type="url"
+                      value={draft.url || ''}
+                      onChange={(event) => update('url', event.target.value || undefined)}
+                    />
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowUtm((value) => !value)}
+                        className="flex items-center gap-1.5 text-xs font-medium text-ocean-700 hover:underline"
+                      >
+                        <span>{showUtm ? '▾' : '▸'}</span>
+                        UTM parameters
+                      </button>
+                      {showUtm && (
+                        <div className="space-y-3 rounded-xl border border-graystone-200 bg-graystone-50 p-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              {
+                                label: 'Source *',
+                                placeholder: 'e.g. twitter',
+                                value: utmSource,
+                                setter: setUtmSource,
+                              },
+                              {
+                                label: 'Medium *',
+                                placeholder: 'e.g. social',
+                                value: utmMedium,
+                                setter: setUtmMedium,
+                              },
+                              {
+                                label: 'Campaign *',
+                                placeholder: 'e.g. awareness-week',
+                                value: utmCampaign,
+                                setter: setUtmCampaign,
+                              },
+                              {
+                                label: 'Content',
+                                placeholder: 'e.g. top-link',
+                                value: utmContent,
+                                setter: setUtmContent,
+                              },
+                              {
+                                label: 'Term',
+                                placeholder: 'keyword',
+                                value: utmTerm,
+                                setter: setUtmTerm,
+                              },
+                            ].map(({ label, placeholder, value, setter }) => (
+                              <div key={label} className="space-y-1">
+                                <div className="text-xs text-graystone-500">{label}</div>
+                                <Input
+                                  type="text"
+                                  value={value}
+                                  onChange={(event) => setter(event.target.value)}
+                                  placeholder={placeholder}
+                                  className="text-xs"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          {generatedUtmUrl && (
+                            <div className="space-y-1">
+                              <div className="text-xs text-graystone-500">Generated URL</div>
+                              <div className="break-all rounded-lg border border-graystone-200 bg-white px-3 py-2 text-xs text-graystone-700">
+                                {generatedUtmUrl}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => update('url', generatedUtmUrl)}
+                                className="text-xs font-medium text-ocean-700 hover:underline"
+                              >
+                                Use this URL
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </FieldRow>
 
                 <FieldRow label="Asset previews">
@@ -1691,7 +1808,7 @@ export function EntryModal({
                       <label className={cx(fileInputClasses, 'cursor-pointer text-xs')}>
                         <input
                           type="file"
-                          accept="image/*,video/*"
+                          accept="image/*,application/pdf"
                           multiple
                           onChange={handleFileUpload}
                           className="sr-only"
@@ -1711,11 +1828,17 @@ export function EntryModal({
                             key={idx}
                             className="group relative overflow-hidden rounded-xl border border-graystone-200"
                           >
-                            <img
-                              src={url}
-                              alt={`Asset ${idx + 1}`}
-                              className="h-24 w-full object-cover"
-                            />
+                            {url.startsWith('data:image/') ? (
+                              <img
+                                src={url}
+                                alt={`Asset ${idx + 1}`}
+                                className="h-24 w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-24 w-full items-center justify-center bg-graystone-50 text-xs text-graystone-500">
+                                {url.startsWith('data:application/pdf') ? 'PDF' : 'File'}
+                              </div>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleRemoveAssetPreview(idx)}

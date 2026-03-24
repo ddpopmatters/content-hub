@@ -17,7 +17,6 @@ import type {
 } from '../../types/models';
 import {
   ALL_PLATFORMS,
-  CAMPAIGNS,
   CONTENT_CATEGORIES,
   CTA_TYPES,
   CONTENT_PILLARS,
@@ -25,7 +24,6 @@ import {
   EXECUTION_STATUSES,
   LINK_PLACEMENTS,
   PRIORITY_TIERS,
-  RESPONSE_MODES,
   recommendApproversForRoute,
   recommendSignOffRoute,
   SIGN_OFF_ROUTES,
@@ -48,6 +46,8 @@ import { QuickAssessment, GoldenThreadCheck } from '../assessment';
 import { AudienceSelector } from './AudienceSelector';
 import { PlatformGuidancePanel } from './PlatformGuidancePanel';
 import { TerminologyAlert } from './TerminologyAlert';
+import { useCategories } from '../../hooks/domain/useCategories';
+import { buildUtmUrl, normalizeContentApproach } from './formUtils';
 import { checkTerminology } from '../../lib/terminology';
 
 const { useState, useMemo, useEffect, useRef } = React;
@@ -163,10 +163,17 @@ export function EntryForm({
   const [entryFormErrors, setEntryFormErrors] = useState<string[]>([]);
   const [entryFormErrorFields, setEntryFormErrorFields] = useState<string[]>([]);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  const [showUtm, setShowUtm] = useState<boolean>(false);
+  const [utmSource, setUtmSource] = useState<string>('');
+  const [utmMedium, setUtmMedium] = useState<string>('');
+  const [utmCampaign, setUtmCampaign] = useState<string>('');
+  const [utmContent, setUtmContent] = useState<string>('');
+  const [utmTerm, setUtmTerm] = useState<string>('');
   const [autoSignOffRoute, setAutoSignOffRoute] = useState<boolean>(true);
   const [autoApprovers, setAutoApprovers] = useState<boolean>(true);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const conflictWarningRef = useRef<HTMLDivElement>(null);
+  const categories = useCategories();
 
   useEffect(() => {
     if (!initialValues) return;
@@ -250,7 +257,6 @@ export function EntryForm({
     setEntryFormErrorFields([]);
     const hasAdvancedValues = !!(
       initialValues.contentCategory ||
-      (initialValues.responseMode && initialValues.responseMode !== 'Planned') ||
       initialValues.signOffRoute ||
       initialValues.contentPeak ||
       initialValues.seriesName ||
@@ -274,19 +280,26 @@ export function EntryForm({
       Object.keys(initialValues.assessmentScores?.goldenThread ?? {}).length > 0
     );
     setShowAdvanced(hasAdvancedValues);
+    setShowUtm(false);
+    setUtmSource('');
+    setUtmMedium('');
+    setUtmCampaign('');
+    setUtmContent('');
+    setUtmTerm('');
     setAutoSignOffRoute(!initialValues.signOffRoute);
     setAutoApprovers(false);
   }, [initialValues]);
 
+  const contentApproach = normalizeContentApproach(responseMode);
   const recommendedSignOffRoute = useMemo(
     () =>
       recommendSignOffRoute({
         campaign,
         contentCategory,
         partnerOrg,
-        responseMode,
+        responseMode: contentApproach,
       }),
-    [campaign, contentCategory, partnerOrg, responseMode],
+    [campaign, contentApproach, contentCategory, partnerOrg],
   );
   const recommendedApprovers = useMemo(
     () => recommendApproversForRoute(signOffRoute || recommendedSignOffRoute, approverOptions),
@@ -406,6 +419,12 @@ export function EntryForm({
     setGoldenThread({});
     setEntryFormErrors([]);
     setEntryFormErrorFields([]);
+    setShowUtm(false);
+    setUtmSource('');
+    setUtmMedium('');
+    setUtmCampaign('');
+    setUtmContent('');
+    setUtmTerm('');
     setAutoSignOffRoute(true);
     setAutoApprovers(false);
     onPreviewAssetType?.(null);
@@ -473,7 +492,7 @@ export function EntryForm({
       campaign: campaign || undefined,
       contentPillar: contentPillar || undefined,
       contentCategory: contentCategory ? (contentCategory as ContentCategory) : undefined,
-      responseMode: responseMode ? (responseMode as ResponseMode) : undefined,
+      responseMode: contentApproach as ResponseMode,
       signOffRoute: signOffRoute ? (signOffRoute as SignOffRoute) : undefined,
       contentPeak: contentPeak || undefined,
       seriesName: seriesName || undefined,
@@ -566,9 +585,9 @@ export function EntryForm({
   const hasScriptError = entryFormErrorFields.includes('script');
   const hasDesignCopyError = entryFormErrorFields.includes('designCopy');
   const hasCarouselSlidesError = entryFormErrorFields.includes('carouselSlides');
+  const generatedUtmUrl = buildUtmUrl(url, utmSource, utmMedium, utmCampaign, utmContent, utmTerm);
   const advancedFilledCount = [
     contentCategory,
-    responseMode !== 'Planned',
     signOffRoute,
     contentPeak,
     seriesName,
@@ -930,6 +949,31 @@ export function EntryForm({
               </div>
 
               <div className="space-y-2">
+                <Label>Content approach</Label>
+                <div className="flex gap-2">
+                  {(['Planned', 'Reactive'] as const).map((mode) => {
+                    const label = mode === 'Planned' ? 'Proactive' : 'Reactive';
+                    const active = contentApproach === mode;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setResponseMode(mode)}
+                        className={cx(
+                          'flex-1 rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+                          active
+                            ? 'border-ocean-400 bg-ocean-600 text-white'
+                            : 'border-graystone-200 bg-white text-graystone-600 hover:border-ocean-300 hover:text-ocean-700',
+                        )}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <Label>Workflow dates</Label>
                 <div className="grid grid-cols-2 gap-3">
                   {(
@@ -982,20 +1026,20 @@ export function EntryForm({
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="campaign">Campaign</Label>
-                  <select
-                    id="campaign"
+                  <Label htmlFor="category">Category</Label>
+                  <input
+                    id="category"
+                    list="category-options"
                     value={campaign}
                     onChange={(event) => setCampaign(event.target.value)}
+                    placeholder="Type or choose a category"
                     className={cx(selectBaseClasses, 'w-full')}
-                  >
-                    <option value="">No campaign</option>
-                    {CAMPAIGNS.map((name) => (
-                      <option key={name} value={name}>
-                        {name}
-                      </option>
+                  />
+                  <datalist id="category-options">
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
 
                 <div className="space-y-2">
@@ -1103,20 +1147,95 @@ export function EntryForm({
                       />
                     </div>
 
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowUtm((value) => !value)}
+                        className="flex items-center gap-1.5 text-xs font-medium text-ocean-700 hover:underline"
+                      >
+                        <span>{showUtm ? '▾' : '▸'}</span>
+                        UTM parameters
+                      </button>
+                      {showUtm && (
+                        <div className="space-y-3 rounded-xl border border-graystone-200 bg-graystone-50 p-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              {
+                                label: 'Source *',
+                                placeholder: 'e.g. twitter',
+                                value: utmSource,
+                                setter: setUtmSource,
+                              },
+                              {
+                                label: 'Medium *',
+                                placeholder: 'e.g. social',
+                                value: utmMedium,
+                                setter: setUtmMedium,
+                              },
+                              {
+                                label: 'Campaign *',
+                                placeholder: 'e.g. awareness-week',
+                                value: utmCampaign,
+                                setter: setUtmCampaign,
+                              },
+                              {
+                                label: 'Content',
+                                placeholder: 'e.g. top-link',
+                                value: utmContent,
+                                setter: setUtmContent,
+                              },
+                              {
+                                label: 'Term',
+                                placeholder: 'keyword',
+                                value: utmTerm,
+                                setter: setUtmTerm,
+                              },
+                            ].map(({ label, placeholder, value, setter }) => (
+                              <div key={label} className="space-y-1">
+                                <div className="text-xs text-graystone-500">{label}</div>
+                                <Input
+                                  type="text"
+                                  value={value}
+                                  onChange={(event) => setter(event.target.value)}
+                                  placeholder={placeholder}
+                                  className="text-xs"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          {generatedUtmUrl && (
+                            <div className="space-y-1">
+                              <div className="text-xs text-graystone-500">Generated URL</div>
+                              <div className="break-all rounded-lg border border-graystone-200 bg-white px-3 py-2 text-xs text-graystone-700">
+                                {generatedUtmUrl}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setUrl(generatedUtmUrl)}
+                                className="text-xs font-medium text-ocean-700 hover:underline"
+                              >
+                                Use this URL
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     <div className="space-y-3">
                       <Label htmlFor="preview-file">Preview asset</Label>
                       <div className="flex flex-wrap items-center gap-3">
                         <input
                           id="preview-file"
                           type="file"
-                          accept="image/*"
+                          accept="image/*,application/pdf"
                           multiple
                           onChange={(event) => {
                             const files = Array.from(event.target.files || []) as File[];
                             files.forEach((file) => {
                               if (file.size > 512 * 1024) {
                                 pushSyncToast?.(
-                                  'Each preview image must be under 500 KB.',
+                                  'Each preview file must be under 500 KB.',
                                   'warning',
                                 );
                                 return;
@@ -1142,11 +1261,17 @@ export function EntryForm({
                         <div className="mt-2 grid grid-cols-3 gap-2">
                           {assetPreviews.map((url, idx) => (
                             <div key={idx} className="group relative">
-                              <img
-                                src={url}
-                                alt={`Preview ${idx + 1}`}
-                                className="h-20 w-full rounded-lg border border-graystone-200 object-cover"
-                              />
+                              {url.startsWith('data:image/') ? (
+                                <img
+                                  src={url}
+                                  alt={`Preview ${idx + 1}`}
+                                  className="h-20 w-full rounded-lg border border-graystone-200 object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-20 w-full items-center justify-center rounded-lg border border-graystone-200 bg-graystone-50 text-xs text-graystone-500">
+                                  {url.startsWith('data:application/pdf') ? 'PDF' : 'File'}
+                                </div>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1170,7 +1295,7 @@ export function EntryForm({
                         type="url"
                         value={previewUrl}
                         onChange={(event) => setPreviewUrl(event.target.value)}
-                        placeholder="Or paste an image URL"
+                        placeholder="Or paste a preview URL"
                       />
                     </div>
 
@@ -1208,22 +1333,6 @@ export function EntryForm({
                         {CONTENT_CATEGORIES.map((name) => (
                           <option key={name} value={name}>
                             {name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="response-mode">Response mode</Label>
-                      <select
-                        id="response-mode"
-                        value={responseMode}
-                        onChange={(event) => setResponseMode(event.target.value)}
-                        className={cx(selectBaseClasses, 'w-full')}
-                      >
-                        {RESPONSE_MODES.map((mode) => (
-                          <option key={mode} value={mode}>
-                            {mode}
                           </option>
                         ))}
                       </select>

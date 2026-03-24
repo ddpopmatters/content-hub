@@ -36,8 +36,10 @@ execSync(`npx @tailwindcss/cli -i "${tailwindInput}" -o "${tailwindOutput}"`, {
 });
 
 // Start Tailwind watcher in background
+// CHOKIDAR_USEPOLLING avoids FSEvents crash on Node 25 / macOS
 const twWatch = exec(`npx @tailwindcss/cli -i "${tailwindInput}" -o "${tailwindOutput}" --watch`, {
   cwd: root,
+  env: { ...process.env, CHOKIDAR_USEPOLLING: '1' },
 });
 twWatch.stderr?.on('data', (d) => {
   const msg = d.toString().trim();
