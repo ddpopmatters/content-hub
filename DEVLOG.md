@@ -1,5 +1,17 @@
 # Content Hub — Dev Log
 
+## 2026-03-24 — Update entry form workflow and asset inputs
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - `src/features/entry/EntryForm.tsx`: replaced the platform checkbox grid with pill-style toggle buttons to match the modal interaction
+  - `src/features/entry/EntryForm.tsx`: removed the visible `First comment` field and replaced the single approval deadline input with a five-field `Workflow dates` section
+  - `src/features/entry/EntryForm.tsx`: added `assetPreviews` state and a multi-file preview upload flow with thumbnail removal, while keeping `previewUrl` in sync
+  - `src/features/entry/EntryForm.tsx`: disabled automatic approver prefill so new entries start empty and the recommendation is only applied through `Use template`
+  - Verified with `npm run typecheck` and `npm test`
+- Status: Complete
+
 ## 2026-03-24 — Step-by-step wizard approval flow
 
 - Tool: Claude Code (Sonnet 4.6)

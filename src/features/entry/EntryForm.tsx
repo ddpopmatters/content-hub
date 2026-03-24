@@ -86,10 +86,10 @@ const FIELD_ERROR_MESSAGES = {
   carouselSlides: 'At least one carousel slide needs copy.',
 } as const;
 
-const normalizeDateTimeLocal = (value: string | null | undefined): string => {
+const normalizeDateInput = (value: string | null | undefined): string => {
   if (!value || typeof value !== 'string') return '';
-  if (value.includes('T')) return value.slice(0, 16);
-  return `${value}T17:00`;
+  if (value.includes('T')) return value.slice(0, 10);
+  return value;
 };
 
 export function EntryForm({
@@ -102,7 +102,7 @@ export function EntryForm({
   approverOptions = DEFAULT_APPROVERS,
   influencers = [],
   onInfluencerChange,
-  teamsWebhookUrl = '',
+  teamsWebhookUrl: _teamsWebhookUrl = '',
   pushSyncToast,
   initialValues = null,
 }: EntryFormProps): React.ReactElement {
@@ -118,12 +118,17 @@ export function EntryForm({
   const [caption, setCaption] = useState<string>('');
   const [url, setUrl] = useState<string>('');
   const [approvalDeadline, setApprovalDeadline] = useState<string>('');
+  const [firstCheckDate, setFirstCheckDate] = useState<string>('');
+  const [secondCheckDate, setSecondCheckDate] = useState<string>('');
+  const [assetProductionDate, setAssetProductionDate] = useState<string>('');
+  const [finalCheckDate, setFinalCheckDate] = useState<string>('');
   const [assetType, setAssetType] = useState<string>('No asset');
   const [script, setScript] = useState<string>('');
   const [designCopy, setDesignCopy] = useState<string>('');
   const [carouselSlides, setCarouselSlides] = useState<string[]>(['']);
   const [firstComment, setFirstComment] = useState<string>('');
   const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [assetPreviews, setAssetPreviews] = useState<string[]>([]);
   const [overrideConflict, setOverrideConflict] = useState<boolean>(false);
   const [platformCaptions, setPlatformCaptions] = useState<Record<string, string>>({});
   const [activeCaptionTab, setActiveCaptionTab] = useState<string>('Main');
@@ -190,7 +195,11 @@ export function EntryForm({
     );
     setCaption(initialValues.caption || '');
     setUrl(initialValues.url || '');
-    setApprovalDeadline(normalizeDateTimeLocal(initialValues.approvalDeadline));
+    setApprovalDeadline(normalizeDateInput(initialValues.approvalDeadline));
+    setFirstCheckDate(normalizeDateInput(initialValues.firstCheckDate));
+    setSecondCheckDate(normalizeDateInput(initialValues.secondCheckDate));
+    setAssetProductionDate(normalizeDateInput(initialValues.assetProductionDate));
+    setFinalCheckDate(normalizeDateInput(initialValues.finalCheckDate));
     setAssetType(nextAssetType);
     setScript(initialValues.script || '');
     setDesignCopy(initialValues.designCopy || '');
@@ -201,6 +210,7 @@ export function EntryForm({
     }
     setFirstComment(initialValues.firstComment || '');
     setPreviewUrl(initialValues.previewUrl || '');
+    setAssetPreviews(Array.isArray(initialValues.assetPreviews) ? initialValues.assetPreviews : []);
     setOverrideConflict(false);
     setPlatformCaptions(nextPlatformCaptions);
     setActiveCaptionTab('Main');
@@ -259,12 +269,13 @@ export function EntryForm({
       initialValues.influencerId ||
       initialValues.url ||
       initialValues.previewUrl ||
+      ensureArray(initialValues.assetPreviews).length > 0 ||
       Object.keys(initialValues.assessmentScores?.quick ?? {}).length > 0 ||
       Object.keys(initialValues.assessmentScores?.goldenThread ?? {}).length > 0
     );
     setShowAdvanced(hasAdvancedValues);
     setAutoSignOffRoute(!initialValues.signOffRoute);
-    setAutoApprovers(ensureArray(initialValues.approvers).length === 0);
+    setAutoApprovers(false);
   }, [initialValues]);
 
   const recommendedSignOffRoute = useMemo(
@@ -288,8 +299,7 @@ export function EntryForm({
   }, [autoSignOffRoute, recommendedSignOffRoute]);
 
   useEffect(() => {
-    if (!autoApprovers) return;
-    setApprovers(recommendedApprovers);
+    return;
   }, [autoApprovers, recommendedApprovers]);
 
   useEffect(() => {
@@ -354,7 +364,12 @@ export function EntryForm({
     setCaption('');
     setUrl('');
     setApprovalDeadline('');
+    setFirstCheckDate('');
+    setSecondCheckDate('');
+    setAssetProductionDate('');
+    setFinalCheckDate('');
     setPreviewUrl('');
+    setAssetPreviews([]);
     setAssetType('No asset');
     setScript('');
     setDesignCopy('');
@@ -392,7 +407,7 @@ export function EntryForm({
     setEntryFormErrors([]);
     setEntryFormErrorFields([]);
     setAutoSignOffRoute(true);
-    setAutoApprovers(true);
+    setAutoApprovers(false);
     onPreviewAssetType?.(null);
   };
 
@@ -442,7 +457,12 @@ export function EntryForm({
       caption,
       url: url || undefined,
       approvalDeadline: approvalDeadline || undefined,
+      firstCheckDate: firstCheckDate || undefined,
+      secondCheckDate: secondCheckDate || undefined,
+      assetProductionDate: assetProductionDate || undefined,
+      finalCheckDate: finalCheckDate || undefined,
       previewUrl: previewUrl || undefined,
+      assetPreviews,
       assetType,
       script: assetType === 'Video' ? script : undefined,
       designCopy: assetType === 'Design' ? designCopy : undefined,
@@ -567,6 +587,7 @@ export function EntryForm({
     influencerId,
     !!url,
     !!previewUrl,
+    assetPreviews.length > 0,
     Object.keys(quickAssessment).length > 0,
     Object.keys(goldenThread).length > 0,
   ].filter(Boolean).length;
@@ -702,22 +723,26 @@ export function EntryForm({
                   <span className="text-sm text-graystone-600">Select all platforms</span>
                 </div>
                 {!allPlatforms && (
-                  <div className="grid grid-cols-2 gap-2 md:grid-cols-2">
-                    {ALL_PLATFORMS.map((platform) => (
-                      <label
-                        key={platform}
-                        className="flex items-center gap-2 rounded-xl border border-graystone-200 bg-white px-3 py-2 text-sm text-graystone-700 shadow-sm hover:border-graystone-300"
-                      >
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-graystone-300"
-                          checked={platforms.includes(platform)}
-                          onChange={(event) => handlePlatformToggle(platform, event.target.checked)}
-                        />
-                        <PlatformIcon platform={platform} />
-                        <span>{platform}</span>
-                      </label>
-                    ))}
+                  <div className="flex flex-wrap gap-2">
+                    {ALL_PLATFORMS.map((platform) => {
+                      const selected = platforms.includes(platform);
+                      return (
+                        <button
+                          key={platform}
+                          type="button"
+                          onClick={() => handlePlatformToggle(platform, !selected)}
+                          className={cx(
+                            'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                            selected
+                              ? 'border-ocean-400 bg-ocean-600 text-white'
+                              : 'border-graystone-200 bg-white text-graystone-600 hover:border-ocean-300 hover:text-ocean-700',
+                          )}
+                        >
+                          <PlatformIcon platform={platform} />
+                          {platform}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
                 {hasPlatformError ? (
@@ -888,17 +913,6 @@ export function EntryForm({
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="firstComment">First comment</Label>
-                <Textarea
-                  id="firstComment"
-                  value={firstComment}
-                  onChange={(event) => setFirstComment(event.target.value)}
-                  placeholder="Hashtags, context, extra links"
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="entry-date">Date</Label>
                 <Input
                   id="entry-date"
@@ -916,19 +930,54 @@ export function EntryForm({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="approvalDeadline">Approval deadline</Label>
-                <Input
-                  id="approvalDeadline"
-                  type="datetime-local"
-                  value={approvalDeadline}
-                  onChange={(event) => setApprovalDeadline(event.target.value)}
-                  className="w-full"
-                />
-                <p className="text-xs text-graystone-500">
-                  {teamsWebhookUrl
-                    ? 'Use this when approvers and Teams reminders need a clear decision deadline.'
-                    : 'Let approvers know when you need a decision by (optional).'}
-                </p>
+                <Label>Workflow dates</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {(
+                    [
+                      {
+                        label: 'First check',
+                        id: 'firstCheckDate',
+                        value: firstCheckDate,
+                        setter: setFirstCheckDate,
+                      },
+                      {
+                        label: 'Second check',
+                        id: 'secondCheckDate',
+                        value: secondCheckDate,
+                        setter: setSecondCheckDate,
+                      },
+                      {
+                        label: 'Asset production',
+                        id: 'assetProductionDate',
+                        value: assetProductionDate,
+                        setter: setAssetProductionDate,
+                      },
+                      {
+                        label: 'Final check',
+                        id: 'finalCheckDate',
+                        value: finalCheckDate,
+                        setter: setFinalCheckDate,
+                      },
+                      {
+                        label: 'Approval deadline',
+                        id: 'approvalDeadline',
+                        value: approvalDeadline,
+                        setter: (value: string) => setApprovalDeadline(value),
+                      },
+                    ] as const
+                  ).map(({ label, id, value, setter }) => (
+                    <div key={id} className="space-y-1">
+                      <div className="text-xs text-graystone-500">{label}</div>
+                      <Input
+                        id={id}
+                        type="date"
+                        value={value}
+                        onChange={(event) => setter(event.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -988,7 +1037,7 @@ export function EntryForm({
                       ? recommendedApprovers.join(', ')
                       : 'No approvers suggested'}
                   </span>
-                  {!autoApprovers ? (
+                  {JSON.stringify(approvers) !== JSON.stringify(recommendedApprovers) ? (
                     <button
                       type="button"
                       className="font-medium text-ocean-700 underline-offset-2 hover:underline"
@@ -1061,35 +1110,61 @@ export function EntryForm({
                           id="preview-file"
                           type="file"
                           accept="image/*"
+                          multiple
                           onChange={(event) => {
-                            const file = event.target.files && event.target.files[0];
-                            if (!file) return;
-                            if (file.size > 512 * 1024) {
-                              pushSyncToast?.('Preview image must be under 500 KB.', 'warning');
-                              event.target.value = '';
-                              return;
-                            }
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                              if (typeof reader.result === 'string') {
-                                setPreviewUrl(reader.result);
+                            const files = Array.from(event.target.files || []) as File[];
+                            files.forEach((file) => {
+                              if (file.size > 512 * 1024) {
+                                pushSyncToast?.(
+                                  'Each preview image must be under 500 KB.',
+                                  'warning',
+                                );
+                                return;
                               }
-                            };
-                            reader.readAsDataURL(file);
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                if (typeof reader.result === 'string') {
+                                  setAssetPreviews((prev) => {
+                                    const next = [...prev, reader.result as string];
+                                    if (!previewUrl) setPreviewUrl(next[0]);
+                                    return next;
+                                  });
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            });
+                            event.target.value = '';
                           }}
                           className={cx(fileInputClasses, 'text-xs')}
                         />
-                        {previewUrl && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setPreviewUrl('')}
-                          >
-                            Clear
-                          </Button>
-                        )}
                       </div>
+                      {assetPreviews.length > 0 && (
+                        <div className="mt-2 grid grid-cols-3 gap-2">
+                          {assetPreviews.map((url, idx) => (
+                            <div key={idx} className="group relative">
+                              <img
+                                src={url}
+                                alt={`Preview ${idx + 1}`}
+                                className="h-20 w-full rounded-lg border border-graystone-200 object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAssetPreviews((prev) => {
+                                    const next = prev.filter((_, i) => i !== idx);
+                                    if (previewUrl === url) setPreviewUrl(next[0] || '');
+                                    return next;
+                                  });
+                                }}
+                                className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded-full bg-white/90 text-graystone-600 shadow hover:text-rose-600 group-hover:flex"
+                                aria-label={`Remove preview ${idx + 1}`}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <Input
                         id="previewUrl"
                         type="url"
