@@ -842,81 +842,79 @@ export function EntryModal({
           {draft.contentCategory ? <Badge variant="outline">{draft.contentCategory}</Badge> : null}
         </div>
       ) : null}
-      {draft.assetType !== 'Carousel' && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-graystone-800">Content</div>
-            {plannedPlatforms.length > 1 && (
-              <div className="flex items-center gap-2 text-xs text-graystone-500">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold text-graystone-800">Content</div>
+          {plannedPlatforms.length > 1 && (
+            <div className="flex items-center gap-2 text-xs text-graystone-500">
+              <button
+                type="button"
+                onClick={() => setApproverSlide((s) => Math.max(0, s - 1))}
+                disabled={approverSlide === 0}
+                className="rounded-full px-2 py-0.5 hover:bg-graystone-100 disabled:opacity-30"
+              >
+                ‹
+              </button>
+              {plannedPlatforms.map((_, i) => (
                 <button
+                  key={i}
                   type="button"
-                  onClick={() => setApproverSlide((s) => Math.max(0, s - 1))}
-                  disabled={approverSlide === 0}
-                  className="rounded-full px-2 py-0.5 hover:bg-graystone-100 disabled:opacity-30"
-                >
-                  ‹
-                </button>
-                {plannedPlatforms.map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setApproverSlide(i)}
-                    className={cx(
-                      'h-1.5 w-1.5 rounded-full transition-colors',
-                      i === approverSlide ? 'bg-ocean-600' : 'bg-graystone-300',
-                    )}
-                  />
-                ))}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setApproverSlide((s) => Math.min(plannedPlatforms.length - 1, s + 1))
-                  }
-                  disabled={approverSlide === plannedPlatforms.length - 1}
-                  className="rounded-full px-2 py-0.5 hover:bg-graystone-100 disabled:opacity-30"
-                >
-                  ›
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="overflow-hidden rounded-2xl border border-graystone-200">
-            <div
-              className="flex transition-transform duration-300 ease-in-out"
-              style={{ transform: `translateX(-${approverSlide * 100}%)` }}
-            >
-              {plannedPlatforms.map((platform) => {
-                const previewPlatformName = platform === 'Main' ? defaultPreviewPlatform : platform;
-                const captionForPlatform = getPlatformCaption(
-                  draft.caption,
-                  draft.platformCaptions,
-                  platform,
-                );
-                return (
-                  <div key={platform} className="min-w-full p-6">
-                    <div className="mb-4 flex items-center justify-between">
-                      <span className="inline-flex items-center gap-2 text-sm font-semibold text-ocean-700">
-                        <PlatformIcon platform={previewPlatformName} />
-                        {platform === 'Main' ? 'Main copy' : platform}
-                      </span>
-                      <span className="text-xs text-graystone-400">
-                        {(captionForPlatform || '').length} chars
-                      </span>
-                    </div>
-                    <p className="text-sm leading-relaxed text-graystone-800 whitespace-pre-wrap">
-                      {captionForPlatform && captionForPlatform.trim().length ? (
-                        captionForPlatform
-                      ) : (
-                        <span className="text-graystone-400 italic">No caption provided.</span>
-                      )}
-                    </p>
-                  </div>
-                );
-              })}
+                  onClick={() => setApproverSlide(i)}
+                  className={cx(
+                    'h-1.5 w-1.5 rounded-full transition-colors',
+                    i === approverSlide ? 'bg-ocean-600' : 'bg-graystone-300',
+                  )}
+                />
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  setApproverSlide((s) => Math.min(plannedPlatforms.length - 1, s + 1))
+                }
+                disabled={approverSlide === plannedPlatforms.length - 1}
+                className="rounded-full px-2 py-0.5 hover:bg-graystone-100 disabled:opacity-30"
+              >
+                ›
+              </button>
             </div>
+          )}
+        </div>
+        <div className="overflow-hidden rounded-2xl border border-graystone-200">
+          <div
+            className="flex transition-transform duration-300 ease-in-out"
+            style={{ transform: `translateX(-${approverSlide * 100}%)` }}
+          >
+            {plannedPlatforms.map((platform) => {
+              const previewPlatformName = platform === 'Main' ? defaultPreviewPlatform : platform;
+              const captionForPlatform = getPlatformCaption(
+                draft.caption,
+                draft.platformCaptions,
+                platform,
+              );
+              return (
+                <div key={platform} className="min-w-full p-6">
+                  <div className="mb-4 flex items-center justify-between">
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold text-ocean-700">
+                      <PlatformIcon platform={previewPlatformName} />
+                      {platform === 'Main' ? 'Main copy' : platform}
+                    </span>
+                    <span className="text-xs text-graystone-400">
+                      {(captionForPlatform || '').length} chars
+                    </span>
+                  </div>
+                  <p className="text-sm leading-relaxed text-graystone-800 whitespace-pre-wrap">
+                    {captionForPlatform && captionForPlatform.trim().length ? (
+                      captionForPlatform
+                    ) : (
+                      <span className="text-graystone-400 italic">No caption provided.</span>
+                    )}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
-      )}
+      </div>
       {renderAssetNotes()}
     </div>
   );
