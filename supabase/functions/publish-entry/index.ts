@@ -126,17 +126,148 @@ async function publishToInstagram(
   payload: PublishPayload,
 ): Promise<PlatformResult> {
   const timestamp = new Date().toISOString();
-  // TODO: Phase 3 — Meta Graph API
-  // Requires: access_token (Page Access Token), account_id (Instagram Business Account ID)
-  // 1. Create media container: POST /{ig-user-id}/media
-  // 2. Publish container:      POST /{ig-user-id}/media_publish
-  return {
-    status: 'skipped',
-    url: null,
-    postId: null,
-    error: 'Instagram integration coming in Phase 3',
-    timestamp,
-  };
+  try {
+    const userToken = conn.access_token;
+    const previewUrl = payload.previewUrl?.trim();
+    const text = payload.caption.slice(0, 2200);
+
+    if (!userToken) {
+      return {
+        status: 'failed',
+        url: null,
+        postId: null,
+        error: 'Missing Instagram credentials: no Facebook user access token stored',
+        timestamp,
+      };
+    }
+
+    if (!previewUrl) {
+      return {
+        status: 'failed',
+        url: null,
+        postId: null,
+        error: 'Instagram requires an image — add a preview image to this entry',
+        timestamp,
+      };
+    }
+
+    const pagesRes = await fetch(
+      `https://graph.facebook.com/v19.0/me/accounts?${new URLSearchParams({
+        access_token: userToken,
+      })}`,
+    );
+    if (!pagesRes.ok) {
+      throw new Error(`Instagram page lookup failed: ${await pagesRes.text()}`);
+    }
+
+    const pagesData = (await pagesRes.json()) as {
+      data?: Array<{ id?: string; name?: string; access_token?: string }>;
+    };
+    const page = pagesData.data?.[0];
+
+    if (!page?.id) {
+      return {
+        status: 'failed',
+        url: null,
+        postId: null,
+        error: 'Instagram publish failed: no Facebook Pages found for this connection',
+        timestamp,
+      };
+    }
+
+    if (!page.access_token) {
+      return {
+        status: 'failed',
+        url: null,
+        postId: null,
+        error: 'Instagram publish failed: could not resolve a Facebook Page access token',
+        timestamp,
+      };
+    }
+
+    const igAccountRes = await fetch(
+      `https://graph.facebook.com/v19.0/${page.id}?${new URLSearchParams({
+        fields: 'instagram_business_account',
+        access_token: page.access_token,
+      })}`,
+    );
+    if (!igAccountRes.ok) {
+      throw new Error(`Instagram account lookup failed: ${await igAccountRes.text()}`);
+    }
+
+    const igAccountData = (await igAccountRes.json()) as {
+      instagram_business_account?: { id?: string } | null;
+    };
+    const instagramUserId = igAccountData.instagram_business_account?.id;
+
+    if (!instagramUserId) {
+      return {
+        status: 'failed',
+        url: null,
+        postId: null,
+        error:
+          'Instagram publish failed: the selected Facebook Page is not linked to an Instagram Business Account',
+        timestamp,
+      };
+    }
+
+    const createMediaRes = await fetch(
+      `https://graph.facebook.com/v19.0/${instagramUserId}/media`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          image_url: previewUrl,
+          caption: text,
+          access_token: page.access_token,
+        }),
+      },
+    );
+    if (!createMediaRes.ok) {
+      throw new Error(`Instagram media creation failed: ${await createMediaRes.text()}`);
+    }
+
+    const creationData = (await createMediaRes.json()) as { id?: string };
+    if (!creationData.id) {
+      throw new Error('Instagram media creation failed: no creation ID returned');
+    }
+
+    const publishRes = await fetch(
+      `https://graph.facebook.com/v19.0/${instagramUserId}/media_publish`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          creation_id: creationData.id,
+          access_token: page.access_token,
+        }),
+      },
+    );
+    if (!publishRes.ok) {
+      throw new Error(`Instagram publish failed: ${await publishRes.text()}`);
+    }
+
+    const publishData = (await publishRes.json()) as { id?: string };
+    if (!publishData.id) {
+      throw new Error('Instagram publish failed: no post ID returned');
+    }
+
+    return {
+      status: 'published',
+      url: `https://www.instagram.com/p/${publishData.id}/`,
+      postId: publishData.id,
+      error: null,
+      timestamp,
+    };
+  } catch (err) {
+    return {
+      status: 'failed',
+      url: null,
+      postId: null,
+      error: err instanceof Error ? err.message : 'Unknown error',
+      timestamp,
+    };
+  }
 }
 
 async function publishToFacebook(
@@ -144,15 +275,119 @@ async function publishToFacebook(
   payload: PublishPayload,
 ): Promise<PlatformResult> {
   const timestamp = new Date().toISOString();
-  // TODO: Phase 3 — Meta Graph API (same app as Instagram)
-  // POST /{page-id}/photos or /{page-id}/feed
-  return {
-    status: 'skipped',
-    url: null,
-    postId: null,
-    error: 'Facebook integration coming in Phase 3',
-    timestamp,
-  };
+  try {
+    const userToken = conn.access_token;
+    const previewUrl = payload.previewUrl?.trim();
+    const text = payload.caption.slice(0, 63206);
+
+    if (!userToken) {
+      return {
+        status: 'failed',
+        url: null,
+        postId: null,
+        error: 'Missing Facebook credentials: no user access token stored',
+        timestamp,
+      };
+    }
+
+    const pagesRes = await fetch(
+      `https://graph.facebook.com/v19.0/me/accounts?${new URLSearchParams({
+        access_token: userToken,
+      })}`,
+    );
+    if (!pagesRes.ok) {
+      throw new Error(`Facebook page lookup failed: ${await pagesRes.text()}`);
+    }
+
+    const pagesData = (await pagesRes.json()) as {
+      data?: Array<{ id?: string; name?: string; access_token?: string }>;
+    };
+    const page = pagesData.data?.[0];
+
+    if (!page?.id) {
+      return {
+        status: 'failed',
+        url: null,
+        postId: null,
+        error: 'Facebook publish failed: no Facebook Pages found for this connection',
+        timestamp,
+      };
+    }
+
+    if (!page.access_token) {
+      return {
+        status: 'failed',
+        url: null,
+        postId: null,
+        error: 'Facebook publish failed: could not resolve a Facebook Page access token',
+        timestamp,
+      };
+    }
+
+    if (previewUrl) {
+      const photoRes = await fetch(`https://graph.facebook.com/v19.0/${page.id}/photos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          url: previewUrl,
+          message: text,
+          published: 'true',
+          access_token: page.access_token,
+        }),
+      });
+
+      if (!photoRes.ok) {
+        throw new Error(`Facebook photo publish failed: ${await photoRes.text()}`);
+      }
+
+      const photoData = (await photoRes.json()) as { id?: string; post_id?: string };
+      if (!photoData.post_id) {
+        throw new Error('Facebook photo publish failed: no post ID returned');
+      }
+
+      return {
+        status: 'published',
+        url: `https://www.facebook.com/${photoData.post_id}`,
+        postId: photoData.post_id,
+        error: null,
+        timestamp,
+      };
+    }
+
+    const feedRes = await fetch(`https://graph.facebook.com/v19.0/${page.id}/feed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        message: text,
+        access_token: page.access_token,
+      }),
+    });
+
+    if (!feedRes.ok) {
+      throw new Error(`Facebook post publish failed: ${await feedRes.text()}`);
+    }
+
+    const feedData = (await feedRes.json()) as { id?: string };
+    if (!feedData.id) {
+      throw new Error('Facebook post publish failed: no post ID returned');
+    }
+
+    return {
+      status: 'published',
+      url: `https://www.facebook.com/${feedData.id}`,
+      postId: feedData.id,
+      error: null,
+      timestamp,
+    };
+  } catch (err) {
+    return {
+      status: 'failed',
+      url: null,
+      postId: null,
+      error: err instanceof Error ? err.message : 'Unknown error',
+      timestamp,
+    };
+  }
 }
 
 async function publishToLinkedIn(
@@ -160,15 +395,137 @@ async function publishToLinkedIn(
   payload: PublishPayload,
 ): Promise<PlatformResult> {
   const timestamp = new Date().toISOString();
-  // TODO: Phase 4 — LinkedIn UGC Post API
-  // POST /ugcPosts with author = urn:li:organisation:{id}
-  return {
-    status: 'skipped',
-    url: null,
-    postId: null,
-    error: 'LinkedIn integration coming in Phase 4',
-    timestamp,
-  };
+  try {
+    const accessToken = conn.access_token;
+    const accountId = conn.account_id;
+    const previewUrl = payload.previewUrl?.trim();
+    const text = payload.caption.slice(0, 3000);
+
+    if (!accessToken || !accountId) {
+      return {
+        status: 'failed',
+        url: null,
+        postId: null,
+        error: 'Missing LinkedIn credentials: access token or account ID not found',
+        timestamp,
+      };
+    }
+
+    const authorUrn = `urn:li:person:${accountId}`;
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'X-Restli-Protocol-Version': '2.0.0',
+    };
+
+    let mediaCategory: 'NONE' | 'IMAGE' = 'NONE';
+    let media: Array<{ status: 'READY'; media: string }> | undefined;
+
+    if (previewUrl) {
+      const registerRes = await fetch('https://api.linkedin.com/v2/assets?action=registerUpload', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          registerUploadRequest: {
+            recipes: ['urn:li:digitalmediaRecipe:feedshare-image'],
+            owner: authorUrn,
+            serviceRelationships: [
+              {
+                relationshipType: 'OWNER',
+                identifier: 'urn:li:userGeneratedContent',
+              },
+            ],
+          },
+        }),
+      });
+
+      if (!registerRes.ok) {
+        throw new Error(`LinkedIn upload registration failed: ${await registerRes.text()}`);
+      }
+
+      const registerData = (await registerRes.json()) as {
+        value?: {
+          uploadMechanism?: {
+            'com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'?: {
+              uploadUrl?: string;
+            };
+          };
+          asset?: string;
+        };
+      };
+      const uploadUrl =
+        registerData.value?.uploadMechanism?.[
+          'com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'
+        ]?.uploadUrl;
+      const asset = registerData.value?.asset;
+
+      if (!uploadUrl || !asset) {
+        throw new Error('LinkedIn upload registration failed: missing upload URL or asset URN');
+      }
+
+      const imageRes = await fetch(previewUrl);
+      if (!imageRes.ok) {
+        throw new Error(`LinkedIn image fetch failed: ${await imageRes.text()}`);
+      }
+
+      const imageData = await imageRes.arrayBuffer();
+      const imageContentType = imageRes.headers.get('content-type') || 'application/octet-stream';
+
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': imageContentType },
+        body: imageData,
+      });
+      if (!uploadRes.ok) {
+        throw new Error(`LinkedIn image upload failed: ${await uploadRes.text()}`);
+      }
+
+      mediaCategory = 'IMAGE';
+      media = [{ status: 'READY', media: asset }];
+    }
+
+    const postRes = await fetch('https://api.linkedin.com/v2/ugcPosts', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        author: authorUrn,
+        lifecycleState: 'PUBLISHED',
+        specificContent: {
+          'com.linkedin.ugc.ShareContent': {
+            shareCommentary: { text },
+            shareMediaCategory: mediaCategory,
+            ...(media ? { media } : {}),
+          },
+        },
+        visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' },
+      }),
+    });
+
+    if (!postRes.ok) {
+      throw new Error(`LinkedIn publish failed: ${await postRes.text()}`);
+    }
+
+    const postUrn = postRes.headers.get('x-restli-id');
+    if (!postUrn) {
+      throw new Error('LinkedIn publish failed: no post URN returned');
+    }
+
+    return {
+      status: 'published',
+      url: `https://www.linkedin.com/feed/update/${postUrn}/`,
+      postId: postUrn,
+      error: null,
+      timestamp,
+    };
+  } catch (err) {
+    return {
+      status: 'failed',
+      url: null,
+      postId: null,
+      error: err instanceof Error ? err.message : 'Unknown error',
+      timestamp,
+    };
+  }
 }
 
 async function publishToYouTube(
@@ -176,13 +533,14 @@ async function publishToYouTube(
   payload: PublishPayload,
 ): Promise<PlatformResult> {
   const timestamp = new Date().toISOString();
-  // TODO: Phase 6 — YouTube Data API v3
-  // Resumable upload to /upload/youtube/v3/videos
+  void conn;
+  void payload;
   return {
     status: 'skipped',
     url: null,
     postId: null,
-    error: 'YouTube integration coming in Phase 6',
+    error:
+      'YouTube requires a video file — this platform is not available for image or caption posts. Upload the video directly via YouTube Studio.',
     timestamp,
   };
 }
