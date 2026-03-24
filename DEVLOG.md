@@ -1,5 +1,14 @@
 # Content Hub — Dev Log
 
+## 2026-03-24 — Simplify approvals header and content review modal
+
+- Tool: Claude Code (Sonnet 4.6)
+- Branch: main
+- Changes:
+  - `ApprovalsView.tsx`: header stripped from 5 crowded items to `← Back` + waiting count — eliminates "SWITCH USER" clipping; removed unused `PlusIcon` import and calendar/create/switch-user props from render
+  - `EntryModal.jsx`: `renderApproverContent()` simplified — removed Strategy context grid (peak, partner, sign-off route, series) and Execution readiness section; added prominent "Mark as approved" banner at top of body with inline advisory text; campaign/pillar/category collapsed to one badge row; `CheckCircleIcon` added to icon imports
+- Status: Complete
+
 ## 2026-03-23 — Fix approval persistence save path
 
 - Tool: Codex
