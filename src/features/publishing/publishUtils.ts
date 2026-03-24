@@ -99,7 +99,7 @@ export async function triggerPublish(
 }
 
 /**
- * Initialize publish status for all platforms on an entry
+ * Initialise publish status for all platforms on an entry
  */
 export function initializePublishStatus(
   platforms: string[],
@@ -128,7 +128,7 @@ export function getAggregatePublishStatus(
 
   const statuses = Object.values(publishStatus);
   const allPublished = statuses.every((s) => s.status === 'published');
-  const allFailed = statuses.every((s) => s.status === 'failed');
+  const allFailed = statuses.every((s) => s.status === 'failed' || s.status === 'skipped');
   const anyPending = statuses.some((s) => s.status === 'pending');
   const anyPublishing = statuses.some((s) => s.status === 'publishing');
   const anyPublished = statuses.some((s) => s.status === 'published');

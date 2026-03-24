@@ -27,10 +27,9 @@ const LINKEDIN_CLIENT_SECRET = Deno.env.get('LINKEDIN_CLIENT_SECRET') ?? '';
 const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
 const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '';
 
-const FUNCTION_URL =
-  Deno.env.get('SUPABASE_URL')?.replace('supabase.co', 'supabase.co/functions/v1/oauth-callback') ??
-  '';
-const APP_URL = Deno.env.get('APP_URL') ?? 'https://dvhjvtxtkmtsqlnurhfg.supabase.co';
+const _supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+const FUNCTION_URL = _supabaseUrl ? `${_supabaseUrl}/functions/v1/oauth-callback` : '';
+const APP_URL = Deno.env.get('APP_URL') ?? '';
 
 // ─── Token exchangers ────────────────────────────────────────────────────────
 

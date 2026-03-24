@@ -12,7 +12,12 @@ import { buildEntryEmailPayload } from '../../lib/email';
 import { appendAudit } from '../../lib/audit';
 import { loadEntries, saveEntries } from '../../lib/storage';
 import { SUPABASE_API } from '../../lib/supabase';
-import { triggerPublish, initializePublishStatus, canPublish } from '../../features/publishing';
+import { APP_CONFIG } from '../../lib/config';
+import {
+  buildPublishPayload,
+  initializePublishStatus,
+  canPublish,
+} from '../../features/publishing';
 import { KANBAN_STATUSES } from '../../constants';
 import type { Entry } from '../../types/models';
 
@@ -736,27 +741,59 @@ export function useEntries({
         prev.map((e) => (e.id === id ? { ...e, publishStatus: newPublishStatus } : e)),
       );
 
-      const result = await triggerPublish(
-        entry,
-        publishSettings as unknown as Parameters<typeof triggerPublish>[1],
-      );
       const timestamp = new Date().toISOString();
 
-      if ((result as Record<string, unknown>).success) {
+      type PlatformResult = {
+        status: string;
+        url: string | null;
+        error: string | null;
+        timestamp: string;
+      };
+      type EdgeResult = {
+        success: boolean;
+        results?: Record<string, PlatformResult>;
+        error?: string;
+      };
+
+      let edgeResult: EdgeResult = { success: false, error: 'Unknown error' };
+      try {
+        const payload = buildPublishPayload(entry);
+        const functionUrl = `${APP_CONFIG.SUPABASE_URL}/functions/v1/publish-entry`;
+        const response = await fetch(functionUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Publish failed (${response.status}): ${errText}`);
+        }
+        edgeResult = (await response.json()) as EdgeResult;
+      } catch (err) {
+        edgeResult = {
+          success: false,
+          error: err instanceof Error ? err.message : 'Failed to publish',
+        };
+      }
+
+      const platforms = entry.platforms as string[];
+
+      if (edgeResult.success && edgeResult.results) {
         const publishedStatus: Record<string, unknown> = {};
-        (entry.platforms as string[]).forEach((platform: string) => {
+        const allSkipped = platforms.every((p) => edgeResult.results![p]?.status === 'skipped');
+        platforms.forEach((platform) => {
+          const r = edgeResult.results![platform];
           publishedStatus[platform] = {
-            status: 'published',
-            url: null,
-            error: null,
-            timestamp,
+            status: r?.status || 'failed',
+            url: r?.url || null,
+            error: r?.error || null,
+            timestamp: r?.timestamp || timestamp,
           };
         });
 
         const updates = {
           publishStatus: publishedStatus,
-          workflowStatus: 'Published',
-          publishedAt: timestamp,
+          ...(allSkipped ? {} : { workflowStatus: 'Published', publishedAt: timestamp }),
         };
 
         setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
@@ -771,11 +808,12 @@ export function useEntries({
         }
       } else {
         const failedStatus: Record<string, unknown> = {};
-        (entry.platforms as string[]).forEach((platform: string) => {
+        platforms.forEach((platform) => {
+          const r = edgeResult.results?.[platform];
           failedStatus[platform] = {
-            status: 'failed',
+            status: r?.status || 'failed',
             url: null,
-            error: (result as Record<string, unknown>).error || 'Failed to publish',
+            error: r?.error || edgeResult.error || 'Failed to publish',
             timestamp,
           };
         });
@@ -800,7 +838,7 @@ export function useEntries({
         action: 'entry-publish-trigger',
       });
     },
-    [entries, publishSettings, currentUser, currentUserEmail],
+    [entries, currentUser, currentUserEmail],
   );
 
   const handlePostAgain = useCallback(

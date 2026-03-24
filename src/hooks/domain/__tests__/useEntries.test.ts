@@ -1,23 +1,28 @@
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { useEntries } from '../useEntries';
 
-const { mockFetchEntries, mockGetWorkflowBlockers, mockSanitizeEntry, mockSaveEntry } = vi.hoisted(
-  () => ({
-    mockFetchEntries: vi.fn(() => Promise.resolve([])),
-    mockGetWorkflowBlockers: vi.fn<
-      () => Array<{
-        key: string;
-        label: string;
-        detail: string;
-        required: boolean;
-        complete: boolean;
-      }>
-    >(() => []),
-    mockSanitizeEntry: vi.fn((e: Record<string, unknown>) => ({ ...e, _sanitized: true })),
-    mockSaveEntry: vi.fn(() => Promise.resolve({ id: 'saved-entry' })),
-  }),
-);
+const {
+  mockFetchEntries,
+  mockGetWorkflowBlockers,
+  mockSanitizeEntry,
+  mockSaveEntry,
+  mockCanPublish,
+} = vi.hoisted(() => ({
+  mockFetchEntries: vi.fn(() => Promise.resolve([])),
+  mockGetWorkflowBlockers: vi.fn<
+    () => Array<{
+      key: string;
+      label: string;
+      detail: string;
+      required: boolean;
+      complete: boolean;
+    }>
+  >(() => []),
+  mockSanitizeEntry: vi.fn((e: Record<string, unknown>) => ({ ...e, _sanitized: true })),
+  mockSaveEntry: vi.fn(() => Promise.resolve({ id: 'saved-entry' })),
+  mockCanPublish: vi.fn(() => false),
+}));
 
 // Mock all external dependencies
 vi.mock('../../../lib/utils', () => ({
@@ -63,13 +68,30 @@ vi.mock('../../../lib/supabase', () => ({
     deleteEntry: vi.fn(() => Promise.resolve(true)),
     restoreEntry: vi.fn(() => Promise.resolve(true)),
     hardDeleteEntry: vi.fn(() => Promise.resolve(true)),
+    getSession: vi.fn(() => Promise.resolve({ access_token: 'test-jwt-token' })),
   },
 }));
 
 vi.mock('../../../features/publishing', () => ({
+  buildPublishPayload: vi.fn((entry: Record<string, unknown>) => ({
+    entryId: entry.id,
+    platforms: entry.platforms,
+    caption: entry.caption,
+  })),
   triggerPublish: vi.fn(),
-  initializePublishStatus: (e: Record<string, unknown>) => e,
-  canPublish: () => false,
+  initializePublishStatus: vi.fn((platforms: string[]) =>
+    Object.fromEntries(platforms.map((p) => [p, { status: 'publishing', url: null, error: null }])),
+  ),
+  canPublish: mockCanPublish,
+}));
+
+vi.mock('../../../lib/config', () => ({
+  APP_CONFIG: {
+    SUPABASE_URL: 'https://test.supabase.co',
+    SUPABASE_ENABLED: true,
+    SUPABASE_ANON_KEY: 'test-anon-key',
+  },
+  Logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
 vi.mock('../../../constants', () => ({
@@ -519,6 +541,147 @@ describe('useEntries', () => {
 
       expect(result.current.entries).toHaveLength(0);
       expect(result.current.trashed).toHaveLength(0);
+    });
+  });
+
+  describe('handlePublishEntry', () => {
+    const mockFetch = vi.fn();
+
+    beforeEach(() => {
+      vi.stubGlobal('fetch', mockFetch);
+      mockCanPublish.mockReturnValue(true);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      mockCanPublish.mockReturnValue(false);
+    });
+
+    it('calls the Supabase Edge Function URL, not a Zapier webhook', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          results: {
+            Bluesky: {
+              status: 'published',
+              url: 'https://bsky.app/profile/test/post/abc',
+              error: null,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        }),
+      });
+
+      const deps = mockDeps();
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.addEntry({
+          date: '2026-03-24',
+          assetType: 'Social Post',
+          platforms: ['Bluesky'],
+          caption: 'Test post',
+          workflowStatus: 'Approved',
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      await act(async () => {
+        await result.current.handlePublishEntry(id);
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('functions/v1/publish-entry'),
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+
+    it('persists per-platform publish status and URL from Edge Function results', async () => {
+      const publishedUrl = 'https://bsky.app/profile/test/post/abc123';
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          results: {
+            Bluesky: {
+              status: 'published',
+              url: publishedUrl,
+              error: null,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        }),
+      });
+
+      const deps = mockDeps();
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.addEntry({
+          date: '2026-03-24',
+          assetType: 'Social Post',
+          platforms: ['Bluesky'],
+          caption: 'Test post',
+          workflowStatus: 'Approved',
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      await act(async () => {
+        await result.current.handlePublishEntry(id);
+      });
+
+      // saveEntry receives the per-platform result including the real published URL
+      expect(mockSaveEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          publishStatus: expect.objectContaining({
+            Bluesky: expect.objectContaining({ status: 'published', url: publishedUrl }),
+          }),
+        }),
+        expect.any(String),
+      );
+    });
+    it('does not persist workflowStatus Published when all platforms return skipped', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: false,
+          results: {
+            Instagram: {
+              status: 'skipped',
+              url: null,
+              error: 'Instagram coming in Phase 3',
+              timestamp: new Date().toISOString(),
+            },
+          },
+        }),
+      });
+
+      const deps = mockDeps();
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.addEntry({
+          date: '2026-03-24',
+          assetType: 'Social Post',
+          platforms: ['Instagram'],
+          caption: 'Test post',
+          workflowStatus: 'Approved',
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      await act(async () => {
+        await result.current.handlePublishEntry(id);
+      });
+
+      // saveEntry must NOT be called with workflowStatus: 'Published'
+      const saveCall = (
+        mockSaveEntry.mock.calls as unknown as Array<[Record<string, unknown>, string]>
+      ).find(([entry]) => entry.id === id);
+      expect(saveCall).toBeDefined();
+      expect(saveCall![0].workflowStatus).not.toBe('Published');
     });
   });
 

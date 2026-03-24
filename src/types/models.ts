@@ -66,7 +66,7 @@ export type WorkflowStatus = 'Draft' | 'Ready for Review' | 'Approved' | 'Publis
 /**
  * Platform publish status - tracks publishing state per platform
  */
-export type PublishStatusState = 'pending' | 'publishing' | 'published' | 'failed';
+export type PublishStatusState = 'pending' | 'publishing' | 'published' | 'failed' | 'skipped';
 
 export interface PlatformPublishStatus {
   status: PublishStatusState;

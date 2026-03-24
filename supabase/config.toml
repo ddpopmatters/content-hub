@@ -45,3 +45,15 @@ enabled = false
 
 [analytics]
 enabled = false
+
+[functions.publish-entry]
+verify_jwt = false
+
+[functions.oauth-callback]
+verify_jwt = false
+
+[functions.iterate-content]
+verify_jwt = false
+
+[functions.simulate-audience]
+verify_jwt = false
