@@ -22,11 +22,18 @@ vi.mock('../../../lib/users', () => ({
   ensureFeaturesList: (val: unknown) => (Array.isArray(val) ? val : []),
 }));
 
-const mockDeps = () => ({
-  apiGet: vi.fn().mockResolvedValue(null),
-  apiPost: vi.fn().mockResolvedValue(null),
-  apiPut: vi.fn().mockResolvedValue(null),
-});
+vi.mock('../../../lib/supabase', () => ({
+  AUTH: {
+    getSession: vi.fn().mockResolvedValue(null),
+    signIn: vi.fn().mockResolvedValue({ error: 'mock' }),
+    signOut: vi.fn().mockResolvedValue(undefined),
+  },
+  SUPABASE_API: {
+    fetchCurrentUserProfile: vi.fn().mockResolvedValue(null),
+    updateUserProfile: vi.fn().mockResolvedValue(null),
+  },
+  getSupabase: vi.fn().mockReturnValue(null),
+}));
 
 describe('useAuth — viewer utilities', () => {
   beforeEach(() => {
@@ -34,8 +41,7 @@ describe('useAuth — viewer utilities', () => {
   });
 
   function setupAuthenticatedHook(name: string, email: string) {
-    const deps = mockDeps();
-    const { result } = renderHook(() => useAuth(deps));
+    const { result } = renderHook(() => useAuth());
 
     // Manually set user identity via internal state
     act(() => {
@@ -44,7 +50,7 @@ describe('useAuth — viewer utilities', () => {
       result.current.setCurrentUserEmail(email);
     });
 
-    return { result, deps };
+    return { result };
   }
 
   describe('viewerIsAuthor', () => {
@@ -118,52 +124,40 @@ describe('useAuth — viewer utilities', () => {
   });
 
   describe('hasFeature', () => {
-    async function setupWithUser(payload: Record<string, unknown>) {
-      const deps = mockDeps();
-      deps.apiGet.mockResolvedValue(payload);
-      const { result } = renderHook(() => useAuth(deps));
-
-      // Wait for hydration effect to complete
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 0));
+    it('returns true for admin regardless of features', () => {
+      const { result } = renderHook(() => useAuth());
+      act(() => {
+        result.current.handleAuthChange({
+          profile: { id: '1', email: 'admin@pm.org', is_admin: true, features: [] },
+        });
       });
-
-      return { result, deps };
-    }
-
-    it('returns true for admin regardless of features', async () => {
-      const { result } = await setupWithUser({
-        name: 'Admin',
-        email: 'admin@pm.org',
-        isAdmin: true,
-        features: [],
-      });
-
       expect(result.current.hasFeature('calendar')).toBe(true);
-      expect(result.current.hasFeature('kanban')).toBe(true);
       expect(result.current.hasFeature('anything')).toBe(true);
     });
 
-    it('returns true when feature is in user features list', async () => {
-      const { result } = await setupWithUser({
-        name: 'Regular User',
-        email: 'user@pm.org',
-        isAdmin: false,
-        features: ['calendar', 'ideas'],
+    it('returns true when feature is in user features list', () => {
+      const { result } = renderHook(() => useAuth());
+      act(() => {
+        result.current.handleAuthChange({
+          profile: {
+            id: '1',
+            email: 'user@pm.org',
+            is_admin: false,
+            features: ['calendar', 'ideas'],
+          },
+        });
       });
-
       expect(result.current.hasFeature('calendar')).toBe(true);
       expect(result.current.hasFeature('ideas')).toBe(true);
     });
 
-    it('returns false when feature is not in user features', async () => {
-      const { result } = await setupWithUser({
-        name: 'Regular User',
-        email: 'user@pm.org',
-        isAdmin: false,
-        features: ['calendar'],
+    it('returns false when feature is not in user features', () => {
+      const { result } = renderHook(() => useAuth());
+      act(() => {
+        result.current.handleAuthChange({
+          profile: { id: '1', email: 'user@pm.org', is_admin: false, features: ['calendar'] },
+        });
       });
-
       expect(result.current.hasFeature('kanban')).toBe(false);
     });
   });

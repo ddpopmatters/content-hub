@@ -3470,6 +3470,21 @@ export const AUTH = {
     }
   },
 
+  signInWithMagicLink: async (email: string): Promise<{ error?: string }> => {
+    await initSupabase();
+    if (!supabase) return { error: 'Supabase not initialized' };
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : '' },
+      });
+      if (error) return { error: error.message };
+      return {};
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  },
+
   onAuthStateChange: (callback: (event: AuthChangeEvent, session: Session | null) => void) => {
     if (!supabase) return null;
 

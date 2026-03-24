@@ -79,7 +79,7 @@ function ContentDashboard() {
   const entryCreatedSideEffectsRef = useRef(() => {});
   const [monthCursor, setMonthCursor] = useState(() => new Date());
   // Domain hooks — Layer 1: needs API
-  const auth = useAuth({ apiGet, apiPost, apiPut });
+  const auth = useAuth();
   const {
     currentUser,
     currentUserEmail,
@@ -963,10 +963,8 @@ function ContentDashboard() {
     return (
       <div className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-4 py-16 text-ocean-900">
         <div className="rounded-3xl border border-aqua-200 bg-white p-8 text-center shadow-2xl">
-          <div className="heading-font text-3xl font-semibold text-ocean-600">Checking access…</div>
-          <p className="mt-4 text-sm text-graystone-600">
-            Verifying your Cloudflare Access session so we can load the dashboard.
-          </p>
+          <div className="heading-font text-3xl font-semibold text-ocean-600">Loading…</div>
+          <p className="mt-4 text-sm text-graystone-600">Checking your session.</p>
           <div className="mt-6 animate-pulse rounded-2xl bg-aqua-100 px-4 py-3 text-sm text-ocean-700">
             Hang tight—this only takes a moment.
           </div>

@@ -1,20 +1,10 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { ensurePeopleArray, normalizeEmail, storageAvailable, STORAGE_KEYS } from '../../lib/utils';
 import { ensureFeaturesList } from '../../lib/users';
+import { AUTH, SUPABASE_API } from '../../lib/supabase';
 const USER_STORAGE_KEY = STORAGE_KEYS.USER;
 
-const hasStaticApiBridgeScript = (): boolean => {
-  if (typeof document === 'undefined') return false;
-  return Boolean(document.querySelector('script[src*="supabaseClient.js"]'));
-};
-
-interface UseAuthDeps {
-  apiGet: (url: string) => Promise<unknown>;
-  apiPost: (url: string, body: unknown) => Promise<unknown>;
-  apiPut: (url: string, body: unknown) => Promise<unknown>;
-}
-
-export function useAuth({ apiGet, apiPost, apiPut }: UseAuthDeps) {
+export function useAuth() {
   // Identity state
   const [currentUser, setCurrentUser] = useState('');
   const [currentUserEmail, setCurrentUserEmail] = useState('');
@@ -175,28 +165,19 @@ export function useAuth({ apiGet, apiPost, apiPut }: UseAuthDeps) {
       const desiredName = profileFormName.trim() || currentUser || currentUserEmail;
       const payload: Record<string, unknown> = { name: desiredName };
       if ((profileAvatarDraft || '') !== (currentUserAvatar || '')) {
-        payload.avatar = profileAvatarDraft ? profileAvatarDraft : null;
+        payload.avatar_url = profileAvatarDraft ? profileAvatarDraft : null;
       }
       setProfileSaving(true);
       setProfileStatus('');
       setProfileError('');
       try {
-        let response: Record<string, unknown> | null = null;
-        if (
-          window.api &&
-          typeof (window.api as Record<string, unknown>).updateProfile === 'function'
-        ) {
-          response = (await (
-            window.api as Record<string, (...args: unknown[]) => Promise<unknown>>
-          ).updateProfile(payload)) as Record<string, unknown>;
-        } else {
-          response = (await apiPut('/api/user', payload)) as Record<string, unknown>;
-        }
-        const user = response?.user as Record<string, unknown> | undefined;
-        if (user) {
-          setCurrentUser((user.name as string) || desiredName);
-          setCurrentUserEmail((user.email as string) || currentUserEmail);
-          setCurrentUserAvatar((user.avatarUrl as string) || '');
+        const updated = await SUPABASE_API.updateUserProfile(
+          payload as Parameters<typeof SUPABASE_API.updateUserProfile>[0],
+        );
+        if (updated) {
+          setCurrentUser(updated.name && updated.name.trim() ? updated.name.trim() : desiredName);
+          setCurrentUserEmail(updated.email || currentUserEmail);
+          setCurrentUserAvatar(updated.avatar_url || '');
         } else {
           setCurrentUser(desiredName);
         }
@@ -208,7 +189,7 @@ export function useAuth({ apiGet, apiPost, apiPut }: UseAuthDeps) {
         setProfileSaving(false);
       }
     },
-    [profileFormName, currentUser, currentUserEmail, profileAvatarDraft, currentUserAvatar, apiPut],
+    [profileFormName, currentUser, currentUserEmail, profileAvatarDraft, currentUserAvatar],
   );
 
   // Hydration
@@ -216,46 +197,20 @@ export function useAuth({ apiGet, apiPost, apiPut }: UseAuthDeps) {
     setAuthStatus('loading');
     setAuthError('');
     try {
-      let payload: Record<string, unknown> | null = null;
-      if (
-        window.api &&
-        typeof (window.api as Record<string, unknown>).getSession === 'function' &&
-        typeof (window.api as Record<string, unknown>).getCurrentUser === 'function'
-      ) {
-        const session = await (
-          window.api as Record<string, (...args: unknown[]) => Promise<unknown>>
-        ).getSession?.();
-        const sessionData = session as Record<string, unknown> | undefined;
-        if (sessionData?.user) {
-          await (
-            window.api as Record<string, (...args: unknown[]) => Promise<unknown>>
-          ).ensureUserProfile?.(sessionData.user);
-          payload = (await (
-            window.api as Record<string, (...args: unknown[]) => Promise<unknown>>
-          ).getCurrentUser()) as Record<string, unknown>;
-        }
-        if (!payload) throw new Error('No authenticated session');
-      } else if (hasStaticApiBridgeScript()) {
-        throw new Error('Static API bridge not ready');
-      } else {
-        payload = (await apiGet('/api/user')) as Record<string, unknown>;
-      }
-      if (!payload) throw new Error('No user payload');
+      const session = await AUTH.getSession();
+      if (!session?.user) throw new Error('No authenticated session');
+      const profile = await SUPABASE_API.fetchCurrentUserProfile();
+      if (!profile) throw new Error('No user profile');
       const nextName =
-        payload?.name && String(payload.name).trim().length
-          ? String(payload.name).trim()
-          : String(payload?.email || '');
+        profile.name && profile.name.trim().length ? profile.name.trim() : profile.email;
       setCurrentUser(nextName);
-      setCurrentUserEmail(String(payload?.email || ''));
-      setCurrentUserAvatar(String(payload?.avatarUrl || ''));
-      setCurrentUserFeatures(ensureFeaturesList(payload?.features));
-      setCurrentUserIsAdmin(Boolean(payload?.isAdmin));
-      setCurrentUserHasPassword(Boolean(payload?.hasPassword));
+      setCurrentUserEmail(profile.email);
+      setCurrentUserAvatar(profile.avatar_url || '');
+      setCurrentUserFeatures(ensureFeaturesList(profile.features));
+      setCurrentUserIsAdmin(Boolean(profile.is_admin));
+      setCurrentUserHasPassword(true);
       setAuthStatus('ready');
-    } catch (error) {
-      if (!(error instanceof Error && error.message === 'Static API bridge not ready')) {
-        console.warn('Failed to fetch authenticated user', error);
-      }
+    } catch {
       setCurrentUser('');
       setCurrentUserEmail('');
       setCurrentUserAvatar('');
@@ -266,18 +221,10 @@ export function useAuth({ apiGet, apiPost, apiPut }: UseAuthDeps) {
       setAuthStatus(inviteToken ? 'invite' : 'login');
       setProfileMenuOpen(false);
     }
-  }, [inviteToken, apiGet]);
+  }, [inviteToken]);
 
   useEffect(() => {
     hydrateCurrentUser();
-  }, [hydrateCurrentUser]);
-
-  useEffect(() => {
-    const handleApiReady = () => {
-      hydrateCurrentUser();
-    };
-    window.addEventListener('pm-api-ready', handleApiReady);
-    return () => window.removeEventListener('pm-api-ready', handleApiReady);
   }, [hydrateCurrentUser]);
 
   useEffect(() => {
@@ -317,26 +264,22 @@ export function useAuth({ apiGet, apiPost, apiPut }: UseAuthDeps) {
         return;
       }
       try {
-        let response: Record<string, unknown> | null = null;
-        if (window.api && typeof (window.api as Record<string, unknown>).login === 'function') {
-          response = (await (
-            window.api as Record<string, (...args: unknown[]) => Promise<unknown>>
-          ).login({ email, password: loginPassword })) as Record<string, unknown>;
-        } else {
-          response = (await apiPost('/api/auth', { email, password: loginPassword })) as Record<
-            string,
-            unknown
-          >;
+        const result = await AUTH.signIn(email, loginPassword);
+        if (result.error) {
+          setLoginError(result.error);
+          return;
         }
-        const user = response?.user as Record<string, unknown> | undefined;
-        const name =
-          user?.name && (user.name as string).trim().length ? (user.name as string).trim() : email;
-        setCurrentUser(name);
-        setCurrentUserEmail((user?.email as string) || email);
-        setCurrentUserAvatar((user?.avatarUrl as string) || '');
-        setCurrentUserFeatures(ensureFeaturesList(user?.features));
-        setCurrentUserIsAdmin(Boolean(user?.isAdmin));
-        setCurrentUserHasPassword(Boolean(user?.hasPassword));
+        const profile = await SUPABASE_API.fetchCurrentUserProfile();
+        if (!profile) {
+          setLoginError('Signed in but could not load your profile.');
+          return;
+        }
+        setCurrentUser(profile.name && profile.name.trim() ? profile.name.trim() : email);
+        setCurrentUserEmail(profile.email);
+        setCurrentUserAvatar(profile.avatar_url || '');
+        setCurrentUserFeatures(ensureFeaturesList(profile.features));
+        setCurrentUserIsAdmin(Boolean(profile.is_admin));
+        setCurrentUserHasPassword(true);
         setAuthStatus('ready');
         setAuthError('');
         resetLoginFields();
@@ -345,7 +288,7 @@ export function useAuth({ apiGet, apiPost, apiPut }: UseAuthDeps) {
         setLoginError('Invalid email or password.');
       }
     },
-    [loginEmail, loginPassword, apiPost, resetLoginFields],
+    [loginEmail, loginPassword, resetLoginFields],
   );
 
   // Invite
@@ -379,34 +322,20 @@ export function useAuth({ apiGet, apiPost, apiPut }: UseAuthDeps) {
         return;
       }
       try {
-        let response: Record<string, unknown> | null = null;
-        if (
-          window.api &&
-          typeof (window.api as Record<string, unknown>).acceptInvite === 'function'
-        ) {
-          response = (await (
-            window.api as Record<string, (...args: unknown[]) => Promise<unknown>>
-          ).acceptInvite({ token: inviteToken, password: invitePassword })) as Record<
-            string,
-            unknown
-          >;
-        } else {
-          response = (await apiPut('/api/auth', {
-            token: inviteToken,
-            password: invitePassword,
-          })) as Record<string, unknown>;
-        }
-        const user = response?.user as Record<string, unknown> | undefined;
-        const name =
-          user?.name && (user.name as string).trim().length
-            ? (user.name as string).trim()
-            : (user?.email as string) || '';
+        const { getSupabase } = await import('../../lib/supabase');
+        const client = getSupabase();
+        if (!client) throw new Error('Supabase not ready');
+        const { data, error } = await client.auth.updateUser({ password: invitePassword });
+        if (error) throw new Error(error.message);
+        const profile = await SUPABASE_API.fetchCurrentUserProfile();
+        const email = data.user?.email || '';
+        const name = profile?.name && profile.name.trim() ? profile.name.trim() : email;
         setCurrentUser(name);
-        setCurrentUserEmail((user?.email as string) || '');
-        setCurrentUserAvatar((user?.avatarUrl as string) || '');
-        setCurrentUserFeatures(ensureFeaturesList(user?.features));
-        setCurrentUserIsAdmin(Boolean(user?.isAdmin));
-        setCurrentUserHasPassword(Boolean(user?.hasPassword));
+        setCurrentUserEmail(profile?.email || email);
+        setCurrentUserAvatar(profile?.avatar_url || '');
+        setCurrentUserFeatures(ensureFeaturesList(profile?.features));
+        setCurrentUserIsAdmin(Boolean(profile?.is_admin));
+        setCurrentUserHasPassword(true);
         setInviteToken('');
         setInvitePassword('');
         setInvitePasswordConfirm('');
@@ -417,36 +346,33 @@ export function useAuth({ apiGet, apiPost, apiPut }: UseAuthDeps) {
         setInviteError('This invite link is invalid or has expired.');
       }
     },
-    [inviteToken, invitePassword, invitePasswordConfirm, apiPut, clearInviteParam],
+    [inviteToken, invitePassword, invitePasswordConfirm, clearInviteParam],
   );
 
   // Change password
   const handleChangePassword = useCallback(
     async ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => {
-      const payload = { currentPassword, newPassword };
-      const submit = async () => {
-        if (
-          window.api &&
-          window.api.enabled &&
-          (window.api as Record<string, unknown>).changePassword
-        ) {
-          return (
-            window.api as Record<string, (...args: unknown[]) => Promise<unknown>>
-          ).changePassword(payload);
-        }
-        return apiPut('/api/password', payload);
-      };
       try {
-        const response = await submit();
+        // Supabase doesn't expose a direct "change password with current password" flow;
+        // re-auth then update via updateUser
+        const session = await AUTH.getSession();
+        if (!session?.user?.email) throw new Error('Not authenticated');
+        const reauth = await AUTH.signIn(session.user.email, currentPassword);
+        if (reauth.error) throw new Error(reauth.error);
+        const { error } = await (await import('../../lib/supabase'))
+          .getSupabase()!
+          .auth.updateUser({
+            password: newPassword,
+          });
+        if (error) throw new Error(error.message);
         setCurrentUserHasPassword(true);
-        return response;
       } catch (error) {
         console.error('Failed to update password', error);
         if (error instanceof Error) throw error;
         throw new Error('Unable to update password.');
       }
     },
-    [apiPut],
+    [],
   );
 
   // Called by LoginScreen when auth succeeds via Supabase SSO

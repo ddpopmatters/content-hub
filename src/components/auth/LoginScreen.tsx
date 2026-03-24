@@ -1,9 +1,13 @@
-import React, { useState, useEffect, type FormEvent } from 'react';
+import React, { useState, type FormEvent } from 'react';
+import { AUTH, SUPABASE_API } from '../../lib/supabase';
 
 interface UserProfile {
   id: string;
   email: string;
   name?: string;
+  avatar_url?: string | null;
+  is_admin?: boolean;
+  features?: string[];
 }
 
 interface AuthResult {
@@ -12,7 +16,6 @@ interface AuthResult {
 }
 
 export interface LoginScreenProps {
-  /** Callback when authentication state changes */
   onAuthChange: (result: AuthResult) => void;
 }
 
@@ -26,108 +29,45 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const [apiReady, setApiReady] = useState(false);
-  const [apiUnavailable, setApiUnavailable] = useState(false);
 
-  // Wait for API to be ready
-  useEffect(() => {
-    const checkApi = (): boolean => {
-      const enabled = (window as unknown as { api?: { enabled?: boolean } }).api?.enabled;
-      if (enabled) {
-        setApiReady(true);
-        setApiUnavailable(false);
-        return true;
-      }
-      if (typeof enabled === 'boolean' && !enabled) {
-        setApiReady(false);
-        setApiUnavailable(true);
-        return true;
-      }
-      return false;
-    };
-
-    if (checkApi()) return;
-
-    // Listen for API ready event
-    const handleApiReady = () => checkApi();
-    window.addEventListener('pm-api-ready', handleApiReady);
-
-    // Poll as fallback
-    const interval = setInterval(() => {
-      if (checkApi()) clearInterval(interval);
-    }, 100);
-
-    return () => {
-      window.removeEventListener('pm-api-ready', handleApiReady);
-      clearInterval(interval);
-    };
-  }, []);
-
-  // Check for existing session on mount
-  useEffect(() => {
-    if (!apiReady) return;
-
-    const api = (window as unknown as { api: Record<string, unknown> }).api;
-
-    const checkSession = async () => {
-      try {
-        const session = await (api.getSession as () => Promise<{ user?: UserProfile } | null>)();
-        if (session?.user) {
-          const profile = await (api.getCurrentUser as () => Promise<UserProfile | null>)();
-          if (profile) {
-            onAuthChange({ user: session.user, profile });
-          }
-        }
-      } catch (err) {
-        console.error('Session check failed:', err);
-      }
-    };
-
-    checkSession();
-
-    // Listen for auth state changes (e.g., magic link redirect)
-    const unsubscribe = (
-      api.onAuthStateChange as (
-        callback: (event: string, session: { user?: UserProfile } | null) => void,
-      ) => () => void
-    )(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        const profile = await (api.getCurrentUser as () => Promise<UserProfile | null>)();
-        if (profile) {
-          onAuthChange({ user: session.user, profile });
-        }
-      }
-    });
-
-    return unsubscribe;
-  }, [apiReady, onAuthChange]);
-
-  const handleSignIn = async (e: FormEvent) => {
+  const handlePasswordSignIn = async (e: FormEvent) => {
     e.preventDefault();
-    if (!apiReady) return;
     setLoading(true);
     setError('');
-
-    const api = (window as unknown as { api: Record<string, unknown> }).api;
-
     try {
-      const normalizedEmail = email.trim();
-      const result = await (
-        api.signInWithMagicLink as (params: { email: string }) => Promise<{
-          ok: boolean;
-          message?: string;
-          error?: string;
-        }>
-      )({ email: normalizedEmail });
-      if (result.ok) {
-        setMode('link-sent');
-        setSuccess(result.message || 'Check your email for the sign-in link');
+      const result = await AUTH.signIn(email.trim(), password);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      const profile = await SUPABASE_API.fetchCurrentUserProfile();
+      if (profile) {
+        onAuthChange({ user: profile as UserProfile, profile: profile as UserProfile });
       } else {
-        setError(result.error || 'Sign in failed. Please try again.');
+        setError('Signed in but could not load your profile. Please try again.');
       }
     } catch (err) {
-      console.error('Sign in error:', err);
       setError((err as Error).message || 'Sign in failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMagicLink = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setLoading(true);
+    setError('');
+    try {
+      const result = await AUTH.signInWithMagicLink(email.trim());
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setMode('link-sent');
+        setSuccess('Check your email for the sign-in link');
+      }
+    } catch (err) {
+      setError((err as Error).message || 'Failed to send link.');
     } finally {
       setLoading(false);
     }
@@ -135,86 +75,33 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
 
   const handleSignUp = async (e: FormEvent) => {
     e.preventDefault();
-    if (!apiReady) return;
-
-    // Validate passwords match
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
       return;
     }
-
     if (password.length < 8) {
       setError('Password must be at least 8 characters.');
       return;
     }
-
     setLoading(true);
     setError('');
-    setSuccess('');
-
-    const api = (window as unknown as { api: Record<string, unknown> }).api;
-
     try {
-      const normalizedEmail = email.trim();
-      const result = await (
-        api.signUp as (params: { email: string; password: string }) => Promise<{
-          ok: boolean;
-          needsVerification?: boolean;
-          message?: string;
-          user?: UserProfile;
-          error?: string;
-        }>
-      )({ email: normalizedEmail, password });
-
-      if (result.ok) {
-        if (result.needsVerification) {
-          setMode('link-sent');
-          setSuccess(result.message || 'Check your email for verification link');
-        } else if (result.user) {
-          const profile = await (api.getCurrentUser as () => Promise<UserProfile | null>)();
-          if (profile) {
-            onAuthChange({ user: result.user, profile });
-          }
-        }
-      } else {
-        setError(result.error || 'Sign up failed. Please try again.');
+      const result = await AUTH.signUp(email.trim(), password, '');
+      if (result.error) {
+        setError(result.error);
+        return;
       }
-    } catch (err) {
-      console.error('Sign up error:', err);
-      setError((err as Error).message || 'Sign up failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePasswordSignIn = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!apiReady) return;
-    setLoading(true);
-    setError('');
-
-    const api = (window as unknown as { api: Record<string, unknown> }).api;
-
-    try {
-      const normalizedEmail = email.trim();
-      const result = await (
-        api.login as (params: { email: string; password: string }) => Promise<{
-          ok: boolean;
-          user?: UserProfile;
-          error?: string;
-        }>
-      )({ email: normalizedEmail, password });
-      if (result.ok && result.user) {
-        const profile = await (api.getCurrentUser as () => Promise<UserProfile | null>)();
+      if (result.data?.user && !result.data.user.email_confirmed_at) {
+        setMode('link-sent');
+        setSuccess('Check your email for the verification link');
+      } else if (result.data?.user) {
+        const profile = await SUPABASE_API.fetchCurrentUserProfile();
         if (profile) {
-          onAuthChange({ user: result.user, profile });
+          onAuthChange({ user: profile as UserProfile, profile: profile as UserProfile });
         }
-      } else {
-        setError(result.error || 'Invalid email or password.');
       }
     } catch (err) {
-      console.error('Sign in error:', err);
-      setError((err as Error).message || 'Sign in failed. Please try again.');
+      setError((err as Error).message || 'Sign up failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -242,21 +129,12 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
             {error}
           </div>
         )}
-
-        {apiUnavailable && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Live authentication is currently unavailable. The app has paused backend requests for
-            this session to avoid repeated network errors.
-          </div>
-        )}
-
         {success && (
           <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
             {success}
           </div>
         )}
 
-        {/* Link Sent Confirmation */}
         {mode === 'link-sent' && (
           <div className="space-y-4 text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-ocean-100">
@@ -278,7 +156,7 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
               We sent a link to <strong>{email}</strong>
             </p>
             <p className="text-sm text-graystone-500">
-              Click the link in your email to sign in. The link will expire in 1 hour.
+              Click the link in your email to sign in. The link expires in 1 hour.
             </p>
             <button
               type="button"
@@ -294,7 +172,6 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
           </div>
         )}
 
-        {/* Sign In Form */}
         {mode === 'signin' && (
           <form onSubmit={handlePasswordSignIn} className="space-y-4">
             <div>
@@ -333,7 +210,7 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
             </div>
             <button
               type="submit"
-              disabled={loading || !apiReady}
+              disabled={loading}
               className="w-full rounded-xl bg-ocean-500 py-3 font-semibold text-white transition hover:bg-ocean-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? 'Signing in...' : 'Sign In'}
@@ -341,8 +218,8 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
             <div className="text-center">
               <button
                 type="button"
-                onClick={handleSignIn}
-                disabled={loading || !apiReady || !email}
+                onClick={handleMagicLink}
+                disabled={loading || !email}
                 className="text-sm text-ocean-600 hover:underline disabled:opacity-50"
               >
                 Or sign in with magic link
@@ -351,7 +228,6 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
           </form>
         )}
 
-        {/* Sign Up Form */}
         {mode === 'signup' && (
           <form onSubmit={handleSignUp} className="space-y-4">
             <div>
@@ -409,7 +285,7 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
             </div>
             <button
               type="submit"
-              disabled={loading || !apiReady}
+              disabled={loading}
               className="w-full rounded-xl bg-ocean-500 py-3 font-semibold text-white transition hover:bg-ocean-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? 'Creating account...' : 'Create Account'}
@@ -417,7 +293,6 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
           </form>
         )}
 
-        {/* Toggle between sign in and sign up */}
         {(mode === 'signin' || mode === 'signup') && (
           <div className="mt-6 text-center">
             {mode === 'signin' ? (
@@ -450,10 +325,6 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
               </p>
             )}
           </div>
-        )}
-
-        {!apiReady && (
-          <div className="mt-4 text-center text-sm text-amber-600">Loading authentication...</div>
         )}
       </div>
     </div>
