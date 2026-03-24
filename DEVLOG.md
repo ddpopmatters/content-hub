@@ -1,5 +1,15 @@
 # Content Hub — Dev Log
 
+## 2026-03-24 — Per-item approval flow + remove footer bypass
+
+- Tool: Claude Code (Sonnet 4.6)
+- Branch: main
+- Changes:
+  - `ApprovalsView.tsx`: removed Card wrapper — content sits flush on modal; `p-6` padding on outer container; header reduced to `← Back` + waiting count badge
+  - `EntryModal.jsx`: per-item approval flow — approver ticks each caption/slide/script/design-copy before "Sign off" is enabled; `approvedItems` Set tracks state locally, resets on modal open; progress counter "N of M items reviewed"
+  - `EntryModal.jsx`: removed footer "Mark as approved" bypass — "Sign off" in the body is now the sole approval path, enforcing the per-item gate
+- Status: Complete
+
 ## 2026-03-24 — Simplify approvals header and content review modal
 
 - Tool: Claude Code (Sonnet 4.6)
