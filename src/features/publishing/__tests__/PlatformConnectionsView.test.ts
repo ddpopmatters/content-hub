@@ -29,4 +29,11 @@ describe('buildOAuthUrl', () => {
     expect(url).toContain('config_id=1823163038321738');
     expect(url).not.toContain('scope=');
   });
+
+  it('includes client_id (app ID) in FLoB URL', () => {
+    vi.stubEnv('META_APP_ID', '3341090329381439');
+    const url = buildOAuthUrl('Instagram', 'user@example.com');
+    expect(url).toContain('client_id=3341090329381439');
+    expect(url).toContain('config_id=test-config-123');
+  });
 });
