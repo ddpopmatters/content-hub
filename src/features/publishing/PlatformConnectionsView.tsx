@@ -68,7 +68,7 @@ export function buildOAuthUrl(platform: Platform, currentUser: string): string {
     }
     case 'LinkedIn': {
       const clientId = import.meta.env.LINKEDIN_CLIENT_ID ?? '';
-      return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent('openid profile email')}&state=${state}`;
+      return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent('openid profile email w_member_social')}&state=${state}`;
     }
     case 'YouTube': {
       const clientId = import.meta.env.GOOGLE_CLIENT_ID ?? '';
