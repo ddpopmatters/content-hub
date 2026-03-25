@@ -2,7 +2,7 @@ import { build, context } from 'esbuild';
 import { execFileSync } from 'child_process';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { readFileSync } from 'fs';
+import { readFileSync, rmSync, mkdirSync } from 'fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -53,6 +53,12 @@ const config = {
     'import.meta.env.GOOGLE_CLIENT_ID': JSON.stringify(getEnv('GOOGLE_CLIENT_ID')),
   },
 };
+
+// Clean previous build output to prevent stale chunk accumulation
+if (!isWatch) {
+  rmSync(resolve(root, 'public/js'), { recursive: true, force: true });
+  mkdirSync(resolve(root, 'public/js/chunks'), { recursive: true });
+}
 
 // Build Tailwind CSS
 const tailwindInput = resolve(root, 'src/styles/app.css');
