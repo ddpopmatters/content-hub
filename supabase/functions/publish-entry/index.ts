@@ -411,7 +411,9 @@ async function publishToLinkedIn(
       };
     }
 
-    const authorUrn = `urn:li:person:${accountId}`;
+    // Use org URN if stored (org_account_id), else fall back to personal URN
+    const orgId = (conn as unknown as Record<string, string>).org_account_id;
+    const authorUrn = orgId ? `urn:li:organization:${orgId}` : `urn:li:person:${accountId}`;
     const headers = {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
