@@ -36,10 +36,16 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           META_APP_ID: ${{ secrets.META_APP_ID }}
+          META_FLOB_CONFIG_ID: ${{ secrets.META_FLOB_CONFIG_ID }}
+          LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
         run: |
           echo "SUPABASE_URL=$SUPABASE_URL" >> .env
           echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> .env
           echo "META_APP_ID=$META_APP_ID" >> .env
+          echo "META_FLOB_CONFIG_ID=$META_FLOB_CONFIG_ID" >> .env
+          echo "LINKEDIN_CLIENT_ID=$LINKEDIN_CLIENT_ID" >> .env
+          echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" >> .env
 
       - name: Build
         run: npm run build

@@ -25,6 +25,7 @@ const loadEnv = () => {
   }
 };
 const env = loadEnv();
+const getEnv = (key) => process.env[key] || env[key] || '';
 
 // Build Tailwind CSS (initial + watch)
 const tailwindInput = resolve(root, 'src/styles/app.css');
@@ -60,8 +61,12 @@ const ctx = await context({
   minify: false,
   logLevel: 'info',
   define: {
-    'import.meta.env.SUPABASE_URL': JSON.stringify(env.SUPABASE_URL || ''),
-    'import.meta.env.SUPABASE_ANON_KEY': JSON.stringify(env.SUPABASE_ANON_KEY || ''),
+    'import.meta.env.SUPABASE_URL': JSON.stringify(getEnv('SUPABASE_URL')),
+    'import.meta.env.SUPABASE_ANON_KEY': JSON.stringify(getEnv('SUPABASE_ANON_KEY')),
+    'import.meta.env.META_APP_ID': JSON.stringify(getEnv('META_APP_ID')),
+    'import.meta.env.META_FLOB_CONFIG_ID': JSON.stringify(getEnv('META_FLOB_CONFIG_ID')),
+    'import.meta.env.LINKEDIN_CLIENT_ID': JSON.stringify(getEnv('LINKEDIN_CLIENT_ID')),
+    'import.meta.env.GOOGLE_CLIENT_ID': JSON.stringify(getEnv('GOOGLE_CLIENT_ID')),
   },
 });
 

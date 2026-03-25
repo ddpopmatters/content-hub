@@ -22,7 +22,7 @@ export interface AppConfig {
   // Authentication
   AUTH_ENABLED: boolean;
 
-  // Organization branding
+  // Organisation branding
   ORG_NAME: string;
   ORG_DOMAIN: string;
   LOGO_URL: string;
@@ -39,6 +39,9 @@ const supabaseUrl = import.meta.env.SUPABASE_URL || 'https://dvhjvtxtkmtsqlnurhf
 const supabaseAnonKey =
   import.meta.env.SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aGp2dHh0a210c3FsbnVyaGZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5OTI0OTYsImV4cCI6MjA4MzU2ODQ5Nn0.c4yIpOZXqU8Doci2IN6uNKA_rWwrrMzbMDkMx9HCjcc';
+
+// Public OAuth identifiers — safe in frontend bundle (same pattern as client_id in OAuth)
+export const META_FLOB_CONFIG_ID = import.meta.env.META_FLOB_CONFIG_ID || '1823163038321738';
 const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
 
 export const APP_CONFIG: AppConfig = {
@@ -50,7 +53,7 @@ export const APP_CONFIG: AppConfig = {
   // Authentication
   AUTH_ENABLED: hasSupabaseConfig,
 
-  // Organization branding
+  // Organisation branding
   ORG_NAME: 'Population Matters',
   ORG_DOMAIN: 'populationmatters.org',
   LOGO_URL: 'https://populationmatters.org/wp-content/uploads/2022/03/PM-logo.png',
