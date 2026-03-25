@@ -841,11 +841,15 @@ export function EntryModal({
       draft.assetType === 'Design' &&
       typeof draft.designCopy === 'string' &&
       draft.designCopy.trim();
+    const hasPreviewAsset = Boolean(
+      previewUrl || (Array.isArray(draft.assetPreviews) && draft.assetPreviews.length),
+    );
     const allItems = [
       ...plannedPlatforms.map((p) => `caption:${p}`),
       ...carouselSlides.map((_, i) => `slide:${i}`),
       ...(hasScript ? ['asset:script'] : []),
       ...(hasDesignCopy ? ['asset:design'] : []),
+      ...(hasPreviewAsset ? ['asset:preview'] : []),
     ];
     const approvedCount = allItems.filter((key) => approvedItems.has(key)).length;
     const allApproved = allItems.length > 0 && approvedCount === allItems.length;
@@ -858,6 +862,7 @@ export function EntryModal({
       if (key.startsWith('slide:')) return `Slide ${parseInt(key.replace('slide:', ''), 10) + 1}`;
       if (key === 'asset:script') return 'Script';
       if (key === 'asset:design') return 'Design copy';
+      if (key === 'asset:preview') return 'Preview asset';
       return key;
     };
 
@@ -866,6 +871,7 @@ export function EntryModal({
       if (key.startsWith('slide:')) return 'Approve slide';
       if (key === 'asset:script') return 'Approve script';
       if (key === 'asset:design') return 'Approve design copy';
+      if (key === 'asset:preview') return 'Approve asset';
       return 'Approve';
     };
 
@@ -925,6 +931,50 @@ export function EntryModal({
             <p className="whitespace-pre-wrap text-sm text-graystone-700">
               {draft.designCopy?.trim()}
             </p>
+          </>
+        );
+      }
+      if (key === 'asset:preview') {
+        const previews =
+          Array.isArray(draft.assetPreviews) && draft.assetPreviews.length
+            ? draft.assetPreviews
+            : previewUrl
+              ? [previewUrl]
+              : [];
+        return (
+          <>
+            <div className="mb-2 text-sm font-semibold text-ocean-800">Preview asset</div>
+            <div className="space-y-3">
+              {previews.map((url, i) => {
+                const isImg = isImageMedia(url);
+                const isVid = /\.(mp4|webm|ogg)$/i.test(url);
+                return (
+                  <div
+                    key={i}
+                    className="overflow-hidden rounded-xl border border-graystone-200 bg-graystone-50"
+                  >
+                    {isImg ? (
+                      <img
+                        src={url}
+                        alt={`Asset ${i + 1}`}
+                        className="max-h-80 w-full object-contain"
+                      />
+                    ) : isVid ? (
+                      <video src={url} controls className="max-h-80 w-full" />
+                    ) : (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block px-4 py-3 text-sm text-ocean-700 underline"
+                      >
+                        {url}
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </>
         );
       }
