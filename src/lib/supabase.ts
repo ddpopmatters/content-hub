@@ -395,6 +395,7 @@ interface EntryRow {
   updated_at: string;
   approved_at: string | null;
   deleted_at: string | null;
+  comments: string | null;
 }
 
 interface MonthlyReportRow {
@@ -2555,6 +2556,14 @@ export const SUPABASE_API = {
     updatedAt: row.updated_at,
     approvedAt: row.approved_at,
     deletedAt: row.deleted_at,
+    comments: (() => {
+      if (!row.comments) return [];
+      try {
+        return JSON.parse(row.comments);
+      } catch {
+        return [];
+      }
+    })(),
   }),
 
   mapEntryToDb: (entry: Partial<Entry>, userEmail: string) => ({
@@ -2615,6 +2624,7 @@ export const SUPABASE_API = {
     design_copy: entry.designCopy || null,
     carousel_slides: entry.carouselSlides || [],
     approved_at: entry.approvedAt ?? null,
+    comments: entry.comments && entry.comments.length ? JSON.stringify(entry.comments) : null,
   }),
 
   mapMonthlyReportToApp: (row: MonthlyReportRow): MonthlyReport => ({
