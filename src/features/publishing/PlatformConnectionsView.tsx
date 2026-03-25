@@ -37,7 +37,7 @@ interface BlueSkyForm {
 
 const FUNCTION_BASE = `${import.meta.env.SUPABASE_URL ?? ''}/functions/v1`;
 
-function buildOAuthUrl(platform: Platform, currentUser: string): string {
+export function buildOAuthUrl(platform: Platform, currentUser: string): string {
   const state = btoa(
     JSON.stringify({
       platform,
@@ -50,6 +50,14 @@ function buildOAuthUrl(platform: Platform, currentUser: string): string {
   switch (platform) {
     case 'Instagram':
     case 'Facebook': {
+      const configId = import.meta.env.META_FLOB_CONFIG_ID ?? '';
+      if (configId) {
+        return (
+          `https://www.facebook.com/dialog/oauth?config_id=${configId}` +
+          `&response_type=code&override_default_response_type=true` +
+          `&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`
+        );
+      }
       const appId = import.meta.env.META_APP_ID ?? '';
       const scopes =
         platform === 'Instagram'
