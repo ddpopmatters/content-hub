@@ -203,10 +203,18 @@ export function EntryModal({
     return '';
   }, [currentUser, currentUserEmail]);
   const isApproverView = useMemo(() => {
-    if (!normalizedViewer) return false;
     const approvers = ensurePeopleArray(sanitizedEntry?.approvers);
-    return approvers.some((name) => (name || '').trim().toLowerCase() === normalizedViewer);
-  }, [sanitizedEntry, normalizedViewer]);
+    const nameNorm = currentUser ? currentUser.trim().toLowerCase() : null;
+    const emailNorm = currentUserEmail ? currentUserEmail.trim().toLowerCase() : null;
+    if (!nameNorm && !emailNorm) return false;
+    return approvers.some((approver) => {
+      const norm = (approver || '').trim().toLowerCase();
+      if (!norm) return false;
+      if (nameNorm && norm === nameNorm) return true;
+      if (emailNorm && norm === emailNorm) return true;
+      return false;
+    });
+  }, [sanitizedEntry, currentUser, currentUserEmail]);
   const isAuthorView = useMemo(() => {
     if (!normalizedViewer) return false;
     const normalizedAuthor = (sanitizedEntry?.author || '').trim().toLowerCase();
@@ -818,6 +826,50 @@ export function EntryModal({
           </div>,
         );
       }
+    }
+    const previewItems =
+      Array.isArray(draft.assetPreviews) && draft.assetPreviews.length
+        ? draft.assetPreviews
+        : draft.previewUrl && draft.previewUrl.trim()
+          ? [draft.previewUrl.trim()]
+          : [];
+    if (previewItems.length) {
+      notes.push(
+        <div key="preview" className="space-y-2">
+          <div className="text-sm font-semibold text-ocean-800">Preview asset</div>
+          <div className="space-y-2">
+            {previewItems.map((url, i) => {
+              const isImg = isImageMedia(url);
+              const isVid = /\.(mp4|webm|ogg)$/i.test(url);
+              return (
+                <div
+                  key={i}
+                  className="overflow-hidden rounded-xl border border-graystone-200 bg-graystone-50"
+                >
+                  {isImg ? (
+                    <img
+                      src={url}
+                      alt={`Asset ${i + 1}`}
+                      className="max-h-80 w-full object-contain"
+                    />
+                  ) : isVid ? (
+                    <video src={url} controls className="max-h-80 w-full" />
+                  ) : (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block px-4 py-3 text-sm text-ocean-700 underline"
+                    >
+                      {url}
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>,
+      );
     }
     if (!notes.length) return null;
     return (
