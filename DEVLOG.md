@@ -339,3 +339,21 @@
 - Verified the change with `npm run typecheck`
 
 **Status:** Complete
+
+---
+
+## 2026-03-24 — Form improvements: influencer create, sign-off route removal, validation simplification
+
+**Tool:** Claude Code (claude-sonnet-4-6)
+**Branch:** main
+
+**Changes:**
+
+- `InfluencerPicker.tsx` — new `onCreateNew` prop; "+ New influencer" button in label row
+- `EntryForm.tsx` — quick-create modal for influencers (name + platform), saved via `SUPABASE_API.saveInfluencer`, auto-selected on creation; local influencer list merged with prop list
+- `EntryForm.tsx` — sign-off route dropdown removed from Advanced section (state preserved for submission backward compat)
+- `EntryForm.tsx` — validation simplified: only platforms + caption + asset-type copy required; date and asset type no longer block submission
+
+**Documented:** Login-free approval flow — recommended approach is HMAC-signed token in approval email URL, validated by public Edge Function, no Supabase account needed.
+
+**Status:** Complete

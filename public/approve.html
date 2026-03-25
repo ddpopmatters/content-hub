@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Approve content — Population Matters</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --ocean: #0e4d63;
+        --ocean-light: #e0f2fe;
+        --emerald: #059669;
+        --emerald-light: #d1fae5;
+        --rose: #e11d48;
+        --rose-light: #ffe4e6;
+        --text: #111827;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --bg: #f0f9ff;
+        --card: #ffffff;
+        --radius: 20px;
+      }
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        padding: 2rem 1rem;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+      }
+      .logo-mark {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--ocean);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .logo-mark svg {
+        width: 18px;
+        height: 18px;
+        fill: #00ffff;
+      }
+      .logo-name {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--ocean);
+        letter-spacing: 0.02em;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      }
+      h1 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--ocean);
+        margin-bottom: 0.25rem;
+      }
+      .subtitle {
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-bottom: 1.5rem;
+      }
+      .meta-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: baseline;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.875rem;
+      }
+      .meta-row:last-of-type {
+        border-bottom: none;
+      }
+      .meta-label {
+        color: var(--muted);
+        min-width: 90px;
+        flex-shrink: 0;
+      }
+      .meta-value {
+        color: var(--text);
+        font-weight: 500;
+      }
+      .caption-box {
+        margin-top: 1rem;
+        padding: 1rem 1.25rem;
+        background: var(--ocean-light);
+        border-radius: 12px;
+        font-size: 0.9rem;
+        color: var(--text);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .pill {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        background: var(--ocean-light);
+        color: var(--ocean);
+        margin: 0.15rem;
+      }
+      .actions {
+        margin-top: 1.5rem;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.8rem 1.75rem;
+        border-radius: 999px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: opacity 0.15s;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn-approve {
+        background: var(--emerald);
+        color: #fff;
+      }
+      .btn-approve:hover:not(:disabled) {
+        opacity: 0.88;
+      }
+      .status-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 1rem 1.25rem;
+        border-radius: 12px;
+        font-size: 0.875rem;
+        font-weight: 500;
+      }
+      .status-success {
+        background: var(--emerald-light);
+        color: #065f46;
+      }
+      .status-error {
+        background: var(--rose-light);
+        color: #9f1239;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        margin: 3rem auto;
+        border: 3px solid var(--border);
+        border-top-color: var(--ocean);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">
+        <div class="logo-mark">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+          </svg>
+        </div>
+        <span class="logo-name">Population Matters</span>
+      </div>
+
+      <div id="loading"><div class="spinner"></div></div>
+      <div id="error-view" style="display: none"></div>
+      <div id="content-view" style="display: none"></div>
+      <div id="success-view" style="display: none"></div>
+    </div>
+
+    <script>
+      (function () {
+        var SUPABASE_FUNCTIONS_URL = 'https://dvhjvtxtkmtsqlnurhfg.supabase.co/functions/v1';
+
+        // Safe text setter — never uses innerHTML with untrusted data directly
+        function setText(el, text) {
+          el.textContent = String(text || '');
+        }
+        function setAttr(el, attr, val) {
+          el.setAttribute(attr, String(val || ''));
+        }
+
+        function show(id) {
+          ['loading', 'error-view', 'content-view', 'success-view'].forEach(function (v) {
+            document.getElementById(v).style.display = v === id ? '' : 'none';
+          });
+        }
+
+        function el(tag, cls) {
+          var node = document.createElement(tag);
+          if (cls) node.className = cls;
+          return node;
+        }
+
+        function formatDate(s) {
+          if (!s) return null;
+          try {
+            return new Date(s).toLocaleDateString('en-GB', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            });
+          } catch (e) {
+            return s;
+          }
+        }
+
+        function parseArray(v) {
+          if (!v) return [];
+          if (Array.isArray(v)) return v;
+          try {
+            return JSON.parse(v);
+          } catch (e) {
+            return [v];
+          }
+        }
+
+        function showError(msg) {
+          var wrap = el('div', 'card');
+          var banner = el('div', 'status-banner status-error');
+          var icon = el('span');
+          setText(icon, '\u26A0');
+          var text = el('span');
+          setText(text, msg);
+          banner.appendChild(icon);
+          banner.appendChild(text);
+          wrap.appendChild(banner);
+          var errorView = document.getElementById('error-view');
+          errorView.replaceChildren(wrap);
+          show('error-view');
+        }
+
+        function addMetaRow(card, label, valueNode) {
+          var row = el('div', 'meta-row');
+          var lbl = el('span', 'meta-label');
+          setText(lbl, label);
+          row.appendChild(lbl);
+          if (typeof valueNode === 'string') {
+            var val = el('span', 'meta-value');
+            setText(val, valueNode);
+            row.appendChild(val);
+          } else {
+            row.appendChild(valueNode);
+          }
+          card.appendChild(row);
+        }
+
+        var token = new URLSearchParams(window.location.search).get('token') || '';
+
+        if (!token) {
+          showError('No approval token found. Please use the link from your approval email.');
+          return;
+        }
+
+        fetch(SUPABASE_FUNCTIONS_URL + '/approve-entry?token=' + encodeURIComponent(token))
+          .then(function (res) {
+            return res.json();
+          })
+          .then(function (data) {
+            if (data.error) {
+              showError(data.error);
+              return;
+            }
+
+            var entry = data.entry;
+            var alreadyApproved = data.alreadyApproved;
+            var platforms = parseArray(entry.platforms);
+
+            var card = el('div', 'card');
+
+            var h1 = el('h1');
+            setText(h1, 'Content approval request');
+            card.appendChild(h1);
+            var sub = el('p', 'subtitle');
+            setText(
+              sub,
+              "Review the content below and click Approve if you're happy for it to be published.",
+            );
+            card.appendChild(sub);
+
+            if (entry.author) addMetaRow(card, 'Requested by', entry.author);
+            if (entry.date) addMetaRow(card, 'Scheduled', formatDate(entry.date) || entry.date);
+            if (entry.assetType) addMetaRow(card, 'Type', entry.assetType);
+            if (entry.campaign) addMetaRow(card, 'Campaign', entry.campaign);
+
+            if (platforms.length) {
+              var pillsWrap = el('span', 'meta-value');
+              platforms.forEach(function (p) {
+                var pill = el('span', 'pill');
+                setText(pill, p);
+                pillsWrap.appendChild(pill);
+              });
+              addMetaRow(card, 'Platforms', pillsWrap);
+            }
+
+            if (entry.caption) {
+              var captionBox = el('div', 'caption-box');
+              setText(captionBox, entry.caption);
+              card.appendChild(captionBox);
+            }
+
+            if (alreadyApproved) {
+              var successBanner = el('div', 'status-banner status-success');
+              successBanner.style.marginTop = '1.5rem';
+              var checkIcon = el('span');
+              setText(checkIcon, '\u2713');
+              var msg = el('span');
+              setText(msg, 'This content has already been approved.');
+              successBanner.appendChild(checkIcon);
+              successBanner.appendChild(msg);
+              card.appendChild(successBanner);
+            } else {
+              var actions = el('div', 'actions');
+              var btn = el('button', 'btn btn-approve');
+              setText(btn, '\u2713 Approve content');
+              actions.appendChild(btn);
+              card.appendChild(actions);
+
+              var hint = el('p');
+              hint.style.cssText = 'margin-top:0.75rem; font-size:0.8rem; color:var(--muted);';
+              setText(hint, "Approving records your decision — you don't need to log in.");
+              card.appendChild(hint);
+
+              btn.addEventListener('click', function () {
+                btn.disabled = true;
+                setText(btn, 'Recording approval\u2026');
+
+                fetch(SUPABASE_FUNCTIONS_URL + '/approve-entry', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ token: token }),
+                })
+                  .then(function (res) {
+                    return res.json();
+                  })
+                  .then(function (result) {
+                    if (result.error) {
+                      btn.disabled = false;
+                      setText(btn, '\u2713 Approve content');
+                      showError(result.error);
+                      return;
+                    }
+                    var wrap = el('div', 'card');
+                    var banner = el('div', 'status-banner status-success');
+                    var icon2 = el('span');
+                    setText(icon2, '\u2713');
+                    var textWrap = el('div');
+                    var strong = el('strong');
+                    setText(strong, 'Approved \u2014 thank you!');
+                    var desc = el('p');
+                    desc.style.fontWeight = '400';
+                    setText(
+                      desc,
+                      'Your approval has been recorded. The content team will be notified.',
+                    );
+                    textWrap.appendChild(strong);
+                    textWrap.appendChild(desc);
+                    banner.appendChild(icon2);
+                    banner.appendChild(textWrap);
+                    wrap.appendChild(banner);
+                    var successView = document.getElementById('success-view');
+                    successView.replaceChildren(wrap);
+                    show('success-view');
+                  })
+                  .catch(function () {
+                    btn.disabled = false;
+                    setText(btn, '\u2713 Approve content');
+                    showError(
+                      'Something went wrong. Please try again or reply to the approval email.',
+                    );
+                  });
+              });
+            }
+
+            var contentView = document.getElementById('content-view');
+            contentView.replaceChildren(card);
+            show('content-view');
+          })
+          .catch(function () {
+            showError('Could not load content details. Please check your link or try again.');
+          });
+      })();
+    </script>
+  </body>
+</html>

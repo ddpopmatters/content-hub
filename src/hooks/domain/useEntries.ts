@@ -281,6 +281,7 @@ export function useEntries({
                 teamsWebhookUrl: (guidelines as Record<string, unknown>)?.teamsWebhookUrl,
                 message: `${requesterName} requested approval for entry ${entry.id}`,
                 approvers: entryApprovers,
+                entryId: entry.id,
                 subject:
                   (emailPayload as unknown as Record<string, unknown>)?.subject || fallbackSubject,
                 text: (emailPayload as unknown as Record<string, unknown>)?.text || fallbackText,
@@ -504,6 +505,7 @@ export function useEntries({
               approvers: approversForNotify,
               to: approversForNotify,
               teamsWebhookUrl: (guidelines as Record<string, unknown> | null)?.teamsWebhookUrl,
+              entryId: String(entryForNotify.id ?? ''),
               subject: emailPayload?.subject ?? `[PM Dashboard] Approval requested`,
               text: emailPayload?.text ?? `${requesterName} assigned you as an approver.`,
               html: emailPayload?.html,
