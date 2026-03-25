@@ -38,11 +38,12 @@ interface BlueSkyForm {
 const FUNCTION_BASE = `${import.meta.env.SUPABASE_URL ?? ''}/functions/v1`;
 
 export function buildOAuthUrl(platform: Platform, currentUser: string): string {
+  const appBase = window.location.href.split('#')[0].replace(/[^/]*$/, '');
   const state = btoa(
     JSON.stringify({
       platform,
       createdBy: currentUser,
-      redirectTo: `${window.location.origin}/oauth-success.html`,
+      redirectTo: `${appBase}oauth-success.html`,
     }),
   );
   const redirectUri = `${FUNCTION_BASE}/oauth-callback`;
@@ -51,14 +52,14 @@ export function buildOAuthUrl(platform: Platform, currentUser: string): string {
     case 'Instagram':
     case 'Facebook': {
       const configId = import.meta.env.META_FLOB_CONFIG_ID || '1823163038321738';
+      const appId = import.meta.env.META_APP_ID ?? '';
       if (configId) {
         return (
-          `https://www.facebook.com/dialog/oauth?config_id=${configId}` +
+          `https://www.facebook.com/dialog/oauth?client_id=${appId}&config_id=${configId}` +
           `&response_type=code&override_default_response_type=true` +
           `&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`
         );
       }
-      const appId = import.meta.env.META_APP_ID ?? '';
       const scopes =
         platform === 'Instagram'
           ? 'instagram_basic,instagram_content_publish'
