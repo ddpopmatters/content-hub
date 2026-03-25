@@ -50,7 +50,7 @@ export function buildOAuthUrl(platform: Platform, currentUser: string): string {
   switch (platform) {
     case 'Instagram':
     case 'Facebook': {
-      const configId = import.meta.env.META_FLOB_CONFIG_ID ?? '';
+      const configId = import.meta.env.META_FLOB_CONFIG_ID || '1823163038321738';
       if (configId) {
         return (
           `https://www.facebook.com/dialog/oauth?config_id=${configId}` +

@@ -22,11 +22,11 @@ describe('buildOAuthUrl', () => {
     expect(url).not.toContain('scope=');
   });
 
-  it('falls back to legacy URL when META_FLOB_CONFIG_ID is empty', () => {
+  it('uses hardcoded config_id fallback when META_FLOB_CONFIG_ID env var is not set', () => {
     vi.stubEnv('META_FLOB_CONFIG_ID', '');
-    vi.stubEnv('META_APP_ID', 'app-123');
+    vi.stubEnv('META_APP_ID', '');
     const url = buildOAuthUrl('Instagram', 'user@example.com');
-    expect(url).toContain('v19.0/dialog/oauth');
-    expect(url).toContain('instagram_content_publish');
+    expect(url).toContain('config_id=1823163038321738');
+    expect(url).not.toContain('scope=');
   });
 });
