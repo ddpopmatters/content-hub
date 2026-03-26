@@ -525,6 +525,21 @@ async function publishToLinkedIn(
       throw new Error('LinkedIn publish failed: no post URN returned');
     }
 
+    // Post first comment if provided
+    if (payload.firstComment?.trim()) {
+      const encodedUrn = encodeURIComponent(postUrn);
+      await fetch(`https://api.linkedin.com/v2/socialActions/${encodedUrn}/comments`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          actor: authorUrn,
+          message: { text: payload.firstComment.trim() },
+        }),
+      }).catch(() => {
+        // First comment failure is non-fatal — the post itself succeeded
+      });
+    }
+
     return {
       status: 'published',
       url: `https://www.linkedin.com/feed/update/${postUrn}/`,
