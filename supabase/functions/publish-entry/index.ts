@@ -252,9 +252,22 @@ async function publishToInstagram(
       throw new Error('Instagram publish failed: no post ID returned');
     }
 
+    // Fetch the permalink — publishData.id is a numeric media ID, not a shortcode
+    let postUrl: string | null = null;
+    const permalinkRes = await fetch(
+      `https://graph.facebook.com/v19.0/${publishData.id}?${new URLSearchParams({
+        fields: 'permalink',
+        access_token: page.access_token,
+      })}`,
+    );
+    if (permalinkRes.ok) {
+      const permalinkData = (await permalinkRes.json()) as { permalink?: string };
+      postUrl = permalinkData.permalink ?? null;
+    }
+
     return {
       status: 'published',
-      url: `https://www.instagram.com/p/${publishData.id}/`,
+      url: postUrl,
       postId: publishData.id,
       error: null,
       timestamp,
@@ -412,7 +425,7 @@ async function publishToLinkedIn(
     }
 
     // Use org URN if stored (org_account_id), else fall back to personal URN
-    const orgId = (conn as unknown as Record<string, string>).org_account_id;
+    const orgId = conn.org_account_id;
     const authorUrn = orgId ? `urn:li:organization:${orgId}` : `urn:li:person:${accountId}`;
     const headers = {
       Authorization: `Bearer ${accessToken}`,
@@ -510,6 +523,21 @@ async function publishToLinkedIn(
     const postUrn = postRes.headers.get('x-restli-id');
     if (!postUrn) {
       throw new Error('LinkedIn publish failed: no post URN returned');
+    }
+
+    // Post first comment if provided
+    if (payload.firstComment?.trim()) {
+      const encodedUrn = encodeURIComponent(postUrn);
+      await fetch(`https://api.linkedin.com/v2/socialActions/${encodedUrn}/comments`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          actor: authorUrn,
+          message: { text: payload.firstComment.trim() },
+        }),
+      }).catch(() => {
+        // First comment failure is non-fatal — the post itself succeeded
+      });
     }
 
     return {
