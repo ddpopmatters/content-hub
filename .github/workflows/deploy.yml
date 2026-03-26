@@ -38,6 +38,7 @@ jobs:
           META_APP_ID: ${{ secrets.META_APP_ID }}
           META_FLOB_CONFIG_ID: ${{ secrets.META_FLOB_CONFIG_ID }}
           LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
+          LINKEDIN_ORG_CLIENT_ID: ${{ secrets.LINKEDIN_ORG_CLIENT_ID }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
         run: |
           echo "SUPABASE_URL=$SUPABASE_URL" >> .env
@@ -45,6 +46,7 @@ jobs:
           echo "META_APP_ID=$META_APP_ID" >> .env
           echo "META_FLOB_CONFIG_ID=$META_FLOB_CONFIG_ID" >> .env
           echo "LINKEDIN_CLIENT_ID=$LINKEDIN_CLIENT_ID" >> .env
+          echo "LINKEDIN_ORG_CLIENT_ID=$LINKEDIN_ORG_CLIENT_ID" >> .env
           echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" >> .env
 
       - name: Build

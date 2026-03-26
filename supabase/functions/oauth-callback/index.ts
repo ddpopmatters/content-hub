@@ -19,9 +19,13 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const META_APP_ID = Deno.env.get('META_APP_ID') ?? '';
 const META_APP_SECRET = Deno.env.get('META_APP_SECRET') ?? '';
 
-// LinkedIn
+// LinkedIn (personal)
 const LINKEDIN_CLIENT_ID = Deno.env.get('LINKEDIN_CLIENT_ID') ?? '';
 const LINKEDIN_CLIENT_SECRET = Deno.env.get('LINKEDIN_CLIENT_SECRET') ?? '';
+
+// LinkedIn (org / Community Management API)
+const LINKEDIN_ORG_CLIENT_ID = Deno.env.get('LINKEDIN_ORG_CLIENT_ID') ?? '';
+const LINKEDIN_ORG_CLIENT_SECRET = Deno.env.get('LINKEDIN_ORG_CLIENT_SECRET') ?? '';
 
 // Google (YouTube)
 const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
@@ -126,6 +130,62 @@ async function exchangeLinkedInCode(code: string, redirectUri: string): Promise<
   };
 }
 
+async function exchangeLinkedInOrgCode(code: string, redirectUri: string): Promise<TokenResult> {
+  const tokenRes = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: redirectUri,
+      client_id: LINKEDIN_ORG_CLIENT_ID,
+      client_secret: LINKEDIN_ORG_CLIENT_SECRET,
+    }),
+  });
+  if (!tokenRes.ok) throw new Error(`LinkedIn org token exchange failed: ${await tokenRes.text()}`);
+  const tokens = (await tokenRes.json()) as {
+    access_token: string;
+    refresh_token?: string;
+    expires_in: number;
+  };
+
+  // Find the org page this token has admin access to
+  const aclRes = await fetch(
+    'https://api.linkedin.com/v2/organizationalEntityAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED',
+    { headers: { Authorization: `Bearer ${tokens.access_token}` } },
+  );
+  const aclData = (await aclRes.json()) as {
+    elements?: Array<{ organizationalTarget: string }>;
+  };
+
+  // organizationalTarget is like "urn:li:organization:12345"
+  const orgUrn = aclData.elements?.[0]?.organizationalTarget ?? '';
+  const orgId = orgUrn.split(':').pop() ?? 'unknown';
+
+  // Fetch org name
+  let orgName = 'Population Matters';
+  if (orgId !== 'unknown') {
+    const orgRes = await fetch(
+      `https://api.linkedin.com/v2/organizations/${orgId}?projection=(localizedName)`,
+      { headers: { Authorization: `Bearer ${tokens.access_token}` } },
+    );
+    if (orgRes.ok) {
+      const orgData = (await orgRes.json()) as { localizedName?: string };
+      orgName = orgData.localizedName ?? orgName;
+    }
+  }
+
+  return {
+    platform: 'LinkedIn Org',
+    accountId: orgId,
+    accountName: orgName,
+    accessToken: tokens.access_token,
+    refreshToken: tokens.refresh_token ?? null,
+    expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+    scope: null,
+  };
+}
+
 async function exchangeGoogleCode(code: string, redirectUri: string): Promise<TokenResult> {
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -205,6 +265,9 @@ Deno.serve(async (req: Request) => {
         break;
       case 'LinkedIn':
         result = await exchangeLinkedInCode(code, redirectUri);
+        break;
+      case 'LinkedIn Org':
+        result = await exchangeLinkedInOrgCode(code, redirectUri);
         break;
       case 'YouTube':
         result = await exchangeGoogleCode(code, redirectUri);

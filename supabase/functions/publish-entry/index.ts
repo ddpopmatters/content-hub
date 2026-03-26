@@ -530,6 +530,18 @@ async function publishToLinkedIn(
   }
 }
 
+async function publishToLinkedInOrg(
+  conn: PlatformConnection,
+  payload: PublishPayload,
+): Promise<PlatformResult> {
+  // Always post as the org page — account_id is the org numeric ID
+  const orgConn = {
+    ...conn,
+    org_account_id: conn.account_id,
+  } as unknown as PlatformConnection;
+  return publishToLinkedIn(orgConn, payload);
+}
+
 async function publishToYouTube(
   conn: PlatformConnection,
   payload: PublishPayload,
@@ -557,6 +569,7 @@ const PUBLISHERS: Record<
   Instagram: publishToInstagram,
   Facebook: publishToFacebook,
   LinkedIn: publishToLinkedIn,
+  'LinkedIn Org': publishToLinkedInOrg,
   YouTube: publishToYouTube,
 };
 
