@@ -37,7 +37,7 @@ interface BlueSkyForm {
 
 const FUNCTION_BASE = `${import.meta.env.SUPABASE_URL ?? ''}/functions/v1`;
 
-export function buildOAuthUrl(platform: Platform, currentUser: string): string {
+export function buildOAuthUrl(platform: Platform | 'LinkedIn Org', currentUser: string): string {
   const appBase = window.location.href.split('#')[0].replace(/[^/]*$/, '');
   const state = btoa(
     JSON.stringify({
@@ -69,6 +69,10 @@ export function buildOAuthUrl(platform: Platform, currentUser: string): string {
     case 'LinkedIn': {
       const clientId = import.meta.env.LINKEDIN_CLIENT_ID ?? '';
       return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent('openid profile email w_member_social')}&state=${state}`;
+    }
+    case 'LinkedIn Org': {
+      const clientId = import.meta.env.LINKEDIN_ORG_CLIENT_ID ?? '';
+      return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent('w_organization_social r_organization_social')}&state=${state}`;
     }
     case 'YouTube': {
       const clientId = import.meta.env.GOOGLE_CLIENT_ID ?? '';
@@ -206,13 +210,19 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
       setBskyForms((prev) => ({ ...prev, BlueSky: { handle: '', appPassword: '' } }));
       fetchConnections();
     } catch (err) {
-      setBskyError(err instanceof Error ? err.message : 'Failed to connect');
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'Failed to connect';
+      setBskyError(msg);
     }
     setBskySaving(false);
   };
 
   // ── OAuth connect (popup) ────────────────────────────────────────────────
-  const handleOAuthConnect = (platform: Platform) => {
+  const handleOAuthConnect = (platform: Platform | 'LinkedIn Org') => {
     const oauthUrl = buildOAuthUrl(platform, currentUser);
     if (!oauthUrl) return;
     const popup = window.open(
@@ -342,6 +352,64 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
                       )}
                     </div>
                   </div>
+
+                  {/* LinkedIn org page sub-row */}
+                  {platform === 'LinkedIn' &&
+                    (() => {
+                      const orgConn = connFor('LinkedIn Org');
+                      const orgExpired = orgConn ? isExpired(orgConn) : false;
+                      return (
+                        <div className="mt-3 flex items-center justify-between border-t border-graystone-100 pt-3">
+                          <div className="text-xs text-graystone-500">
+                            <span className="font-medium text-graystone-700">
+                              Organisation page
+                            </span>
+                            {orgConn ? (
+                              <span className="ml-2">
+                                {orgConn.account_name}
+                                {orgExpired && (
+                                  <span className="ml-1 text-amber-600">· expired</span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="ml-2 text-graystone-400">Not connected</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {orgConn ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDisconnect(orgConn)}
+                                  disabled={disconnecting === orgConn.id}
+                                  className="text-graystone-500 hover:text-red-600"
+                                >
+                                  {disconnecting === orgConn.id ? 'Disconnecting…' : 'Disconnect'}
+                                </Button>
+                                {orgExpired && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleOAuthConnect('LinkedIn Org')}
+                                  >
+                                    Reconnect
+                                  </Button>
+                                )}
+                              </>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOAuthConnect('LinkedIn Org')}
+                              >
+                                Connect org page
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                   {/* BlueSky credential form (shown when not connected) */}
                   {platform === 'BlueSky' && !conn && (
