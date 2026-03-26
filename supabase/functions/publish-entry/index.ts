@@ -252,9 +252,22 @@ async function publishToInstagram(
       throw new Error('Instagram publish failed: no post ID returned');
     }
 
+    // Fetch the permalink — publishData.id is a numeric media ID, not a shortcode
+    let postUrl: string | null = null;
+    const permalinkRes = await fetch(
+      `https://graph.facebook.com/v19.0/${publishData.id}?${new URLSearchParams({
+        fields: 'permalink',
+        access_token: page.access_token,
+      })}`,
+    );
+    if (permalinkRes.ok) {
+      const permalinkData = (await permalinkRes.json()) as { permalink?: string };
+      postUrl = permalinkData.permalink ?? null;
+    }
+
     return {
       status: 'published',
-      url: `https://www.instagram.com/p/${publishData.id}/`,
+      url: postUrl,
       postId: publishData.id,
       error: null,
       timestamp,
