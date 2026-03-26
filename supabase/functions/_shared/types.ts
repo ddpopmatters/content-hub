@@ -38,4 +38,5 @@ export interface PlatformConnection {
   token_secret: string | null;
   expires_at: string | null;
   scope: string | null;
+  org_account_id?: string | null;
 }
