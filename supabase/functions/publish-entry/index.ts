@@ -121,6 +121,135 @@ async function publishToBluesky(
   }
 }
 
+async function resolveInstagramCredentials(
+  userToken: string,
+  timestamp: string,
+): Promise<
+  { page: { id: string; access_token: string }; instagramUserId: string } | PlatformResult
+> {
+  const pagesRes = await fetch(
+    `https://graph.facebook.com/v19.0/me/accounts?${new URLSearchParams({ access_token: userToken })}`,
+  );
+  if (!pagesRes.ok) {
+    return {
+      status: 'failed',
+      url: null,
+      postId: null,
+      error: `Instagram page lookup failed: ${await pagesRes.text()}`,
+      timestamp,
+    };
+  }
+  const pagesData = (await pagesRes.json()) as {
+    data?: Array<{ id?: string; access_token?: string }>;
+  };
+  const page = pagesData.data?.[0];
+  if (!page?.id)
+    return {
+      status: 'failed',
+      url: null,
+      postId: null,
+      error: 'Instagram publish failed: no Facebook Pages found',
+      timestamp,
+    };
+  if (!page.access_token)
+    return {
+      status: 'failed',
+      url: null,
+      postId: null,
+      error: 'Instagram publish failed: no page access token',
+      timestamp,
+    };
+
+  const igRes = await fetch(
+    `https://graph.facebook.com/v19.0/${page.id}?${new URLSearchParams({ fields: 'instagram_business_account', access_token: page.access_token })}`,
+  );
+  if (!igRes.ok) throw new Error(`Instagram account lookup failed: ${await igRes.text()}`);
+  const igData = (await igRes.json()) as { instagram_business_account?: { id?: string } | null };
+  const instagramUserId = igData.instagram_business_account?.id;
+  if (!instagramUserId)
+    return {
+      status: 'failed',
+      url: null,
+      postId: null,
+      error: 'Instagram publish failed: Facebook Page not linked to an Instagram Business Account',
+      timestamp,
+    };
+
+  return { page: { id: page.id, access_token: page.access_token }, instagramUserId };
+}
+
+async function publishInstagramCarousel(
+  instagramUserId: string,
+  pageAccessToken: string,
+  payload: PublishPayload,
+  timestamp: string,
+): Promise<PlatformResult> {
+  const text = payload.caption.slice(0, 2200);
+  const mediaUrls = payload.mediaUrls.slice(0, 10); // Instagram carousel max 10
+
+  // Step 1: create a container per image
+  const childIds: string[] = [];
+  for (const imageUrl of mediaUrls) {
+    const containerRes = await fetch(`https://graph.facebook.com/v19.0/${instagramUserId}/media`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        image_url: imageUrl,
+        is_carousel_item: 'true',
+        access_token: pageAccessToken,
+      }),
+    });
+    if (!containerRes.ok)
+      throw new Error(`Instagram carousel item creation failed: ${await containerRes.text()}`);
+    const containerData = (await containerRes.json()) as { id?: string };
+    if (!containerData.id)
+      throw new Error('Instagram carousel item creation failed: no container ID');
+    childIds.push(containerData.id);
+  }
+
+  // Step 2: create carousel container
+  const carouselRes = await fetch(`https://graph.facebook.com/v19.0/${instagramUserId}/media`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      media_type: 'CAROUSEL',
+      children: childIds.join(','),
+      caption: text,
+      access_token: pageAccessToken,
+    }),
+  });
+  if (!carouselRes.ok)
+    throw new Error(`Instagram carousel container creation failed: ${await carouselRes.text()}`);
+  const carouselData = (await carouselRes.json()) as { id?: string };
+  if (!carouselData.id) throw new Error('Instagram carousel container creation failed: no ID');
+
+  // Step 3: publish
+  const publishRes = await fetch(
+    `https://graph.facebook.com/v19.0/${instagramUserId}/media_publish`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ creation_id: carouselData.id, access_token: pageAccessToken }),
+    },
+  );
+  if (!publishRes.ok)
+    throw new Error(`Instagram carousel publish failed: ${await publishRes.text()}`);
+  const publishData = (await publishRes.json()) as { id?: string };
+  if (!publishData.id) throw new Error('Instagram carousel publish failed: no post ID');
+
+  // Fetch permalink
+  let postUrl: string | null = null;
+  const permalinkRes = await fetch(
+    `https://graph.facebook.com/v19.0/${publishData.id}?${new URLSearchParams({ fields: 'permalink', access_token: pageAccessToken })}`,
+  );
+  if (permalinkRes.ok) {
+    const permalinkData = (await permalinkRes.json()) as { permalink?: string };
+    postUrl = permalinkData.permalink ?? null;
+  }
+
+  return { status: 'published', url: postUrl, postId: publishData.id, error: null, timestamp };
+}
+
 async function publishToInstagram(
   conn: PlatformConnection,
   payload: PublishPayload,
@@ -128,7 +257,6 @@ async function publishToInstagram(
   const timestamp = new Date().toISOString();
   try {
     const userToken = conn.access_token;
-    const previewUrl = payload.previewUrl?.trim();
     const text = payload.caption.slice(0, 2200);
 
     if (!userToken) {
@@ -141,72 +269,23 @@ async function publishToInstagram(
       };
     }
 
+    const creds = await resolveInstagramCredentials(userToken, timestamp);
+    if ('status' in creds) return creds;
+    const { page, instagramUserId } = creds;
+
+    // Carousel path
+    if (payload.assetType === 'Carousel' && payload.mediaUrls.length >= 2) {
+      return publishInstagramCarousel(instagramUserId, page.access_token, payload, timestamp);
+    }
+
+    // Single image path
+    const previewUrl = payload.previewUrl?.trim();
     if (!previewUrl) {
       return {
         status: 'failed',
         url: null,
         postId: null,
         error: 'Instagram requires an image — add a preview image to this entry',
-        timestamp,
-      };
-    }
-
-    const pagesRes = await fetch(
-      `https://graph.facebook.com/v19.0/me/accounts?${new URLSearchParams({
-        access_token: userToken,
-      })}`,
-    );
-    if (!pagesRes.ok) {
-      throw new Error(`Instagram page lookup failed: ${await pagesRes.text()}`);
-    }
-
-    const pagesData = (await pagesRes.json()) as {
-      data?: Array<{ id?: string; name?: string; access_token?: string }>;
-    };
-    const page = pagesData.data?.[0];
-
-    if (!page?.id) {
-      return {
-        status: 'failed',
-        url: null,
-        postId: null,
-        error: 'Instagram publish failed: no Facebook Pages found for this connection',
-        timestamp,
-      };
-    }
-
-    if (!page.access_token) {
-      return {
-        status: 'failed',
-        url: null,
-        postId: null,
-        error: 'Instagram publish failed: could not resolve a Facebook Page access token',
-        timestamp,
-      };
-    }
-
-    const igAccountRes = await fetch(
-      `https://graph.facebook.com/v19.0/${page.id}?${new URLSearchParams({
-        fields: 'instagram_business_account',
-        access_token: page.access_token,
-      })}`,
-    );
-    if (!igAccountRes.ok) {
-      throw new Error(`Instagram account lookup failed: ${await igAccountRes.text()}`);
-    }
-
-    const igAccountData = (await igAccountRes.json()) as {
-      instagram_business_account?: { id?: string } | null;
-    };
-    const instagramUserId = igAccountData.instagram_business_account?.id;
-
-    if (!instagramUserId) {
-      return {
-        status: 'failed',
-        url: null,
-        postId: null,
-        error:
-          'Instagram publish failed: the selected Facebook Page is not linked to an Instagram Business Account',
         timestamp,
       };
     }
