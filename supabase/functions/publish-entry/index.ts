@@ -362,6 +362,45 @@ async function publishToInstagram(
   }
 }
 
+async function resolveFacebookPage(
+  userToken: string,
+  timestamp: string,
+): Promise<{ page: { id: string; access_token: string } } | PlatformResult> {
+  const pagesRes = await fetch(
+    `https://graph.facebook.com/v19.0/me/accounts?${new URLSearchParams({ access_token: userToken })}`,
+  );
+  if (!pagesRes.ok) {
+    return {
+      status: 'failed',
+      url: null,
+      postId: null,
+      error: `Facebook page lookup failed: ${await pagesRes.text()}`,
+      timestamp,
+    };
+  }
+  const pagesData = (await pagesRes.json()) as {
+    data?: Array<{ id?: string; access_token?: string }>;
+  };
+  const page = pagesData.data?.[0];
+  if (!page?.id)
+    return {
+      status: 'failed',
+      url: null,
+      postId: null,
+      error: 'Facebook publish failed: no Facebook Pages found',
+      timestamp,
+    };
+  if (!page.access_token)
+    return {
+      status: 'failed',
+      url: null,
+      postId: null,
+      error: 'Facebook publish failed: no page access token',
+      timestamp,
+    };
+  return { page: { id: page.id, access_token: page.access_token } };
+}
+
 async function publishToFacebook(
   conn: PlatformConnection,
   payload: PublishPayload,
@@ -382,40 +421,52 @@ async function publishToFacebook(
       };
     }
 
-    const pagesRes = await fetch(
-      `https://graph.facebook.com/v19.0/me/accounts?${new URLSearchParams({
-        access_token: userToken,
-      })}`,
-    );
-    if (!pagesRes.ok) {
-      throw new Error(`Facebook page lookup failed: ${await pagesRes.text()}`);
-    }
+    const creds = await resolveFacebookPage(userToken, timestamp);
+    if ('status' in creds) return creds;
+    const { page } = creds;
 
-    const pagesData = (await pagesRes.json()) as {
-      data?: Array<{ id?: string; name?: string; access_token?: string }>;
-    };
-    const page = pagesData.data?.[0];
+    // Multi-photo carousel path
+    if (payload.assetType === 'Carousel' && payload.mediaUrls.length >= 2) {
+      const photoIds: string[] = [];
+      for (const imageUrl of payload.mediaUrls.slice(0, 20)) {
+        const photoRes = await fetch(`https://graph.facebook.com/v19.0/${page.id}/photos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            url: imageUrl,
+            published: 'false',
+            access_token: page.access_token,
+          }),
+        });
+        if (!photoRes.ok)
+          throw new Error(`Facebook photo staging failed: ${await photoRes.text()}`);
+        const photoData = (await photoRes.json()) as { id?: string };
+        if (!photoData.id) throw new Error('Facebook photo staging failed: no photo ID');
+        photoIds.push(photoData.id);
+      }
 
-    if (!page?.id) {
+      const feedRes = await fetch(`https://graph.facebook.com/v19.0/${page.id}/feed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          attached_media: photoIds.map((id) => ({ media_fbid: id })),
+          access_token: page.access_token,
+        }),
+      });
+      if (!feedRes.ok) throw new Error(`Facebook multi-photo post failed: ${await feedRes.text()}`);
+      const feedData = (await feedRes.json()) as { id?: string };
+      if (!feedData.id) throw new Error('Facebook multi-photo post failed: no post ID');
       return {
-        status: 'failed',
-        url: null,
-        postId: null,
-        error: 'Facebook publish failed: no Facebook Pages found for this connection',
+        status: 'published',
+        url: `https://www.facebook.com/${feedData.id}`,
+        postId: feedData.id,
+        error: null,
         timestamp,
       };
     }
 
-    if (!page.access_token) {
-      return {
-        status: 'failed',
-        url: null,
-        postId: null,
-        error: 'Facebook publish failed: could not resolve a Facebook Page access token',
-        timestamp,
-      };
-    }
-
+    // Single image path
     if (previewUrl) {
       const photoRes = await fetch(`https://graph.facebook.com/v19.0/${page.id}/photos`, {
         method: 'POST',
@@ -446,6 +497,7 @@ async function publishToFacebook(
       };
     }
 
+    // Text-only path
     const feedRes = await fetch(`https://graph.facebook.com/v19.0/${page.id}/feed`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
