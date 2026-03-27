@@ -542,8 +542,16 @@ async function publishToLinkedIn(
   try {
     const accessToken = conn.access_token;
     const accountId = conn.account_id;
-    const previewUrl = payload.previewUrl?.trim();
+    // For carousel: use first mediaUrl as the image; fall through to existing image path
+    const previewUrl =
+      payload.assetType === 'Carousel' && payload.mediaUrls.length > 0
+        ? payload.mediaUrls[0]
+        : payload.previewUrl?.trim();
     const text = payload.caption.slice(0, 3000);
+    const carouselLimitationNote =
+      payload.assetType === 'Carousel'
+        ? 'LinkedIn does not support carousel posts — posted first image only'
+        : null;
 
     if (!accessToken || !accountId) {
       return {
@@ -675,7 +683,7 @@ async function publishToLinkedIn(
       status: 'published',
       url: `https://www.linkedin.com/feed/update/${postUrn}/`,
       postId: postUrn,
-      error: null,
+      error: carouselLimitationNote,
       timestamp,
     };
   } catch (err) {
