@@ -48,6 +48,73 @@ async function publishToBluesky(
 
     // Build post record
     const text = payload.caption.slice(0, 300); // BlueSky 300 char limit
+
+    // Multi-image carousel path (max 4 images on Bluesky)
+    if (payload.assetType === 'Carousel' && payload.mediaUrls.length >= 2) {
+      const imageUrls = payload.mediaUrls.slice(0, 4);
+      const blobs = await Promise.all(
+        imageUrls.map((url) => uploadBlueskyBlob(url, session.accessJwt)),
+      );
+      const validBlobs = blobs.filter(Boolean);
+
+      if (validBlobs.length < 2) {
+        return {
+          status: 'failed',
+          url: null,
+          postId: null,
+          error: 'Bluesky carousel failed: could not upload enough images',
+          timestamp,
+        };
+      }
+
+      const carouselRecord: Record<string, unknown> = {
+        $type: 'app.bsky.feed.post',
+        text,
+        createdAt: timestamp,
+        langs: ['en'],
+        embed: {
+          $type: 'app.bsky.embed.images',
+          images: validBlobs.map((blob, i) => ({ image: blob, alt: `Image ${i + 1}` })),
+        },
+      };
+
+      const postRes = await fetch('https://bsky.social/xrpc/com.atproto.repo.createRecord', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.accessJwt}`,
+        },
+        body: JSON.stringify({
+          repo: session.did,
+          collection: 'app.bsky.feed.post',
+          record: carouselRecord,
+        }),
+      });
+      if (!postRes.ok) {
+        const err = await postRes.text();
+        return {
+          status: 'failed',
+          url: null,
+          postId: null,
+          error: `Bluesky carousel post failed: ${err}`,
+          timestamp,
+        };
+      }
+      const postData = (await postRes.json()) as { uri: string; cid: string };
+      const rkey = postData.uri.split('/').pop();
+      const truncationNote =
+        payload.mediaUrls.length > 4
+          ? `First 4 of ${payload.mediaUrls.length} images posted (Bluesky limit)`
+          : null;
+      return {
+        status: 'published',
+        url: `https://bsky.app/profile/${handle}/post/${rkey}`,
+        postId: postData.uri,
+        error: truncationNote,
+        timestamp,
+      };
+    }
+
     const record: Record<string, unknown> = {
       $type: 'app.bsky.feed.post',
       text,
@@ -119,6 +186,21 @@ async function publishToBluesky(
       timestamp,
     };
   }
+}
+
+async function uploadBlueskyBlob(imageUrl: string, accessJwt: string): Promise<unknown | null> {
+  const imgRes = await fetch(imageUrl);
+  if (!imgRes.ok) return null;
+  const imgData = await imgRes.arrayBuffer();
+  const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+  const blobRes = await fetch('https://bsky.social/xrpc/com.atproto.repo.uploadBlob', {
+    method: 'POST',
+    headers: { 'Content-Type': contentType, Authorization: `Bearer ${accessJwt}` },
+    body: imgData,
+  });
+  if (!blobRes.ok) return null;
+  const { blob } = (await blobRes.json()) as { blob: unknown };
+  return blob;
 }
 
 async function resolveInstagramCredentials(
