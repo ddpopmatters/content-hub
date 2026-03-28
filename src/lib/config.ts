@@ -35,10 +35,10 @@ export interface AppConfig {
   FEATURES: FeatureFlags;
 }
 
-const supabaseUrl = import.meta.env.SUPABASE_URL || 'https://dvhjvtxtkmtsqlnurhfg.supabase.co';
+const supabaseUrl = import.meta.env.SUPABASE_URL || 'https://oepehanwmfelowfumkes.supabase.co';
 const supabaseAnonKey =
   import.meta.env.SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aGp2dHh0a210c3FsbnVyaGZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5OTI0OTYsImV4cCI6MjA4MzU2ODQ5Nn0.c4yIpOZXqU8Doci2IN6uNKA_rWwrrMzbMDkMx9HCjcc';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lcGVoYW53bWZlbG93ZnVta2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NDE2NTksImV4cCI6MjA4ODExNzY1OX0.VaBVUk4fZSPF17ude4w9x5qcOCniLM8KGXKN8YOTL04';
 
 // Public OAuth identifiers — safe in frontend bundle (same pattern as client_id in OAuth)
 export const META_FLOB_CONFIG_ID = import.meta.env.META_FLOB_CONFIG_ID || '1823163038321738';
