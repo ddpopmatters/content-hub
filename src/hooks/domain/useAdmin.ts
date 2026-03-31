@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
+import { SUPABASE_API } from '../../lib/supabase';
 import { normalizeEmail } from '../../lib/utils';
 import { ensureFeaturesList } from '../../lib/users';
+import type { User } from '../../types/models';
 
 interface UseAdminDeps {
   currentUserIsAdmin: boolean;
@@ -15,9 +17,9 @@ export function useAdmin({
   pushSyncToast,
   refreshApprovers,
 }: UseAdminDeps) {
-  const [userList, setUserList] = useState<Record<string, unknown>[]>(() => []);
+  const [userList, setUserList] = useState<User[]>(() => []);
   const [adminAudits, setAdminAudits] = useState<Record<string, unknown>[]>([]);
-  const [accessModalUser, setAccessModalUser] = useState<Record<string, unknown> | null>(null);
+  const [accessModalUser, setAccessModalUser] = useState<User | null>(null);
   const [userAdminError, setUserAdminError] = useState('');
   const [userAdminSuccess, setUserAdminSuccess] = useState('');
 
@@ -30,15 +32,8 @@ export function useAdmin({
   }, [authStatus]);
 
   const refreshUsers = useCallback(() => {
-    if (
-      !window.api ||
-      !(window.api as Record<string, unknown>).enabled ||
-      !(window.api as Record<string, unknown>).listUsers
-    )
-      return;
-    (window.api as Record<string, (...args: unknown[]) => Promise<unknown>>)
-      .listUsers()
-      .then((payload: unknown) => Array.isArray(payload) && setUserList(payload))
+    SUPABASE_API.fetchAdminUsers()
+      .then((payload) => Array.isArray(payload) && setUserList(payload))
       .catch(() => pushSyncToast('Unable to refresh user roster.', 'warning'));
   }, [pushSyncToast]);
 
@@ -61,40 +56,34 @@ export function useAdmin({
       const email = formData.email.trim();
       if (!first || !last || !email) return;
       const fullname = `${first} ${last}`;
-      normalizeEmail(email);
+      const normalizedEmail = normalizeEmail(email);
       const selectedFeatures = ensureFeaturesList(formData.features);
-      if (!window.api || typeof (window.api as Record<string, unknown>).createUser !== 'function') {
-        setUserAdminError('Server is offline. Try again when connected.');
-        return;
-      }
       try {
-        const created = (await (
-          window.api as Record<string, (...args: unknown[]) => Promise<unknown>>
-        ).createUser({
+        const created = await SUPABASE_API.inviteAdminUser({
           name: fullname,
-          email,
+          email: normalizedEmail,
           features: selectedFeatures,
           isApprover: formData.isApprover,
-        })) as Record<string, unknown>;
+        });
         if (created) {
           setUserList((prev) => {
             const without = prev.filter((user) => user.id !== created.id);
             return [created, ...without];
           });
-          setUserAdminSuccess(`Invitation sent to ${email}.`);
-          refreshApprovers();
+          setUserAdminSuccess(`Invitation sent to ${normalizedEmail}.`);
+          void refreshApprovers();
           refreshUsers();
         }
       } catch (error) {
         console.error(error);
-        setUserAdminError('Unable to create user. Please try again.');
+        setUserAdminError(error instanceof Error ? error.message : 'Unable to create user.');
       }
     },
     [currentUserIsAdmin, refreshApprovers, refreshUsers],
   );
 
   const removeUser = useCallback(
-    async (user: Record<string, unknown>) => {
+    async (user: User) => {
       if (!user?.id) return;
       setUserAdminError('');
       setUserAdminSuccess('');
@@ -102,28 +91,22 @@ export function useAdmin({
         setUserAdminError('You do not have permission to manage users.');
         return;
       }
-      if (!window.api || typeof (window.api as Record<string, unknown>).deleteUser !== 'function') {
-        setUserAdminError('Server is offline.');
-        return;
-      }
       try {
-        await (window.api as Record<string, (...args: unknown[]) => Promise<unknown>>).deleteUser(
-          user.id,
-        );
+        await SUPABASE_API.deleteAdminUser(user.id);
         setUserList((prev) => prev.filter((item) => item.id !== user.id));
         setUserAdminSuccess(`Removed ${user.name || user.email}.`);
-        refreshApprovers();
+        void refreshApprovers();
         refreshUsers();
       } catch (error) {
         console.error(error);
-        setUserAdminError('Unable to remove user.');
+        setUserAdminError(error instanceof Error ? error.message : 'Unable to remove user.');
       }
     },
     [currentUserIsAdmin, refreshApprovers, refreshUsers],
   );
 
   const toggleApproverRole = useCallback(
-    async (user: Record<string, unknown>) => {
+    async (user: User) => {
       if (!user?.id) return;
       setUserAdminError('');
       setUserAdminSuccess('');
@@ -131,29 +114,24 @@ export function useAdmin({
         setUserAdminError('You do not have permission to manage users.');
         return;
       }
-      if (!window.api || typeof (window.api as Record<string, unknown>).updateUser !== 'function') {
-        setUserAdminError('Server is offline.');
-        return;
-      }
       try {
         const nextValue = !user.isApprover;
-        const result = (await (
-          window.api as Record<string, (...args: unknown[]) => Promise<unknown>>
-        ).updateUser(user.id, { isApprover: nextValue })) as Record<string, unknown>;
-        if (result?.user) {
-          const updated = result.user as Record<string, unknown>;
+        const updated = await SUPABASE_API.updateAdminUser(user.id, { isApprover: nextValue });
+        if (updated) {
           setUserList((prev) => prev.map((entry) => (entry.id === updated.id ? updated : entry)));
           setUserAdminSuccess(
             `${nextValue ? 'Added' : 'Removed'} ${user.name || user.email} ${
               nextValue ? 'to' : 'from'
             } the approver list.`,
           );
-          refreshApprovers();
+          void refreshApprovers();
           refreshUsers();
         }
       } catch (error) {
         console.error(error);
-        setUserAdminError('Unable to update approver status.');
+        setUserAdminError(
+          error instanceof Error ? error.message : 'Unable to update approver status.',
+        );
       }
     },
     [currentUserIsAdmin, refreshApprovers, refreshUsers],
@@ -168,23 +146,18 @@ export function useAdmin({
         return;
       }
       const normalized = ensureFeaturesList(features);
-      if (!window.api || typeof (window.api as Record<string, unknown>).updateUser !== 'function') {
-        setUserAdminError('Server is offline.');
-        return;
-      }
       try {
-        const result = (await (
-          window.api as Record<string, (...args: unknown[]) => Promise<unknown>>
-        ).updateUser(accessModalUser.id, { features: normalized })) as Record<string, unknown>;
-        if (result?.user) {
-          const updated = result.user as Record<string, unknown>;
+        const updated = await SUPABASE_API.updateAdminUser(accessModalUser.id, {
+          features: normalized,
+        });
+        if (updated) {
           setUserList((prev) => prev.map((user) => (user.id === updated.id ? updated : user)));
-          refreshApprovers();
+          void refreshApprovers();
           refreshUsers();
         }
       } catch (error) {
         console.error(error);
-        setUserAdminError('Unable to update access.');
+        setUserAdminError(error instanceof Error ? error.message : 'Unable to update access.');
       } finally {
         setAccessModalUser(null);
       }

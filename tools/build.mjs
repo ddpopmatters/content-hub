@@ -3,6 +3,7 @@ import { execFileSync } from 'child_process';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, rmSync, mkdirSync } from 'fs';
+import { resolveSupabaseAnonKey, resolveSupabaseUrl, writePublicConfig } from './public-config.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -31,6 +32,8 @@ const env = loadEnv();
 // Merge file env with process.env (process.env takes precedence for CI/injection)
 const getEnv = (key) => process.env[key] || env[key] || '';
 
+writePublicConfig(root, getEnv);
+
 const config = {
   entryPoints: [resolve(root, 'src/app.jsx')],
   outdir: resolve(root, 'public/js'),
@@ -45,8 +48,8 @@ const config = {
   metafile: true,
   logLevel: 'info',
   define: {
-    'import.meta.env.SUPABASE_URL': JSON.stringify(getEnv('SUPABASE_URL')),
-    'import.meta.env.SUPABASE_ANON_KEY': JSON.stringify(getEnv('SUPABASE_ANON_KEY')),
+    'import.meta.env.SUPABASE_URL': JSON.stringify(resolveSupabaseUrl(getEnv)),
+    'import.meta.env.SUPABASE_ANON_KEY': JSON.stringify(resolveSupabaseAnonKey(getEnv)),
     'import.meta.env.META_APP_ID': JSON.stringify(getEnv('META_APP_ID')),
     'import.meta.env.META_FLOB_CONFIG_ID': JSON.stringify(getEnv('META_FLOB_CONFIG_ID')),
     'import.meta.env.LINKEDIN_CLIENT_ID': JSON.stringify(getEnv('LINKEDIN_CLIENT_ID')),

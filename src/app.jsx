@@ -477,7 +477,7 @@ function ContentDashboard() {
       SUPABASE_API.fetchEntries().catch(() => []),
       wantsIdeas ? SUPABASE_API.fetchIdeas().catch(() => []) : Promise.resolve([]),
       SUPABASE_API.fetchGuidelines().catch(() => null),
-      wantsUsers ? SUPABASE_API.fetchUserProfiles().catch(() => []) : Promise.resolve([]),
+      wantsUsers ? SUPABASE_API.fetchAdminUsers().catch(() => []) : Promise.resolve([]),
     ]);
 
     // Migrate any localStorage entries that haven't been saved to Supabase yet

@@ -1,6 +1,7 @@
 // Supabase client and API wrapper - matching PM-Productivity-Tool pattern
 import type { SupabaseClient, Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { APP_CONFIG, Logger } from './config';
+import type { User as AppUser } from '../types/models';
 import {
   CONTENT_CATEGORIES,
   CTA_TYPES,
@@ -574,7 +575,7 @@ interface GuidelinesRow {
 
 interface UserProfileRow {
   id: string;
-  auth_user_id: string;
+  auth_user_id: string | null;
   email: string;
   name: string;
   avatar_url: string | null;
@@ -583,7 +584,22 @@ interface UserProfileRow {
   features: string[];
   status: string;
   created_at: string;
+  last_login_at?: string | null;
   manager_email: string | null;
+}
+
+interface AdminUserUpsertPayload {
+  name?: string;
+  email?: string;
+  features?: string[];
+  isApprover?: boolean;
+  status?: string;
+}
+
+interface AdminUserFunctionResponse {
+  user?: UserProfileRow | null;
+  users?: UserProfileRow[];
+  ok?: boolean;
 }
 
 interface ActivityLogRow {
@@ -630,6 +646,92 @@ const getCurrentUserEmail = (): string | null => {
   if (typeof window === 'undefined') return null;
   const email = window.__currentUserEmail?.trim();
   return email ? email : null;
+};
+
+const normalizeProfileEmail = (email: string | null | undefined): string => {
+  return typeof email === 'string' ? email.trim().toLowerCase() : '';
+};
+
+const fetchUserProfileByAuthUserId = async (authUserId: string): Promise<UserProfileRow | null> => {
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('auth_user_id', authUserId)
+    .maybeSingle();
+
+  if (error) {
+    Logger.error(error, 'fetchUserProfileByAuthUserId');
+    return null;
+  }
+
+  return (data as UserProfileRow | null) ?? null;
+};
+
+const fetchUserProfileByEmail = async (email: string): Promise<UserProfileRow | null> => {
+  if (!supabase) return null;
+
+  const normalizedEmail = normalizeProfileEmail(email);
+  if (!normalizedEmail) return null;
+
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+
+  if (error) {
+    Logger.error(error, 'fetchUserProfileByEmail');
+    return null;
+  }
+
+  return (data as UserProfileRow | null) ?? null;
+};
+
+const relinkUserProfileAuthUser = async (
+  profile: UserProfileRow,
+  user: User,
+): Promise<UserProfileRow | null> => {
+  if (!supabase) return profile;
+
+  const normalizedEmail = normalizeProfileEmail(user.email ?? profile.email);
+  if (!normalizedEmail) return profile;
+
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .update({
+      auth_user_id: user.id,
+      last_login_at: new Date().toISOString(),
+    })
+    .eq('id', profile.id)
+    .eq('email', normalizedEmail)
+    .select('*')
+    .maybeSingle();
+
+  if (error) {
+    Logger.error(error, 'relinkUserProfileAuthUser');
+    return profile;
+  }
+
+  return (data as UserProfileRow | null) ?? profile;
+};
+
+const resolveCurrentUserProfile = async (user: User): Promise<UserProfileRow | null> => {
+  const profileByAuthUserId = await fetchUserProfileByAuthUserId(user.id);
+  if (profileByAuthUserId) return profileByAuthUserId;
+
+  const normalizedEmail = normalizeProfileEmail(user.email);
+  if (!normalizedEmail) return null;
+
+  const profileByEmail = await fetchUserProfileByEmail(normalizedEmail);
+  if (!profileByEmail) return null;
+
+  if (profileByEmail.auth_user_id === user.id) {
+    return profileByEmail;
+  }
+
+  return relinkUserProfileAuthUser(profileByEmail, user);
 };
 
 interface InfluencerRow {
@@ -766,6 +868,67 @@ const resolveEntryActorEmail = (userEmail: string | undefined): string | null =>
   const trimmed = typeof userEmail === 'string' ? userEmail.trim() : '';
   if (trimmed.includes('@')) return trimmed;
   return getCurrentUserEmail() ?? (trimmed || null);
+};
+
+const mapUserProfileToAppUser = (
+  row: UserProfileRow,
+): AppUser & { managerEmail?: string | null } => ({
+  id: row.id,
+  email: row.email,
+  name: row.name,
+  status: row.status,
+  isAdmin: Boolean(row.is_admin),
+  isApprover: Boolean(row.is_approver),
+  managerEmail: row.manager_email ?? null,
+  avatarUrl: row.avatar_url ?? null,
+  features: Array.isArray(row.features) ? row.features : [],
+  invitePending: row.status === 'pending',
+  lastLoginAt: row.last_login_at ?? null,
+  createdAt: row.created_at ?? null,
+});
+
+const invokeAdminUsers = async (
+  payload: Record<string, unknown>,
+): Promise<AdminUserFunctionResponse> => {
+  await initSupabase();
+  if (!supabase) throw new Error('Supabase not initialized');
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error('Not authenticated');
+  }
+
+  const response = await fetch(`${APP_CONFIG.SUPABASE_URL}/functions/v1/admin-users`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: APP_CONFIG.SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await response.text();
+  let data: AdminUserFunctionResponse & { error?: string } = {};
+  if (text) {
+    try {
+      data = JSON.parse(text) as AdminUserFunctionResponse & { error?: string };
+    } catch {
+      data = {};
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof data.error === 'string' && data.error.trim()
+        ? data.error
+        : `Admin user request failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  return data;
 };
 
 const upsertEntryWithSchemaFallback = async (
@@ -2235,6 +2398,17 @@ export const SUPABASE_API = {
     }
   },
 
+  fetchAdminUsers: async (): Promise<(AppUser & { managerEmail?: string | null })[]> => {
+    try {
+      const { users } = await invokeAdminUsers({ action: 'list' });
+      return Array.isArray(users) ? users.map(mapUserProfileToAppUser) : [];
+    } catch (error) {
+      Logger.error(error, 'fetchAdminUsers');
+      const profiles = await SUPABASE_API.fetchUserProfiles();
+      return profiles.map(mapUserProfileToAppUser);
+    }
+  },
+
   fetchCurrentUserProfile: async (): Promise<UserProfileRow | null> => {
     await initSupabase();
     if (!supabase) return null;
@@ -2245,21 +2419,26 @@ export const SUPABASE_API = {
       } = await supabase.auth.getUser();
       if (!user) return null;
 
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('auth_user_id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        Logger.error(error, 'fetchCurrentUserProfile');
-        return null;
-      }
-
-      return data as UserProfileRow;
+      return resolveCurrentUserProfile(user);
     } catch (error) {
       Logger.error(error, 'fetchCurrentUserProfile');
       return null;
+    }
+  },
+
+  inviteAdminUser: async (
+    userData: Required<Pick<AdminUserUpsertPayload, 'name' | 'email'>> &
+      Pick<AdminUserUpsertPayload, 'features' | 'isApprover'>,
+  ): Promise<(AppUser & { managerEmail?: string | null }) | null> => {
+    try {
+      const { user } = await invokeAdminUsers({
+        action: 'create',
+        ...userData,
+      });
+      return user ? mapUserProfileToAppUser(user) : null;
+    } catch (error) {
+      Logger.error(error, 'inviteAdminUser');
+      throw error instanceof Error ? error : new Error('Unable to invite user');
     }
   },
 
@@ -2275,10 +2454,14 @@ export const SUPABASE_API = {
       } = await supabase.auth.getUser();
       if (!user) return null;
 
+      const profile = await resolveCurrentUserProfile(user);
+      if (!profile) return null;
+
       const { data, error } = await supabase
         .from('user_profiles')
         .update(profileData)
-        .eq('auth_user_id', user.id)
+        .eq('id', profile.id)
+        .eq('email', profile.email)
         .select()
         .single();
 
@@ -2291,6 +2474,29 @@ export const SUPABASE_API = {
     } catch (error) {
       Logger.error(error, 'updateUserProfile');
       return null;
+    }
+  },
+
+  updateAdminUser: async (
+    id: string,
+    patch: AdminUserUpsertPayload,
+  ): Promise<(AppUser & { managerEmail?: string | null }) | null> => {
+    try {
+      const { user } = await invokeAdminUsers({ action: 'update', id, patch });
+      return user ? mapUserProfileToAppUser(user) : null;
+    } catch (error) {
+      Logger.error(error, 'updateAdminUser');
+      throw error instanceof Error ? error : new Error('Unable to update user');
+    }
+  },
+
+  deleteAdminUser: async (id: string): Promise<boolean> => {
+    try {
+      const { ok } = await invokeAdminUsers({ action: 'delete', id });
+      return Boolean(ok);
+    } catch (error) {
+      Logger.error(error, 'deleteAdminUser');
+      throw error instanceof Error ? error : new Error('Unable to delete user');
     }
   },
 

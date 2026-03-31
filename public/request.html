@@ -512,12 +512,13 @@
       <footer class="site-footer">Population Matters Content Hub</footer>
     </div>
 
+    <script src="./content-hub-config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <script>
       (function () {
-        const SUPABASE_URL = 'https://dvhjvtxtkmtsqlnurhfg.supabase.co';
-        const SUPABASE_ANON_KEY =
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aGp2dHh0a210c3FsbnVyaGZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5OTI0OTYsImV4cCI6MjA4MzU2ODQ5Nn0.c4yIpOZXqU8Doci2IN6uNKA_rWwrrMzbMDkMx9HCjcc';
+        const PUBLIC_CONFIG = window.CONTENT_HUB_PUBLIC_CONFIG || {};
+        const SUPABASE_URL = PUBLIC_CONFIG.supabaseUrl;
+        const SUPABASE_ANON_KEY = PUBLIC_CONFIG.supabaseAnonKey;
 
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 

@@ -1,5 +1,73 @@
 # Content Hub — Dev Log
 
+## 2026-03-31 — Remove remaining old Supabase project callers
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - `public/request.html`, `public/review.html`, and `public/approve.html`: moved standalone pages off hardcoded Supabase URLs onto a shared `public/content-hub-config.js` so they follow the active project instead of the retired Content Hub project
+  - `tools/public-config.mjs`, `tools/build.mjs`, and `tools/dev-server.mjs`: added generated public Supabase config output and a legacy-project guard so stale local env values cannot reintroduce the retired project URL/key into built assets
+  - `.github/workflows/supabase-keepalive.yml` and `tools/test-publish-api.mjs`: switched remaining workflow/script callers to use the current project via secrets or `SUPABASE_URL` instead of the old hardcoded project ref
+  - Rebuilt the app and verified `rg -n "dvhjvtxtkmtsqlnurhfg" public src tools .github supabase` only matches the intentional legacy guard constant
+- Status: Complete
+
+---
+
+## 2026-03-31 — Restore admin user invites via Edge Function
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - `supabase/functions/admin-users/index.ts`: added a service-role-backed admin user management function that verifies the caller is an admin, sends real Supabase auth invites, and handles list/update/delete operations against `user_profiles`
+  - `src/lib/supabase.ts` and `src/hooks/domain/useAdmin.ts`: moved admin roster actions off the deleted `window.api` browser bridge onto direct Supabase + Edge Function calls, with proper app-user mapping and surfaced backend error messages
+  - `src/app.jsx`, `src/types/models.ts`, and `public/index.html`: switched static bootstrap to the mapped admin-user fetch, added `managerEmail` to the app user model, and removed stale `supabaseClient.js` / `copyCheckerClient.js` script tags that the current build no longer outputs
+  - `src/hooks/domain/__tests__/useAdmin.test.ts`: added regression coverage for static-mode roster refresh, successful invites, backend invite failures, and non-admin access blocking
+  - Verified with `npm test -- src/hooks/domain/__tests__/useAdmin.test.ts src/lib/supabase.test.ts` and `npm run typecheck`
+- Status: Complete
+
+---
+
+## 2026-03-31 — Recover migrated auth profiles on login
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - `src/lib/supabase.ts`: added current-user profile resolution that falls back from `auth_user_id` to the authenticated email, then re-links stale `user_profiles.auth_user_id` values to the current Intel Hub auth UUID during login and session hydration
+  - `src/lib/supabase.ts`: updated profile writes to target the resolved row by profile `id`/`email`, so profile edits still work while a migrated account is being repaired
+  - `src/lib/supabase.test.ts`: added regression coverage for direct auth matches, migrated-user email recovery, missing-profile null handling, and post-relink profile updates
+  - Verified with `npm test -- src/lib/supabase.test.ts` and `npm run typecheck`
+- Status: Complete
+
+---
+
+## 2026-03-30 — Add staged deployment lane
+
+**Tool:** Codex | **Branch:** main
+
+**Changes:**
+
+- Switched GitHub Pages production deployment to manual promotion only and added a new Cloudflare Pages staging workflow for pull requests and `main`
+- Added `public/healthz.json` for smoke checks and `docs/staging-contract.md` documenting environment separation, rollout gates, rollback, and required secrets
+- Kept production hosting untouched while codifying staging-only Supabase, storage, OAuth, and notification expectations in-repo
+
+**Status:** Complete
+
+---
+
+## 2026-03-28 — Migrate to Intel Hub (consolidated Supabase project)
+
+- Tool: Claude Code (claude-sonnet-4-6) | Browser automation
+- Branch: main
+- Changes:
+  - Switched Supabase project from Content Hub (`dvhjvtxtkmtsqlnurhfg`) to Intel Hub (`oepehanwmfelowfumkes`)
+  - Updated hardcoded fallback credentials in `src/lib/config.ts`
+  - Updated GitHub repo secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) via `gh secret set`
+  - Pushed to main → GitHub Actions deploy completed (build 16s, deploy 8s)
+  - All 184 rows of Content Hub data previously imported to Intel Hub (184 rows across 12 tables)
+  - All 3 user_profiles auth UUIDs remapped to Intel Hub auth.users (daniel, francesca, jameen)
+  - Fixed email typo: `jameen.kaur@populationmatters` → `jameen.kaur@populationmatters.org`
+- Status: Complete — Content Hub app now live on Intel Hub. Old Supabase project pending decommission (~2 weeks).
+
 ## 2026-03-24 — Implement Instagram, Facebook, and LinkedIn publishers
 
 - Tool: Claude Code (claude-sonnet-4-6) + Codex
@@ -357,3 +425,25 @@
 **Documented:** Login-free approval flow — recommended approach is HMAC-signed token in approval email URL, validated by public Edge Function, no Supabase account needed.
 
 **Status:** Complete
+
+## 2026-03-27 — Implement Layer 1 full publishing plumbing
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - `supabase/functions/_shared/types.ts` and `src/features/publishing/publishUtils.ts`: added `assetType` to the publish payload contract and switched `mediaUrls` to filtered `assetPreviews` public URLs instead of attachment/base64 data
+  - `src/features/publishing/__tests__/publishUtils.test.ts`: replaced the file with payload coverage for `assetType`, `assetPreviews` mapping, base64 filtering, and retained aggregate skipped-status coverage
+  - `src/features/entry/EntryForm.tsx`: changed the preview asset picker to accept images, video, and PDFs up to 500MB, upload selected files to the `content-media` Supabase Storage bucket via `getSupabase()`, and persist returned public URLs in `assetPreviews`
+  - Verified with `npm run typecheck` and `npm test`
+- Status: Complete
+
+## 2026-03-27 — Implement Layer 2 carousel publishing
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - `supabase/functions/publish-entry/index.ts`: extracted shared Instagram and Facebook credential helpers and added native carousel routing when `assetType === 'Carousel'` with at least two `mediaUrls`
+  - Instagram now publishes carousels through the multi-container Graph API flow, Facebook stages up to 20 photos and publishes a multi-photo feed post via `attached_media`
+  - LinkedIn now falls back to the first carousel image and returns a limitation note in `error`, while Bluesky uploads up to four blobs and publishes them through `app.bsky.embed.images`
+  - Verified with `npm run typecheck` after each task and a final `npm test` pass
+- Status: Complete

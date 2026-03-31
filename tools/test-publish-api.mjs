@@ -10,7 +10,10 @@
  *   node tools/test-publish-api.mjs          # tests all platforms
  */
 
-const FUNCTION_URL = 'https://dvhjvtxtkmtsqlnurhfg.supabase.co/functions/v1/publish-entry';
+const SUPABASE_URL = (
+  process.env.SUPABASE_URL || 'https://oepehanwmfelowfumkes.supabase.co'
+).replace(/\/+$/, '');
+const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/publish-entry`;
 
 const ALL_PLATFORMS = ['Bluesky', 'LinkedIn', 'Instagram', 'Facebook', 'YouTube'];
 

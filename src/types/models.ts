@@ -43,6 +43,7 @@ export interface User {
   status: string;
   isAdmin: boolean;
   isApprover: boolean;
+  managerEmail?: string | null;
   avatarUrl: string | null;
   features: string[];
   hasPassword?: boolean;

@@ -12,10 +12,11 @@ jobs:
     steps:
       - name: Ping Supabase REST API
         env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            "https://dvhjvtxtkmtsqlnurhfg.supabase.co/rest/v1/entries?select=id&limit=1" \
+            "${SUPABASE_URL}/rest/v1/entries?select=id&limit=1" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
           echo "Supabase ping status: $STATUS"

@@ -208,9 +208,11 @@
       <div id="success-view" style="display: none"></div>
     </div>
 
+    <script src="./content-hub-config.js"></script>
     <script>
       (function () {
-        var SUPABASE_FUNCTIONS_URL = 'https://dvhjvtxtkmtsqlnurhfg.supabase.co/functions/v1';
+        var PUBLIC_CONFIG = window.CONTENT_HUB_PUBLIC_CONFIG || {};
+        var SUPABASE_FUNCTIONS_URL = PUBLIC_CONFIG.supabaseFunctionsUrl;
 
         // Safe text setter — never uses innerHTML with untrusted data directly
         function setText(el, text) {
