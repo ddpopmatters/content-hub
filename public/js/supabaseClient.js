@@ -5,9 +5,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Configuration
-const SUPABASE_URL = 'https://dvhjvtxtkmtsqlnurhfg.supabase.co';
+const SUPABASE_URL = 'https://oepehanwmfelowfumkes.supabase.co';
 const SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aGp2dHh0a210c3FsbnVyaGZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5OTI0OTYsImV4cCI6MjA4MzU2ODQ5Nn0.c4yIpOZXqU8Doci2IN6uNKA_rWwrrMzbMDkMx9HCjcc';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lcGVoYW53bWZlbG93ZnVta2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NDE2NTksImV4cCI6MjA4ODExNzY1OX0.VaBVUk4fZSPF17ude4w9x5qcOCniLM8KGXKN8YOTL04';
 const SUPABASE_ENABLED = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 const DEBUG_MODE = window.location.protocol === 'file:' || window.location.hostname === 'localhost';
 
