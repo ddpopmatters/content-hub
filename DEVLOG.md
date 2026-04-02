@@ -447,3 +447,13 @@
   - LinkedIn now falls back to the first carousel image and returns a limitation note in `error`, while Bluesky uploads up to four blobs and publishes them through `app.bsky.embed.images`
   - Verified with `npm run typecheck` after each task and a final `npm test` pass
 - Status: Complete
+
+## 2026-04-02 — Refresh vulnerable transitive packages
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - `package-lock.json`: refreshed transitive dependencies with `npm audit fix --package-lock-only`
+  - Cleared the current audit findings by bumping `brace-expansion` to `1.1.13` and `2.0.3`, `picomatch` to `2.3.2` and `4.0.4`, and `yaml` to `2.8.3`
+  - Verified with `npm audit --audit-level=high` and `npm run typecheck`
+- Status: Complete
