@@ -652,6 +652,29 @@ const normalizeProfileEmail = (email: string | null | undefined): string => {
   return typeof email === 'string' ? email.trim().toLowerCase() : '';
 };
 
+const getAuthRedirectUrl = (): string | undefined => {
+  if (typeof window === 'undefined') return undefined;
+
+  try {
+    const url = new URL(window.location.href);
+    url.hash = '';
+    url.search = '';
+
+    if (url.hostname === 'ddpopmatters.github.io') {
+      url.pathname = '/content-hub/';
+      return url.toString();
+    }
+
+    if (!url.pathname.endsWith('/')) {
+      url.pathname = url.pathname.replace(/[^/]*$/, '');
+    }
+
+    return url.toString();
+  } catch {
+    return window.location.origin;
+  }
+};
+
 const fetchUserProfileByAuthUserId = async (authUserId: string): Promise<UserProfileRow | null> => {
   if (!supabase) return null;
 
@@ -3734,9 +3757,10 @@ export const AUTH = {
     await initSupabase();
     if (!supabase) return { error: 'Supabase not initialized' };
     try {
+      const emailRedirectTo = getAuthRedirectUrl();
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : '' },
+        options: emailRedirectTo ? { emailRedirectTo } : undefined,
       });
       if (error) return { error: error.message };
       return {};
