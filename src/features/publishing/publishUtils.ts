@@ -1,5 +1,29 @@
 import type { Entry, PublishSettings, PlatformPublishStatus } from '../../types/models';
 
+function collectLegacyAttachmentUrls(entry: Entry): string[] {
+  if (!Array.isArray(entry.attachments)) return [];
+
+  return entry.attachments
+    .map((attachment) => {
+      if (attachment.url && attachment.url.trim()) return attachment.url.trim();
+      if (attachment.dataUrl && !attachment.dataUrl.startsWith('data:')) {
+        return attachment.dataUrl.trim();
+      }
+      return '';
+    })
+    .filter(Boolean);
+}
+
+function collectMediaUrls(entry: Entry): string[] {
+  const primaryUrls = Array.isArray(entry.assetPreviews)
+    ? entry.assetPreviews.filter((url) => url && !url.startsWith('data:'))
+    : [];
+
+  const fallbackUrls = collectLegacyAttachmentUrls(entry);
+
+  return Array.from(new Set([...primaryUrls, ...fallbackUrls]));
+}
+
 /**
  * Build the webhook payload for publishing an entry
  * Note: webhookSecret is included in body (not header) due to browser no-cors limitations
@@ -10,7 +34,8 @@ export function buildPublishPayload(entry: Entry, callbackUrl?: string, webhookS
     platforms: entry.platforms,
     caption: entry.caption,
     platformCaptions: entry.platformCaptions || {},
-    mediaUrls: entry.attachments?.map((a) => a.url || a.dataUrl).filter(Boolean) || [],
+    assetType: entry.assetType,
+    mediaUrls: collectMediaUrls(entry),
     previewUrl: entry.previewUrl || null,
     scheduledDate: entry.date,
     firstComment: entry.firstComment || '',

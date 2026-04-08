@@ -48,6 +48,7 @@ import { PlatformGuidancePanel } from './PlatformGuidancePanel';
 import { TerminologyAlert } from './TerminologyAlert';
 import { useCategories } from '../../hooks/domain/useCategories';
 import { SUPABASE_API } from '../../lib/supabase';
+import { useAssetPreviewUpload } from '../../hooks/useAssetPreviewUpload';
 import { buildUtmUrl, normalizeContentApproach } from './formUtils';
 import { checkTerminology } from '../../lib/terminology';
 
@@ -90,6 +91,20 @@ const normalizeDateInput = (value: string | null | undefined): string => {
   if (!value || typeof value !== 'string') return '';
   if (value.includes('T')) return value.slice(0, 10);
   return value;
+};
+
+const stripPreviewUrlSuffix = (value: string): string => value.split('?')[0].split('#')[0];
+
+const getAssetPreviewKind = (value: string): 'image' | 'video' | 'pdf' | 'file' => {
+  if (value.startsWith('data:image/')) return 'image';
+  if (value.startsWith('data:video/')) return 'video';
+  if (value.startsWith('data:application/pdf')) return 'pdf';
+
+  const normalizedValue = stripPreviewUrlSuffix(value);
+  if (/\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i.test(normalizedValue)) return 'image';
+  if (/\.(m4v|mov|mp4|ogg|webm)$/i.test(normalizedValue)) return 'video';
+  if (/\.pdf$/i.test(normalizedValue)) return 'pdf';
+  return 'file';
 };
 
 export function EntryForm({
@@ -178,6 +193,7 @@ export function EntryForm({
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const conflictWarningRef = useRef<HTMLDivElement>(null);
   const categories = useCategories();
+  const { uploadFiles } = useAssetPreviewUpload({ pushSyncToast });
 
   useEffect(() => {
     if (!initialValues) return;
@@ -1255,66 +1271,62 @@ export function EntryForm({
                         <input
                           id="preview-file"
                           type="file"
-                          accept="image/*,application/pdf"
+                          accept="image/*,video/*,application/pdf"
                           multiple
-                          onChange={(event) => {
+                          onChange={async (event) => {
                             const files = Array.from(event.target.files || []) as File[];
-                            files.forEach((file) => {
-                              if (file.size > 512 * 1024) {
-                                pushSyncToast?.(
-                                  'Each preview file must be under 500 KB.',
-                                  'warning',
-                                );
-                                return;
-                              }
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                if (typeof reader.result === 'string') {
-                                  setAssetPreviews((prev) => {
-                                    const next = [...prev, reader.result as string];
-                                    if (!previewUrl) setPreviewUrl(next[0]);
-                                    return next;
-                                  });
-                                }
-                              };
-                              reader.readAsDataURL(file);
-                            });
                             event.target.value = '';
+                            const uploadedUrls = await uploadFiles(files);
+                            if (!uploadedUrls.length) return;
+
+                            setAssetPreviews((prev) => {
+                              const next = [...prev, ...uploadedUrls];
+                              setPreviewUrl((current) => current || next[0] || '');
+                              return next;
+                            });
                           }}
                           className={cx(fileInputClasses, 'text-xs')}
                         />
                       </div>
                       {assetPreviews.length > 0 && (
                         <div className="mt-2 grid grid-cols-3 gap-2">
-                          {assetPreviews.map((url, idx) => (
-                            <div key={idx} className="group relative">
-                              {url.startsWith('data:image/') ? (
-                                <img
-                                  src={url}
-                                  alt={`Preview ${idx + 1}`}
-                                  className="h-20 w-full rounded-lg border border-graystone-200 object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-20 w-full items-center justify-center rounded-lg border border-graystone-200 bg-graystone-50 text-xs text-graystone-500">
-                                  {url.startsWith('data:application/pdf') ? 'PDF' : 'File'}
-                                </div>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setAssetPreviews((prev) => {
-                                    const next = prev.filter((_, i) => i !== idx);
-                                    if (previewUrl === url) setPreviewUrl(next[0] || '');
-                                    return next;
-                                  });
-                                }}
-                                className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded-full bg-white/90 text-graystone-600 shadow hover:text-rose-600 group-hover:flex"
-                                aria-label={`Remove preview ${idx + 1}`}
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
+                          {assetPreviews.map((url, idx) => {
+                            const previewKind = getAssetPreviewKind(url);
+
+                            return (
+                              <div key={idx} className="group relative">
+                                {previewKind === 'image' ? (
+                                  <img
+                                    src={url}
+                                    alt={`Preview ${idx + 1}`}
+                                    className="h-20 w-full rounded-lg border border-graystone-200 object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-20 w-full items-center justify-center rounded-lg border border-graystone-200 bg-graystone-50 text-xs text-graystone-500">
+                                    {previewKind === 'pdf'
+                                      ? 'PDF'
+                                      : previewKind === 'video'
+                                        ? 'Video'
+                                        : 'File'}
+                                  </div>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAssetPreviews((prev) => {
+                                      const next = prev.filter((_, i) => i !== idx);
+                                      if (previewUrl === url) setPreviewUrl(next[0] || '');
+                                      return next;
+                                    });
+                                  }}
+                                  className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded-full bg-white/90 text-graystone-600 shadow hover:text-rose-600 group-hover:flex"
+                                  aria-label={`Remove preview ${idx + 1}`}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                       <Input

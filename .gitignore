@@ -1,6 +1,7 @@
 .DS_Store
 node_modules/
 .env
+.env.local
 
 public/js/app.js
 public/js/app.js.map
@@ -22,6 +23,8 @@ PM Productivity tool/
 kanban-tool-demo.html
 kanban-tool-teams.html
 .worktrees/
+.claude/*.log
+.playwright-mcp/*.log
 
 # MCP todo list
 .mcp-todos.json

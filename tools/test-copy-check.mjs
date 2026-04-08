@@ -1,8 +1,5 @@
 import assert from 'node:assert/strict';
-
-const fetchFn = globalThis.fetch ?? (await import('node-fetch')).default;
-
-const ENDPOINT = process.env.ENDPOINT || 'http://localhost:3000/api/copy-check';
+import { buildLocalCopyCheckResult } from '../src/lib/copyCheck.ts';
 
 const payload = {
   text: 'Population growth is complex and maybe we could add a link https://example.org',
@@ -17,14 +14,7 @@ const payload = {
   },
 };
 
-const res = await fetchFn(ENDPOINT, {
-  method: 'POST',
-  headers: { 'content-type': 'application/json' },
-  body: JSON.stringify(payload),
-});
-
-assert.equal(res.ok, true, `HTTP ${res.status}`);
-const json = await res.json();
+const json = buildLocalCopyCheckResult(payload);
 
 assert.ok(json?.suggestion?.text, 'has suggestion');
 assert.ok(json.suggestion.text.length <= payload.constraints.maxChars, 'respects maxChars');
@@ -34,4 +24,4 @@ assert.ok(
 );
 assert.ok(!/\bmaybe\b/i.test(json.suggestion.text), 'banned word removed');
 
-console.log('✅ copy-check function basic test passed');
+console.log('✅ copy-check fallback test passed');

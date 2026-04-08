@@ -4,56 +4,12 @@ import { PlatformIcon } from '../../components/common';
 import { getPlatformCaption, FALLBACK_GUIDELINES } from '../../lib';
 import { type Platform } from '../../constants';
 import type { Guidelines } from '../../types/models';
-
-// Extend window for optional copyChecker global
-declare global {
-  interface Window {
-    copyChecker?: {
-      runCopyCheck: (payload: CopyCheckPayload) => Promise<CopyCheckResult>;
-    };
-  }
-}
-
-/** Score metrics from copy check */
-export interface CopyCheckScore {
-  readingLevel: string;
-  clarity: number;
-  brevity: number;
-}
-
-/** Suggestion from copy check */
-export interface CopyCheckSuggestion {
-  text: string;
-}
-
-/** Result from a copy check API call */
-export interface CopyCheckResult {
-  score?: CopyCheckScore;
-  suggestion?: CopyCheckSuggestion;
-  flags?: string[];
-}
-
-/** Payload sent to copy check API */
-interface CopyCheckPayload {
-  text: string;
-  platform: string;
-  assetType: string;
-  readingLevelTarget: string;
-  constraints: {
-    maxChars: number;
-    maxHashtags: number;
-    requireCTA: boolean;
-  };
-  brand: {
-    bannedWords: string[];
-    requiredPhrases: string[];
-    tone: {
-      confident: number;
-      compassionate: number;
-      evidenceLed: number;
-    };
-  };
-}
+import {
+  normalizeCopyCheckResult,
+  type CopyCheckPayload,
+  type CopyCheckResult,
+} from '../../lib/copyCheck';
+import { useCopyCheck } from '../../hooks/useCopyCheck';
 
 export interface CopyCheckSectionProps {
   /** Main caption text to check */
@@ -70,41 +26,6 @@ export interface CopyCheckSectionProps {
   onApply: (platform: Platform, text: string, guidelines: Guidelines) => void;
 }
 
-/**
- * Validates and normalises API response to prevent crashes from malformed data
- */
-function normalizeResult(raw: unknown): CopyCheckResult {
-  if (!raw || typeof raw !== 'object') return {};
-  const result = raw as Record<string, unknown>;
-
-  // Validate score shape
-  let score: CopyCheckScore | undefined;
-  if (result.score && typeof result.score === 'object') {
-    const s = result.score as Record<string, unknown>;
-    score = {
-      readingLevel: typeof s.readingLevel === 'string' ? s.readingLevel : '',
-      clarity: typeof s.clarity === 'number' ? s.clarity : 0,
-      brevity: typeof s.brevity === 'number' ? s.brevity : 0,
-    };
-  }
-
-  // Validate suggestion shape
-  let suggestion: CopyCheckSuggestion | undefined;
-  if (result.suggestion && typeof result.suggestion === 'object') {
-    const sug = result.suggestion as Record<string, unknown>;
-    if (typeof sug.text === 'string') {
-      suggestion = { text: sug.text };
-    }
-  }
-
-  // Validate flags is an array of strings
-  const flags = Array.isArray(result.flags)
-    ? result.flags.filter((f): f is string => typeof f === 'string')
-    : undefined;
-
-  return { score, suggestion, flags };
-}
-
 export function CopyCheckSection({
   caption,
   platformCaptions,
@@ -119,6 +40,7 @@ export function CopyCheckSection({
   const [results, setResults] = useState<Record<Platform, CopyCheckResult>>(
     {} as Record<Platform, CopyCheckResult>,
   );
+  const runCopyCheck = useCopyCheck();
 
   const safeGuidelines: Guidelines =
     guidelines && typeof guidelines === 'object' ? guidelines : FALLBACK_GUIDELINES;
@@ -149,23 +71,7 @@ export function CopyCheckSection({
             tone: { confident: 0.8, compassionate: 0.7, evidenceLed: 1.0 },
           },
         };
-        let rawJson: unknown;
-        if (window.copyChecker && typeof window.copyChecker.runCopyCheck === 'function') {
-          rawJson = await window.copyChecker.runCopyCheck(payload);
-        } else {
-          const res = await fetch('/api/copy-check', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          if (!res.ok) {
-            const j = await res.json().catch(() => ({}));
-            throw new Error((j as { error?: string })?.error || `HTTP ${res.status}`);
-          }
-          rawJson = await res.json();
-        }
-        // Validate and normalise response to prevent crashes from malformed data
-        return { platform, data: normalizeResult(rawJson) };
+        return { platform, data: normalizeCopyCheckResult(await runCopyCheck(payload)) };
       });
       const settled = await Promise.allSettled(tasks);
       const successes: Record<Platform, CopyCheckResult> = {} as Record<Platform, CopyCheckResult>;
@@ -192,7 +98,7 @@ export function CopyCheckSection({
     } finally {
       setLoading(false);
     }
-  }, [selectedPlatforms, safeGuidelines, assetType, caption, platformCaptions]);
+  }, [selectedPlatforms, safeGuidelines, assetType, caption, platformCaptions, runCopyCheck]);
 
   const handleApply = useCallback(
     (platform: Platform, text: string) => {

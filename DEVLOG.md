@@ -457,3 +457,35 @@
   - Cleared the current audit findings by bumping `brace-expansion` to `1.1.13` and `2.0.3`, `picomatch` to `2.3.2` and `4.0.4`, and `yaml` to `2.8.3`
   - Verified with `npm audit --audit-level=high` and `npm run typecheck`
 - Status: Complete
+
+## 2026-04-07 - Run comprehensive health check
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Ran `npm run lint`, `npm run lint:strict`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:copy-check`, and `npm audit --audit-level=high`
+  - Confirmed default lint, typecheck, test suite, and production build pass, with lint warnings and noisy React test warnings still present
+  - Identified the copy-check smoke test failure (`HTTP 404` against `/api/copy-check`) and a high-severity transitive Vite audit finding via Vitest
+  - Reviewed pending publishing/media-upload changes and noted risk areas for follow-up
+- Status: Complete
+
+## 2026-04-08 - Stabilise copy check and preview uploads
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - `src/lib/copyCheck.ts`, `src/hooks/useCopyCheck.ts`, `src/features/copy-check/CopyCheckSection.tsx`, and `tools/test-copy-check.mjs`: replaced the dead localhost `/api/copy-check` dependency with a resilient flow that prefers an injected checker, falls back to a configured function endpoint when available, and otherwise uses a local heuristic suggestion engine that keeps the feature working offline
+  - `src/hooks/useAssetPreviewUpload.ts` and `src/features/entry/EntryForm.tsx`: moved preview uploads out of the component into a custom hook, preserved Storage uploads when `content-media` is configured, and added a safe inline-preview fallback for small files when Storage is unavailable
+  - `src/features/publishing/publishUtils.ts` and `src/features/publishing/__tests__/publishUtils.test.ts`: restored publish payload compatibility for legacy attachment URLs while keeping `assetPreviews` as the primary media source
+  - `.gitignore` and `src/lib/copyCheck.test.ts`: hid local env/log artifacts from status noise and added regression coverage for copy-check fallback behaviour
+- Status: Complete
+
+## 2026-04-07 - Fix magic link redirect path
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - `src/lib/supabase.ts`: magic-link sign-in now sends a full app callback URL, preserving the GitHub Pages `/content-hub/` base path instead of using only `window.location.origin`
+  - Confirmed the live runtime config points at the Intel Hub Supabase project (`oepehanwmfelowfumkes`)
+  - Verified with `npm run typecheck`
+- Status: Complete

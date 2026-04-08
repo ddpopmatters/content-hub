@@ -1,9 +1,4 @@
-export {
-  CopyCheckSection,
-  type CopyCheckSectionProps,
-  type CopyCheckResult,
-  type CopyCheckScore,
-  type CopyCheckSuggestion,
-} from './CopyCheckSection';
+export { CopyCheckSection, type CopyCheckSectionProps } from './CopyCheckSection';
+export type { CopyCheckResult, CopyCheckScore, CopyCheckSuggestion } from '../../lib/copyCheck';
 // Re-export Guidelines from the canonical source
 export type { Guidelines } from '../../types/models';
