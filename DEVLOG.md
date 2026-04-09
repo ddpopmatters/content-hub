@@ -1,5 +1,17 @@
 # Content Hub — Dev Log
 
+## 2026-04-09 — Split staging rollout docs from legacy static cleanup
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - `.github/workflows/deploy.yml`, `.github/workflows/staging.yml`, `docs/staging-contract.md`, `docs/user-guides/**`, `public/healthz.json`, and `README.md`: isolated the staging deployment contract, manual production promotion flow, health check endpoint, and user-guide package into a dedicated release/docs commit
+  - `public/js/components/*`, `public/js/copyCheckerClient.js`, and `public/js/supabaseClient.js`: removed obsolete static bridge artifacts that are no longer loaded by `public/index.html` or produced by the current build
+  - `supabase/functions/_shared/types.ts`: kept the shared publish payload contract aligned with the browser publish payload by including `assetType`
+- Status: Complete
+
+---
+
 ## 2026-03-31 — Remove remaining old Supabase project callers
 
 - Tool: Codex

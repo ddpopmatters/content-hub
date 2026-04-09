@@ -3,6 +3,7 @@ export interface PublishPayload {
   platforms: string[];
   caption: string;
   platformCaptions: Record<string, string>;
+  assetType: string;
   mediaUrls: string[];
   previewUrl: string | null;
   scheduledDate: string;
