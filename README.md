@@ -2,6 +2,16 @@
 
 A content management and planning dashboard for social media teams.
 
+## User Guides
+
+End-user documentation for Wave 1 lives in [`docs/user-guides/`](docs/user-guides/index.md).
+
+Recommended starting points:
+
+- [`docs/user-guides/overview.md`](docs/user-guides/overview.md)
+- [`docs/user-guides/quick-start.md`](docs/user-guides/quick-start.md)
+- [`docs/user-guides/roles/content-editor.md`](docs/user-guides/roles/content-editor.md)
+
 ## Architecture
 
 This project supports two backend configurations:

@@ -1,10 +1,13 @@
-# Deploy to GitHub Pages
-name: Deploy to GitHub Pages
+# Promote GitHub Pages production deployment
+name: Promote GitHub Pages production
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      git_ref:
+        description: 'Git ref to promote to production'
+        required: true
+        default: 'main'
 
 permissions:
   contents: read
@@ -12,7 +15,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: content-hub-production
   cancel-in-progress: true
 
 jobs:
@@ -21,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

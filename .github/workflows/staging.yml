@@ -1,0 +1,115 @@
+name: Deploy Cloudflare Pages staging
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: content-hub-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create staging .env
+        env:
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          META_APP_ID: ${{ secrets.STAGING_META_APP_ID }}
+          META_FLOB_CONFIG_ID: ${{ secrets.STAGING_META_FLOB_CONFIG_ID }}
+          LINKEDIN_CLIENT_ID: ${{ secrets.STAGING_LINKEDIN_CLIENT_ID }}
+          LINKEDIN_ORG_CLIENT_ID: ${{ secrets.STAGING_LINKEDIN_ORG_CLIENT_ID }}
+          GOOGLE_CLIENT_ID: ${{ secrets.STAGING_GOOGLE_CLIENT_ID }}
+        run: |
+          echo "SUPABASE_URL=$SUPABASE_URL" >> .env
+          echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> .env
+          echo "META_APP_ID=$META_APP_ID" >> .env
+          echo "META_FLOB_CONFIG_ID=$META_FLOB_CONFIG_ID" >> .env
+          echo "LINKEDIN_CLIENT_ID=$LINKEDIN_CLIENT_ID" >> .env
+          echo "LINKEDIN_ORG_CLIENT_ID=$LINKEDIN_ORG_CLIENT_ID" >> .env
+          echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" >> .env
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Wrangler
+        run: npm install --global wrangler@4
+
+      - name: Prepare branch alias
+        run: echo "DEPLOY_BRANCH=${GITHUB_HEAD_REF//\//-}" >> "$GITHUB_ENV"
+
+      - name: Deploy preview to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_PAGES_PROJECT: ${{ secrets.CF_PAGES_STAGING_PROJECT }}
+        run: |
+          wrangler pages deploy public \
+            --project-name "$CF_PAGES_PROJECT" \
+            --branch "$DEPLOY_BRANCH"
+
+  staging:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create staging .env
+        env:
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          META_APP_ID: ${{ secrets.STAGING_META_APP_ID }}
+          META_FLOB_CONFIG_ID: ${{ secrets.STAGING_META_FLOB_CONFIG_ID }}
+          LINKEDIN_CLIENT_ID: ${{ secrets.STAGING_LINKEDIN_CLIENT_ID }}
+          LINKEDIN_ORG_CLIENT_ID: ${{ secrets.STAGING_LINKEDIN_ORG_CLIENT_ID }}
+          GOOGLE_CLIENT_ID: ${{ secrets.STAGING_GOOGLE_CLIENT_ID }}
+        run: |
+          echo "SUPABASE_URL=$SUPABASE_URL" >> .env
+          echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> .env
+          echo "META_APP_ID=$META_APP_ID" >> .env
+          echo "META_FLOB_CONFIG_ID=$META_FLOB_CONFIG_ID" >> .env
+          echo "LINKEDIN_CLIENT_ID=$LINKEDIN_CLIENT_ID" >> .env
+          echo "LINKEDIN_ORG_CLIENT_ID=$LINKEDIN_ORG_CLIENT_ID" >> .env
+          echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" >> .env
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Wrangler
+        run: npm install --global wrangler@4
+
+      - name: Deploy staging to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_PAGES_PROJECT: ${{ secrets.CF_PAGES_STAGING_PROJECT }}
+        run: wrangler pages deploy public --project-name "$CF_PAGES_PROJECT"
