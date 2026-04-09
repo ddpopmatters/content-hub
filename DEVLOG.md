@@ -491,6 +491,16 @@
   - Verified with `npm run typecheck`, targeted `eslint`, and `npm run build`
 - Status: Complete
 
+## 2026-04-09 - Document content-media provisioning
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - `.env.example`: added `CONTENT_MEDIA_UPLOADS_ENABLED=false` with guidance that uploads must stay off until storage is provisioned
+  - `docs/content-media-storage.md`: added a tracked runbook for the `content-media` bucket, required policies, verification steps, and rollback
+  - Kept the runtime default in URL-only mode so environments without the bucket do not advertise unsupported uploads
+- Status: Complete
+
 ## 2026-04-07 - Fix magic link redirect path
 
 - Tool: Codex
