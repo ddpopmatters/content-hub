@@ -55,6 +55,9 @@ const config = {
     'import.meta.env.LINKEDIN_CLIENT_ID': JSON.stringify(getEnv('LINKEDIN_CLIENT_ID')),
     'import.meta.env.LINKEDIN_ORG_CLIENT_ID': JSON.stringify(getEnv('LINKEDIN_ORG_CLIENT_ID')),
     'import.meta.env.GOOGLE_CLIENT_ID': JSON.stringify(getEnv('GOOGLE_CLIENT_ID')),
+    'import.meta.env.CONTENT_MEDIA_UPLOADS_ENABLED': JSON.stringify(
+      getEnv('CONTENT_MEDIA_UPLOADS_ENABLED'),
+    ),
   },
 };
 

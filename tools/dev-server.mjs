@@ -70,6 +70,9 @@ const ctx = await context({
     'import.meta.env.META_FLOB_CONFIG_ID': JSON.stringify(getEnv('META_FLOB_CONFIG_ID')),
     'import.meta.env.LINKEDIN_CLIENT_ID': JSON.stringify(getEnv('LINKEDIN_CLIENT_ID')),
     'import.meta.env.GOOGLE_CLIENT_ID': JSON.stringify(getEnv('GOOGLE_CLIENT_ID')),
+    'import.meta.env.CONTENT_MEDIA_UPLOADS_ENABLED': JSON.stringify(
+      getEnv('CONTENT_MEDIA_UPLOADS_ENABLED'),
+    ),
   },
 });
 

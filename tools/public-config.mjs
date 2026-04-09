@@ -23,11 +23,13 @@ export const resolveSupabaseAnonKey = (getEnv) => {
 export const resolvePublicSupabaseConfig = (getEnv) => {
   const supabaseUrl = resolveSupabaseUrl(getEnv);
   const supabaseAnonKey = resolveSupabaseAnonKey(getEnv);
+  const contentMediaUploadsEnabled = getEnv('CONTENT_MEDIA_UPLOADS_ENABLED') === 'true';
 
   return {
     supabaseUrl,
     supabaseAnonKey,
     supabaseFunctionsUrl: `${supabaseUrl}/functions/v1`,
+    contentMediaUploadsEnabled,
   };
 };
 

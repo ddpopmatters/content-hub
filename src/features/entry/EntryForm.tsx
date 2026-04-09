@@ -193,7 +193,7 @@ export function EntryForm({
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const conflictWarningRef = useRef<HTMLDivElement>(null);
   const categories = useCategories();
-  const { uploadFiles } = useAssetPreviewUpload({ pushSyncToast });
+  const { canUploadFiles, uploadFiles } = useAssetPreviewUpload({ pushSyncToast });
 
   useEffect(() => {
     if (!initialValues) return;
@@ -1267,27 +1267,34 @@ export function EntryForm({
 
                     <div className="space-y-3">
                       <Label htmlFor="preview-file">Preview asset</Label>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <input
-                          id="preview-file"
-                          type="file"
-                          accept="image/*,video/*,application/pdf"
-                          multiple
-                          onChange={async (event) => {
-                            const files = Array.from(event.target.files || []) as File[];
-                            event.target.value = '';
-                            const uploadedUrls = await uploadFiles(files);
-                            if (!uploadedUrls.length) return;
+                      {canUploadFiles ? (
+                        <div className="flex flex-wrap items-center gap-3">
+                          <input
+                            id="preview-file"
+                            type="file"
+                            accept="image/*,video/*,application/pdf"
+                            multiple
+                            onChange={async (event) => {
+                              const files = Array.from(event.target.files || []) as File[];
+                              event.target.value = '';
+                              const uploadedUrls = await uploadFiles(files);
+                              if (!uploadedUrls.length) return;
 
-                            setAssetPreviews((prev) => {
-                              const next = [...prev, ...uploadedUrls];
-                              setPreviewUrl((current) => current || next[0] || '');
-                              return next;
-                            });
-                          }}
-                          className={cx(fileInputClasses, 'text-xs')}
-                        />
-                      </div>
+                              setAssetPreviews((prev) => {
+                                const next = [...prev, ...uploadedUrls];
+                                setPreviewUrl((current) => current || next[0] || '');
+                                return next;
+                              });
+                            }}
+                            className={cx(fileInputClasses, 'text-xs')}
+                          />
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                          File uploads are disabled until the `content-media` storage bucket is
+                          configured for this environment. Paste a hosted preview URL below instead.
+                        </div>
+                      )}
                       {assetPreviews.length > 0 && (
                         <div className="mt-2 grid grid-cols-3 gap-2">
                           {assetPreviews.map((url, idx) => {

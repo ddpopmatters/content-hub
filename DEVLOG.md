@@ -480,6 +480,17 @@
   - `.gitignore` and `src/lib/copyCheck.test.ts`: hid local env/log artifacts from status noise and added regression coverage for copy-check fallback behaviour
 - Status: Complete
 
+## 2026-04-09 - Gate preview uploads behind explicit storage config
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - `src/lib/config.ts`, `tools/build.mjs`, and `tools/dev-server.mjs`: added an explicit `CONTENT_MEDIA_UPLOADS_ENABLED` capability flag so the main app does not assume the `content-media` bucket exists in every environment
+  - `tools/public-config.mjs` and `public/content-hub-config.js`: extended generated public config with `contentMediaUploadsEnabled` for consistency across static surfaces
+  - `src/hooks/useAssetPreviewUpload.ts` and `src/features/entry/EntryForm.tsx`: exposed upload capability from the hook and hid the file picker when storage uploads are disabled, showing URL-only guidance instead
+  - Verified with `npm run typecheck`, targeted `eslint`, and `npm run build`
+- Status: Complete
+
 ## 2026-04-07 - Fix magic link redirect path
 
 - Tool: Codex

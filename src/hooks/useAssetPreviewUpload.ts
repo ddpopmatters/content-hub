@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { APP_CONFIG } from '../lib/config';
 import { getSupabase, initSupabase } from '../lib/supabase';
 
 const STORAGE_BUCKET = 'content-media';
@@ -41,10 +42,21 @@ interface UseAssetPreviewUploadOptions {
 }
 
 export function useAssetPreviewUpload({ pushSyncToast }: UseAssetPreviewUploadOptions = {}): {
+  canUploadFiles: boolean;
   uploadFiles: (files: File[]) => Promise<string[]>;
 } {
+  const canUploadFiles = APP_CONFIG.CONTENT_MEDIA_UPLOADS_ENABLED;
+
   const uploadFiles = useCallback(
     async (files: File[]): Promise<string[]> => {
+      if (!canUploadFiles) {
+        pushSyncToast?.(
+          'File uploads are disabled until content-media storage is configured. Use a hosted preview URL instead.',
+          'warning',
+        );
+        return [];
+      }
+
       const uploadedUrls: string[] = [];
 
       for (const file of files) {
@@ -91,8 +103,8 @@ export function useAssetPreviewUpload({ pushSyncToast }: UseAssetPreviewUploadOp
 
       return uploadedUrls;
     },
-    [pushSyncToast],
+    [canUploadFiles, pushSyncToast],
   );
 
-  return { uploadFiles };
+  return { canUploadFiles, uploadFiles };
 }
