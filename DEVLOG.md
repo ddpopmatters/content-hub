@@ -1,5 +1,17 @@
 # Content Hub — Dev Log
 
+## 2026-04-11 — Clean remaining docs and tracked metadata
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - `docs/user-guides/index.md` and `docs/user-guides/tasks/*.md`: finalized and committed the remaining planning workflow guides for content peaks, content series, and rapid responses
+  - `.DS_Store`: removed the tracked Finder metadata file from version control so the existing ignore rule can keep the worktree clean going forward
+  - Verified the remaining worktree changes were fully resolved after the cleanup commits
+- Status: Complete
+
+---
+
 ## 2026-04-11 — Provision content-media storage in Intel Hub
 
 - Tool: Codex
