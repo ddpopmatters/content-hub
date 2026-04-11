@@ -19,6 +19,9 @@
 ## Task Guides
 
 - [Plan content in calendar](tasks/plan-content-in-calendar.md)
+- [Manage content peaks](tasks/manage-content-peaks.md)
+- [Manage content series](tasks/manage-content-series.md)
+- [Manage rapid responses](tasks/manage-rapid-responses.md)
 - [Move work through Kanban](tasks/move-work-through-kanban.md)
 - [Review and approve content](tasks/review-and-approve-content.md)
 - [Manage ideas and requests](tasks/manage-ideas-and-requests.md)
