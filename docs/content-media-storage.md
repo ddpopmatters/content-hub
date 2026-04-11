@@ -45,11 +45,20 @@ USING (bucket_id = 'content-media');
 
 Before enabling uploads broadly:
 
-1. Build the app with `CONTENT_MEDIA_UPLOADS_ENABLED=true`.
-2. Sign in as a normal authenticated user.
-3. Upload an image, a video, and a PDF in the entry form.
-4. Confirm each file gets a public URL and renders in the preview grid.
-5. Publish or save an entry and verify the preview URLs persist correctly.
+1. Run `npm run test:content-media`.
+2. If you want to verify authenticated upload and delete policies as well, rerun with:
+
+```sh
+SUPABASE_STORAGE_TEST_EMAIL="user@example.org" \
+SUPABASE_STORAGE_TEST_PASSWORD="password" \
+npm run test:content-media
+```
+
+3. Build the app with `CONTENT_MEDIA_UPLOADS_ENABLED=true`.
+4. Sign in as a normal authenticated user.
+5. Upload an image, a video, and a PDF in the entry form.
+6. Confirm each file gets a public URL and renders in the preview grid.
+7. Publish or save an entry and verify the preview URLs persist correctly.
 
 ## Rollback
 

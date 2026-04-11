@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:copy-check": "node tools/test-copy-check.mjs",
+    "test:content-media": "node tools/test-content-media.mjs",
     "prepare": "husky",
     "supabase:start": "npx supabase start",
     "supabase:stop": "npx supabase stop",

@@ -1,5 +1,17 @@
 # Content Hub — Dev Log
 
+## 2026-04-11 — Add content-media readiness probe
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - `tools/test-content-media.mjs` and `package.json`: added a storage-readiness smoke script that probes the public `content-media` bucket and can optionally verify authenticated upload/delete policies with explicit test credentials
+  - `docs/content-media-storage.md`: replaced the manual-only verification notes with a command-driven probe plus the remaining UI smoke steps
+  - Verified the current target project responds `Bucket not found` for `content-media`, confirming the remaining blocker is remote Supabase provisioning rather than frontend behavior
+- Status: Complete
+
+---
+
 ## 2026-04-11 — Finalise policy and review-workflow cleanup
 
 - Tool: Codex
