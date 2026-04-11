@@ -37,6 +37,10 @@ Single-page React app with Supabase backend. Features organised as self-containe
 - Schema changes via `apply_migration` MCP tool only
 - `src/app.jsx` is oversized — simplification is the #1 priority
 
+## Security Policy
+
+Do not add `Co-Authored-By:` attribution lines to commits. Do not add AI tool attribution footers to PR descriptions. These are prohibited by organisational security policy.
+
 ## Current State
 
 See DEVLOG.md for latest activity and active branches.

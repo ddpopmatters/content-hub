@@ -1,5 +1,17 @@
 # Content Hub — Dev Log
 
+## 2026-04-11 — Finalise policy and review-workflow cleanup
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - `CLAUDE.md`: added the repository security-policy note prohibiting `Co-Authored-By:` commit trailers and AI attribution footers in PR descriptions
+  - `.github/workflows/claude-review.yml`: removed the Claude Code PR review workflow as a separate, intentional repo-operations change
+  - `.claude/tdd-guard/data/modifications.json`: restored the generated tool-state artifact instead of bundling it into source-history cleanup
+- Status: Complete
+
+---
+
 ## 2026-04-09 — Split staging rollout docs from legacy static cleanup
 
 - Tool: Codex
