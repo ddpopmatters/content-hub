@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { createClient } from '@supabase/supabase-js';
 import { resolvePublicSupabaseConfig } from './public-config.mjs';
 
@@ -65,14 +66,18 @@ async function verifyAuthenticatedUpload() {
     throw new Error(`Storage auth probe failed: ${authError.message}`);
   }
 
-  const uploadPath = `codex-probes/${Date.now()}-${Math.random().toString(36).slice(2)}.txt`;
-  const fileBody = new Blob(['codex content-media probe'], { type: 'text/plain' });
+  const uploadPath = `codex-probes/${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
+  const pngBytes = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/a1EAAAAASUVORK5CYII=',
+    'base64',
+  );
+  const fileBody = new Blob([pngBytes], { type: 'image/png' });
 
   try {
     const { error: uploadError } = await client.storage
       .from(STORAGE_BUCKET)
       .upload(uploadPath, fileBody, {
-        contentType: 'text/plain',
+        contentType: 'image/png',
         upsert: false,
       });
 
@@ -85,7 +90,11 @@ async function verifyAuthenticatedUpload() {
 
     const publicResponse = await fetch(publicUrlData.publicUrl);
     assert.equal(publicResponse.status, 200, 'uploaded object is publicly readable');
-    assert.equal(await publicResponse.text(), 'codex content-media probe');
+    assert.equal(
+      publicResponse.headers.get('content-type'),
+      'image/png',
+      'public object keeps PNG mime',
+    );
 
     const { error: deleteError } = await client.storage.from(STORAGE_BUCKET).remove([uploadPath]);
     if (deleteError) {

@@ -1,5 +1,17 @@
 # Content Hub — Dev Log
 
+## 2026-04-11 — Provision content-media storage in Intel Hub
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - Created the `content-media` bucket in Supabase project `oepehanwmfelowfumkes` and updated it to be public with the intended 500 MB size limit and allowed MIME types `image/*`, `video/*`, and `application/pdf`
+  - Applied the authenticated insert and delete policies for `storage.objects` on `content-media` using a one-off remote SQL session through the Supabase CLI login role
+  - Verified the end-to-end path with `npm run test:content-media`, including a short-lived authenticated upload/delete probe against the live bucket
+- Status: Complete
+
+---
+
 ## 2026-04-11 — Add content-media readiness probe
 
 - Tool: Codex
