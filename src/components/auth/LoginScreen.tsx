@@ -19,13 +19,12 @@ export interface LoginScreenProps {
   onAuthChange: (result: AuthResult) => void;
 }
 
-type AuthMode = 'signin' | 'signup' | 'link-sent';
+type AuthMode = 'signin' | 'link-sent';
 
 export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElement {
   const [mode, setMode] = useState<AuthMode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -73,40 +72,6 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
     }
   };
 
-  const handleSignUp = async (e: FormEvent) => {
-    e.preventDefault();
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      const result = await AUTH.signUp(email.trim(), password, '');
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      if (result.data?.user && !result.data.user.email_confirmed_at) {
-        setMode('link-sent');
-        setSuccess('Check your email for the verification link');
-      } else if (result.data?.user) {
-        const profile = await SUPABASE_API.fetchCurrentUserProfile();
-        if (profile) {
-          onAuthChange({ user: profile as UserProfile, profile: profile as UserProfile });
-        }
-      }
-    } catch (err) {
-      setError((err as Error).message || 'Sign up failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div
       className="flex min-h-screen items-center justify-center"
@@ -116,11 +81,7 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
         <div className="mb-8 text-center">
           <h1 className="mb-2 text-3xl font-bold text-ocean-900">Content Dashboard</h1>
           <p className="text-graystone-600">
-            {mode === 'signin'
-              ? 'Sign in to your account'
-              : mode === 'signup'
-                ? 'Create your account'
-                : 'Check your email'}
+            {mode === 'signin' ? 'Sign in to your account' : 'Check your email'}
           </p>
         </div>
 
@@ -228,102 +189,11 @@ export function LoginScreen({ onAuthChange }: LoginScreenProps): React.ReactElem
           </form>
         )}
 
-        {mode === 'signup' && (
-          <form onSubmit={handleSignUp} className="space-y-4">
-            <div>
-              <label
-                htmlFor="signup-email"
-                className="mb-1 block text-sm font-medium text-graystone-700"
-              >
-                Email
-              </label>
-              <input
-                id="signup-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-graystone-300 px-4 py-3 outline-none transition focus:border-ocean-500 focus:ring-2 focus:ring-ocean-500"
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="signup-password"
-                className="mb-1 block text-sm font-medium text-graystone-700"
-              >
-                Password
-              </label>
-              <input
-                id="signup-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-graystone-300 px-4 py-3 outline-none transition focus:border-ocean-500 focus:ring-2 focus:ring-ocean-500"
-                placeholder="••••••••"
-                required
-                minLength={8}
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="signup-confirm-password"
-                className="mb-1 block text-sm font-medium text-graystone-700"
-              >
-                Confirm Password
-              </label>
-              <input
-                id="signup-confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full rounded-xl border border-graystone-300 px-4 py-3 outline-none transition focus:border-ocean-500 focus:ring-2 focus:ring-ocean-500"
-                placeholder="••••••••"
-                required
-                minLength={8}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-ocean-500 py-3 font-semibold text-white transition hover:bg-ocean-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? 'Creating account...' : 'Create Account'}
-            </button>
-          </form>
-        )}
-
-        {(mode === 'signin' || mode === 'signup') && (
+        {mode === 'signin' && (
           <div className="mt-6 text-center">
-            {mode === 'signin' ? (
-              <p className="text-sm text-graystone-600">
-                Don&apos;t have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('signup');
-                    setError('');
-                  }}
-                  className="font-semibold text-ocean-600 hover:underline"
-                >
-                  Sign up
-                </button>
-              </p>
-            ) : (
-              <p className="text-sm text-graystone-600">
-                Already have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('signin');
-                    setError('');
-                  }}
-                  className="font-semibold text-ocean-600 hover:underline"
-                >
-                  Sign in
-                </button>
-              </p>
-            )}
+            <p className="text-sm text-graystone-600">
+              Need access? Ask an administrator to invite you to the Content Dashboard.
+            </p>
           </div>
         )}
       </div>

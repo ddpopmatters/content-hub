@@ -1,10 +1,4 @@
 // Context providers barrel export
-
-// Authentication
-export {
-  AuthProvider,
-  useAuth,
-  type AuthStatus,
-  type AuthUser,
-  type AuthContextValue,
-} from './AuthContext';
+//
+// Auth is sourced from `src/hooks/domain/useAuth.ts` via the domain hooks layer.
+// Do not re-export the legacy context-based auth implementation from here.

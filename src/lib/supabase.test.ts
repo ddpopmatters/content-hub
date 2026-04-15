@@ -235,6 +235,30 @@ describe('SUPABASE_API.updateUserProfile', () => {
 });
 
 describe('SUPABASE_API.sendNotification', () => {
+  it('throws when the notification service cannot resolve any recipients', async () => {
+    const { client } = createMockSupabaseClient(
+      {
+        id: 'intel-user-1',
+        email: 'francesca.harrison@populationmatters.org',
+      },
+      [],
+      {
+        data: {
+          ok: false,
+          sent: 0,
+          failed: 1,
+          error: 'No email addresses found for recipients.',
+        },
+        error: null,
+      },
+    );
+    const { SUPABASE_API } = await loadSupabaseModule(client);
+
+    await expect(
+      SUPABASE_API.sendNotification({ subject: 'Test', text: 'Hello', approvers: ['Missing'] }),
+    ).rejects.toThrow('No email addresses found for recipients.');
+  });
+
   it('throws when the notification function reports failed deliveries', async () => {
     const { client } = createMockSupabaseClient(
       {

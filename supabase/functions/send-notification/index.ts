@@ -182,7 +182,12 @@ Deno.serve(async (req: Request) => {
     if (!emails.length) {
       console.warn('[send-notification] No emails resolved');
       return new Response(
-        JSON.stringify({ ok: true, sent: 0, note: 'No email addresses found for recipients' }),
+        JSON.stringify({
+          ok: false,
+          sent: 0,
+          failed: 1,
+          error: 'No email addresses found for recipients.',
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }

@@ -604,3 +604,16 @@
   - Added regression coverage in `src/hooks/domain/__tests__/useAuth.test.ts`, `src/lib/email.test.ts`, and `src/lib/supabase.test.ts`
   - Verified with `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, `deno check --node-modules-dir=auto supabase/functions/send-notification/index.ts`, and deployed `send-notification` to Supabase project `oepehanwmfelowfumkes`
 - Status: Complete
+
+## 2026-04-15 - Tighten notification and login guardrails
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - `supabase/functions/send-notification/index.ts`: unresolved recipient lookups now return an explicit failure payload instead of `ok: true`, so approval/comment mail drops are surfaced to the client retry path
+  - `src/components/auth/LoginScreen.tsx`: removed the public self-sign-up route and replaced it with admin-managed access guidance while keeping sign-in and magic-link flows for invited users
+  - `src/context/index.ts`: stopped re-exporting the stale context-based auth implementation so the repo has one canonical auth path
+  - Added regression coverage in `src/components/auth/LoginScreen.test.tsx` and `src/lib/supabase.test.ts`
+  - Verified with `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, and `deno check --node-modules-dir=auto supabase/functions/send-notification/index.ts`
+  - Attempted to deploy `send-notification`, but the current shell no longer has a Supabase access token and needs `supabase login` before redeploy
+- Status: Complete
