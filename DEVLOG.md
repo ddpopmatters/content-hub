@@ -653,3 +653,13 @@
   - Trimmed `README.md` so it points at `PROJECT.md` for canonical metadata and keeps only the practical local entry points
   - Reverted formatting-only churn in `public/content-hub-config.js` so the commit stays documentation-only
 - Status: Complete
+
+## 2026-04-15 - Correct production deployment target
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Updated `.github/workflows/deploy.yml` so GitHub Pages production deploys automatically on push to `main` as well as manual promotion
+  - Updated `.github/workflows/staging.yml` so Cloudflare Pages staging no longer triggers on `main` pushes and is limited to the `staging` branch plus pull request previews
+  - This prevents production merges from going to Cloudflare Pages when GitHub Pages is the intended live target
+- Status: Complete

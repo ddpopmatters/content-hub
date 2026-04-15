@@ -2,7 +2,7 @@ name: Deploy Cloudflare Pages staging
 
 on:
   push:
-    branches: [main]
+    branches: [staging]
   pull_request:
 
 permissions:

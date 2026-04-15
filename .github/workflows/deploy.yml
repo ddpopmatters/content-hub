@@ -1,7 +1,9 @@
-# Promote GitHub Pages production deployment
-name: Promote GitHub Pages production
+# Deploy GitHub Pages production
+name: Deploy GitHub Pages production
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       git_ref:
@@ -25,7 +27,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.git_ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.git_ref || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
