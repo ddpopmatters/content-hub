@@ -34,6 +34,10 @@ interface BlueSkyForm {
   appPassword: string;
 }
 
+const DIRECT_PUBLISH_PLATFORMS = ALL_PLATFORMS.filter(
+  (platform) => platform !== 'YouTube',
+) as Array<Exclude<Platform, 'YouTube'>>;
+
 // ─── OAuth URL builders ───────────────────────────────────────────────────────
 
 const FUNCTION_BASE = `${import.meta.env.SUPABASE_URL ?? ''}/functions/v1`;
@@ -77,10 +81,6 @@ export function buildOAuthUrl(
     case 'LinkedIn Org': {
       const clientId = import.meta.env.LINKEDIN_ORG_CLIENT_ID ?? '';
       return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent('w_organization_social r_organization_social')}&state=${state}`;
-    }
-    case 'YouTube': {
-      const clientId = import.meta.env.GOOGLE_CLIENT_ID ?? '';
-      return `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent('https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly')}&access_type=offline&prompt=consent&state=${state}`;
     }
     default:
       return '';
@@ -190,6 +190,7 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
   }, [fetchConnections]);
 
   const connFor = (platform: string) => connections.find((c) => c.platform === platform) ?? null;
+  const youtubeConn = connFor('YouTube');
 
   // ── BlueSky connect ──────────────────────────────────────────────────────
   const handleBskyConnect = async () => {
@@ -265,7 +266,7 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
           </div>
         ) : (
           <div className="space-y-4">
-            {ALL_PLATFORMS.map((platform) => {
+            {DIRECT_PUBLISH_PLATFORMS.map((platform) => {
               const conn = connFor(platform);
               const expired = conn ? isExpired(conn) : false;
 
@@ -330,7 +331,7 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
                         >
                           {disconnecting === conn.id ? 'Disconnecting…' : 'Disconnect'}
                         </Button>
-                      ) : platform === 'BlueSky' || platform === 'YouTube' ? null : (
+                      ) : platform === 'BlueSky' ? null : (
                         <Button
                           size="sm"
                           variant="outline"
@@ -348,9 +349,6 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
                         >
                           Reconnect
                         </Button>
-                      )}
-                      {platform === 'YouTube' && !conn && (
-                        <span className="text-xs text-graystone-500">Manual upload only</span>
                       )}
                     </div>
                   </div>
@@ -413,14 +411,6 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
                       );
                     })()}
 
-                  {/* BlueSky credential form (shown when not connected) */}
-                  {platform === 'YouTube' && (
-                    <div className="mt-4 border-t border-graystone-100 pt-4 text-xs text-graystone-500">
-                      Content Hub can store a YouTube connection for channel reference, but it does
-                      not publish videos directly. Use YouTube Studio for uploads.
-                    </div>
-                  )}
-
                   {platform === 'BlueSky' && !conn && (
                     <div className="mt-4 space-y-3 border-t border-graystone-100 pt-4">
                       <p className="text-xs text-graystone-500">
@@ -473,6 +463,43 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
                 </div>
               );
             })}
+
+            <div className="rounded-xl border border-graystone-200 bg-graystone-50 px-4 py-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <PlatformIcon platform="YouTube" size="md" />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-graystone-900">YouTube</span>
+                      <span className="rounded-full bg-graystone-200 px-2 py-0.5 text-xs text-graystone-700">
+                        Manual upload only
+                      </span>
+                    </div>
+                    <div className="mt-0.5 text-xs text-graystone-500">
+                      Content Hub does not publish to YouTube directly. Use YouTube Studio for
+                      uploads and scheduling.
+                    </div>
+                    {youtubeConn && (
+                      <div className="mt-1 text-xs text-graystone-500">
+                        Legacy connected channel: {youtubeConn.account_name}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {youtubeConn && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDisconnect(youtubeConn)}
+                    disabled={disconnecting === youtubeConn.id}
+                    className="text-graystone-500 hover:text-red-600"
+                  >
+                    {disconnecting === youtubeConn.id ? 'Disconnecting…' : 'Disconnect legacy link'}
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </CardContent>

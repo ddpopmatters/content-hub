@@ -715,3 +715,18 @@
   - `npm run typecheck`
   - `npm test -- src/hooks/domain/__tests__/useApprovals.test.ts src/hooks/domain/__tests__/useAdmin.test.ts src/lib/supabase.test.ts`
 - Status: Complete
+
+## 2026-04-15 - Remove misleading YouTube publishing connection flow
+
+- Tool: Codex
+- Branch: codex/youtube-connection-clarity
+- Changes:
+  - Removed YouTube from the direct-publish platform connection list so the UI no longer presents it as a normal OAuth publishing integration
+  - Stopped generating a YouTube OAuth URL from the platform connections screen
+  - Added a separate manual-upload explainer card for YouTube, with optional disconnect support for any legacy stored YouTube connection row
+  - Added a regression test to ensure `buildOAuthUrl('YouTube', ...)` stays disabled
+- Verification:
+  - `npm test -- src/features/publishing/__tests__/PlatformConnectionsView.test.ts`
+  - `npm run typecheck`
+  - `npm run lint`
+- Status: Complete

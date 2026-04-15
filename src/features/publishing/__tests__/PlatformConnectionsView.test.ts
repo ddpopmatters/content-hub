@@ -53,4 +53,9 @@ describe('buildOAuthUrl', () => {
     expect(state.createdByEmail).toBe('user@example.com');
     expect(state.redirectTo).toBe('https://ddpopmatters.github.io/content-hub/oauth-success.html');
   });
+
+  it('does not build an OAuth URL for YouTube', () => {
+    const url = buildOAuthUrl('YouTube', 'user@example.com');
+    expect(url).toBe('');
+  });
 });
