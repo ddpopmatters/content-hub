@@ -36,6 +36,14 @@ interface RequestPayload {
   };
 }
 
+interface AuthAdminUser {
+  id: string;
+  email?: string | null;
+  email_confirmed_at?: string | null;
+  confirmed_at?: string | null;
+  last_sign_in_at?: string | null;
+}
+
 const json = (body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -47,6 +55,46 @@ const normalizeEmail = (value: string | null | undefined): string => {
 };
 
 const getServiceClient = () => createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+const isExistingAuthUserError = (message: string | null | undefined): boolean => {
+  return /already been registered|email_exists/i.test(message ?? '');
+};
+
+const resolveExistingAuthStatus = (user: AuthAdminUser): string => {
+  const isActive = Boolean(user.email_confirmed_at || user.confirmed_at || user.last_sign_in_at);
+  return isActive ? 'active' : 'pending';
+};
+
+async function findAuthUserByEmail(
+  supabase: ReturnType<typeof getServiceClient>,
+  email: string,
+): Promise<{ user: AuthAdminUser | null; error: string | null }> {
+  let page = 1;
+  const perPage = 200;
+
+  while (page <= 10) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error) {
+      return { user: null, error: error.message || 'Failed to inspect existing auth users.' };
+    }
+
+    const users = Array.isArray(data.users) ? (data.users as AuthAdminUser[]) : [];
+    const existingUser =
+      users.find((user) => normalizeEmail(user.email) === email) ?? null;
+
+    if (existingUser) {
+      return { user: existingUser, error: null };
+    }
+
+    if (users.length < perPage) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return { user: null, error: null };
+}
 
 async function requireAdmin(req: Request) {
   const authHeader = req.headers.get('Authorization') ?? '';
@@ -143,6 +191,10 @@ Deno.serve(async (req: Request) => {
           );
         }
 
+        let inviteSent = false;
+        let authUserId: string | null = null;
+        let status = 'pending';
+
         const { data: inviteData, error: inviteError } =
           await supabase.auth.admin.inviteUserByEmail(email, {
             data: { name },
@@ -150,10 +202,36 @@ Deno.serve(async (req: Request) => {
           });
 
         if (inviteError) {
-          return json({ error: inviteError.message || 'Failed to send invite.' }, 500);
+          if (!isExistingAuthUserError(inviteError.message)) {
+            return json({ error: inviteError.message || 'Failed to send invite.' }, 500);
+          }
+
+          const { user: existingAuthUser, error: existingAuthError } = await findAuthUserByEmail(
+            supabase,
+            email,
+          );
+
+          if (existingAuthError) {
+            return json({ error: existingAuthError }, 500);
+          }
+
+          if (!existingAuthUser?.id) {
+            return json(
+              {
+                error:
+                  'An account already exists for that email, but Content Hub could not link it automatically.',
+              },
+              500,
+            );
+          }
+
+          authUserId = existingAuthUser.id;
+          status = resolveExistingAuthStatus(existingAuthUser);
+        } else {
+          inviteSent = true;
+          authUserId = inviteData.user?.id ?? null;
         }
 
-        const authUserId = inviteData.user?.id ?? null;
         const { data, error } = await supabase
           .from('user_profiles')
           .insert({
@@ -161,7 +239,7 @@ Deno.serve(async (req: Request) => {
             email,
             name,
             features,
-            status: 'pending',
+            status,
             is_admin: false,
             is_approver: isApprover,
           })
@@ -169,13 +247,13 @@ Deno.serve(async (req: Request) => {
           .single();
 
         if (error) {
-          if (authUserId) {
+          if (inviteSent && authUserId) {
             await supabase.auth.admin.deleteUser(authUserId);
           }
           return json({ error: error.message || 'Failed to create user profile.' }, 500);
         }
 
-        return json({ user: data as UserProfileRow }, 201);
+        return json({ user: data as UserProfileRow, inviteSent }, 201);
       }
 
       case 'update': {

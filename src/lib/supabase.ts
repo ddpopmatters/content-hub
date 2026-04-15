@@ -600,6 +600,12 @@ interface AdminUserFunctionResponse {
   user?: UserProfileRow | null;
   users?: UserProfileRow[];
   ok?: boolean;
+  inviteSent?: boolean;
+}
+
+interface InviteAdminUserResult {
+  user: (AppUser & { managerEmail?: string | null }) | null;
+  inviteSent: boolean;
 }
 
 interface ActivityLogRow {
@@ -2452,13 +2458,16 @@ export const SUPABASE_API = {
   inviteAdminUser: async (
     userData: Required<Pick<AdminUserUpsertPayload, 'name' | 'email'>> &
       Pick<AdminUserUpsertPayload, 'features' | 'isApprover'>,
-  ): Promise<(AppUser & { managerEmail?: string | null }) | null> => {
+  ): Promise<InviteAdminUserResult> => {
     try {
-      const { user } = await invokeAdminUsers({
+      const { user, inviteSent } = await invokeAdminUsers({
         action: 'create',
         ...userData,
       });
-      return user ? mapUserProfileToAppUser(user) : null;
+      return {
+        user: user ? mapUserProfileToAppUser(user) : null,
+        inviteSent: inviteSent !== false,
+      };
     } catch (error) {
       Logger.error(error, 'inviteAdminUser');
       throw error instanceof Error ? error : new Error('Unable to invite user');

@@ -1,5 +1,17 @@
 # Content Hub — Dev Log
 
+## 2026-04-15 — Fix admin invites for shared auth accounts
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - `supabase/functions/admin-users/index.ts`: when an invited email already exists in Intel Hub auth, the admin invite flow now links that existing auth account into `user_profiles` instead of failing with `email_exists`
+  - `src/lib/supabase.ts`, `src/hooks/domain/useAdmin.ts`, and `src/hooks/domain/__tests__/useAdmin.test.ts`: surfaced whether an invite email was actually sent so the admin UI can show the right success message for existing-account access grants
+  - Reproduced the live `email_exists` failure against project `oepehanwmfelowfumkes`, deployed the updated `admin-users` function, and verified the frontend contract with targeted tests and type checks
+- Status: Complete
+
+---
+
 ## 2026-04-11 — Clean remaining docs and tracked metadata
 
 - Tool: Codex

@@ -59,18 +59,29 @@ export function useAdmin({
       const normalizedEmail = normalizeEmail(email);
       const selectedFeatures = ensureFeaturesList(formData.features);
       try {
-        const created = await SUPABASE_API.inviteAdminUser({
+        const result = await SUPABASE_API.inviteAdminUser({
           name: fullname,
           email: normalizedEmail,
           features: selectedFeatures,
           isApprover: formData.isApprover,
         });
+        const created = result.user;
         if (created) {
           setUserList((prev) => {
             const without = prev.filter((user) => user.id !== created.id);
             return [created, ...without];
           });
-          setUserAdminSuccess(`Invitation sent to ${normalizedEmail}.`);
+          if (result.inviteSent) {
+            setUserAdminSuccess(`Invitation sent to ${normalizedEmail}.`);
+          } else if (created.status === 'active') {
+            setUserAdminSuccess(
+              `Access granted to ${normalizedEmail}. They can sign in with their existing account.`,
+            );
+          } else {
+            setUserAdminSuccess(
+              `Access granted to ${normalizedEmail}. Ask them to reset their password if they cannot sign in.`,
+            );
+          }
           void refreshApprovers();
           refreshUsers();
         }

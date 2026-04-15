@@ -30,7 +30,7 @@ describe('useAdmin', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetchAdminUsers.mockResolvedValue([]);
-    mockInviteAdminUser.mockResolvedValue(null);
+    mockInviteAdminUser.mockResolvedValue({ user: null, inviteSent: true });
     mockDeleteAdminUser.mockResolvedValue(true);
     mockUpdateAdminUser.mockResolvedValue(null);
   });
@@ -75,7 +75,7 @@ describe('useAdmin', () => {
       features: ['calendar', 'approvals'],
       invitePending: true,
     };
-    mockInviteAdminUser.mockResolvedValueOnce(invitedUser);
+    mockInviteAdminUser.mockResolvedValueOnce({ user: invitedUser, inviteSent: true });
     mockFetchAdminUsers.mockResolvedValueOnce([invitedUser]);
 
     const { result } = renderHook(() => useAdmin(deps));
@@ -103,6 +103,41 @@ describe('useAdmin', () => {
       expect(result.current.userList[0]?.email).toBe('new.user@populationmatters.org');
     });
     expect(deps.refreshApprovers).toHaveBeenCalled();
+  });
+
+  it('grants access when the email already has an auth account', async () => {
+    const existingAuthUser = {
+      id: 'user-2',
+      email: 'existing.user@populationmatters.org',
+      name: 'Existing User',
+      status: 'active',
+      isAdmin: false,
+      isApprover: false,
+      avatarUrl: null,
+      features: ['calendar'],
+      invitePending: false,
+    };
+    mockInviteAdminUser.mockResolvedValueOnce({ user: existingAuthUser, inviteSent: false });
+    mockFetchAdminUsers.mockResolvedValueOnce([existingAuthUser]);
+
+    const { result } = renderHook(() => useAdmin(deps));
+
+    await act(async () => {
+      await result.current.addUser({
+        first: 'Existing',
+        last: 'User',
+        email: 'existing.user@populationmatters.org',
+        features: ['calendar'],
+        isApprover: false,
+      });
+    });
+
+    expect(result.current.userAdminSuccess).toBe(
+      'Access granted to existing.user@populationmatters.org. They can sign in with their existing account.',
+    );
+    await waitFor(() => {
+      expect(result.current.userList[0]?.email).toBe('existing.user@populationmatters.org');
+    });
   });
 
   it('surfaces backend invite failures', async () => {
