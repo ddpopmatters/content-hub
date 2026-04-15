@@ -1801,7 +1801,7 @@ function ContentDashboard() {
               <PublishSettingsPanel settings={publishSettings} onUpdate={setPublishSettings} />
 
               {/* Platform Connections */}
-              <PlatformConnectionsView currentUser={currentUser} />
+              <PlatformConnectionsView currentUserEmail={currentUserEmail} />
             </div>
           )}
           {/* Trash modal */}

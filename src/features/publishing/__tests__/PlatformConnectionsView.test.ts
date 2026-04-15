@@ -50,6 +50,7 @@ describe('buildOAuthUrl', () => {
     const url = buildOAuthUrl('Instagram', 'user@example.com');
     const stateParam = new URL(url).searchParams.get('state')!;
     const state = JSON.parse(atob(stateParam));
+    expect(state.createdByEmail).toBe('user@example.com');
     expect(state.redirectTo).toBe('https://ddpopmatters.github.io/content-hub/oauth-success.html');
   });
 });

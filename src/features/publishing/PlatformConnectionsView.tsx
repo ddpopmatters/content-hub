@@ -10,7 +10,8 @@ import {
 } from '../../components/ui';
 import { PlatformIcon, CheckCircleIcon, LoaderIcon } from '../../components/common';
 import { cx } from '../../lib/utils';
-import { getSupabase } from '../../lib/supabase';
+import { APP_CONFIG } from '../../lib/config';
+import { getSupabase, initSupabase } from '../../lib/supabase';
 import { ALL_PLATFORMS } from '../../constants';
 import type { Platform } from '../../constants';
 
@@ -37,12 +38,15 @@ interface BlueSkyForm {
 
 const FUNCTION_BASE = `${import.meta.env.SUPABASE_URL ?? ''}/functions/v1`;
 
-export function buildOAuthUrl(platform: Platform | 'LinkedIn Org', currentUser: string): string {
+export function buildOAuthUrl(
+  platform: Platform | 'LinkedIn Org',
+  currentUserEmail: string,
+): string {
   const appBase = window.location.href.split('#')[0].replace(/[^/]*$/, '');
   const state = btoa(
     JSON.stringify({
       platform,
-      createdBy: currentUser,
+      createdByEmail: currentUserEmail,
       redirectTo: `${appBase}oauth-success.html`,
     }),
   );
@@ -101,11 +105,11 @@ function expiresLabel(conn: PlatformConnection): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface PlatformConnectionsViewProps {
-  currentUser: string;
+  currentUserEmail: string;
 }
 
 export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = ({
-  currentUser,
+  currentUserEmail,
 }) => {
   const [connections, setConnections] = useState<PlatformConnection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,23 +121,48 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
   const [bskyError, setBskyError] = useState('');
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
 
+  const callPlatformConnectionsApi = useCallback(async (payload: Record<string, unknown>) => {
+    await initSupabase();
+    const supabase = getSupabase();
+    const {
+      data: { session },
+    } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+    const accessToken = session?.access_token;
+    if (!accessToken) throw new Error('You must be signed in to manage platform connections.');
+
+    const response = await fetch(`${APP_CONFIG.SUPABASE_URL}/functions/v1/platform-connections`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const text = await response.text();
+    const parsed = text.trim().length > 0 ? (JSON.parse(text) as Record<string, unknown>) : {};
+
+    if (!response.ok) {
+      throw new Error(
+        typeof parsed.error === 'string' ? parsed.error : 'Platform connections request failed.',
+      );
+    }
+
+    return parsed;
+  }, []);
+
   const fetchConnections = useCallback(async () => {
     setLoading(true);
     setError('');
-    const sb = getSupabase();
-    if (!sb) {
+    try {
+      const payload = await callPlatformConnectionsApi({ action: 'list' });
+      setConnections((payload.connections as PlatformConnection[]) ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load connections.');
+    } finally {
       setLoading(false);
-      return;
     }
-    const { data, error: err } = await sb
-      .from('platform_connections')
-      .select('*')
-      .eq('is_active', true)
-      .order('platform');
-    if (err) setError(err.message);
-    else setConnections((data as PlatformConnection[]) ?? []);
-    setLoading(false);
-  }, []);
+  }, [callPlatformConnectionsApi]);
 
   useEffect(() => {
     fetchConnections();
@@ -171,44 +200,14 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
     }
     setBskySaving(true);
     setBskyError('');
-
-    // Verify credentials by creating a session
     try {
-      const sessionRes = await fetch('https://bsky.social/xrpc/com.atproto.server.createSession', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: handle.trim(), password: appPassword.trim() }),
+      await callPlatformConnectionsApi({
+        action: 'connect-bluesky',
+        handle: handle.trim(),
+        appPassword: appPassword.trim(),
       });
-      if (!sessionRes.ok) {
-        const err = (await sessionRes.json()) as { message?: string };
-        setBskyError(err.message ?? 'Invalid credentials. Check your handle and app password.');
-        setBskySaving(false);
-        return;
-      }
-      const session = (await sessionRes.json()) as { did: string; handle: string };
-
-      // Save to platform_connections
-      const sb = getSupabase();
-      if (!sb) throw new Error('No Supabase client');
-      const { error: upsertErr } = await sb.from('platform_connections').upsert(
-        {
-          platform: 'BlueSky',
-          account_id: session.handle,
-          account_name: `@${session.handle}`,
-          access_token: null,
-          refresh_token: null,
-          token_secret: appPassword.trim(),
-          expires_at: null,
-          created_by: currentUser,
-          is_active: true,
-          last_error: null,
-        },
-        { onConflict: 'platform,account_id' },
-      );
-
-      if (upsertErr) throw upsertErr;
       setBskyForms((prev) => ({ ...prev, BlueSky: { handle: '', appPassword: '' } }));
-      fetchConnections();
+      await fetchConnections();
     } catch (err) {
       const msg =
         err instanceof Error
@@ -223,7 +222,7 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
 
   // ── OAuth connect (popup) ────────────────────────────────────────────────
   const handleOAuthConnect = (platform: Platform | 'LinkedIn Org') => {
-    const oauthUrl = buildOAuthUrl(platform, currentUser);
+    const oauthUrl = buildOAuthUrl(platform, currentUserEmail);
     if (!oauthUrl) return;
     const popup = window.open(
       oauthUrl,
@@ -238,12 +237,12 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
   // ── Disconnect ───────────────────────────────────────────────────────────
   const handleDisconnect = async (conn: PlatformConnection) => {
     setDisconnecting(conn.id);
-    const sb = getSupabase();
-    if (sb) {
-      await sb.from('platform_connections').update({ is_active: false }).eq('id', conn.id);
-      fetchConnections();
+    try {
+      await callPlatformConnectionsApi({ action: 'disconnect', id: conn.id });
+      await fetchConnections();
+    } finally {
+      setDisconnecting(null);
     }
-    setDisconnecting(null);
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -331,7 +330,7 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
                         >
                           {disconnecting === conn.id ? 'Disconnecting…' : 'Disconnect'}
                         </Button>
-                      ) : platform === 'BlueSky' ? null : (
+                      ) : platform === 'BlueSky' || platform === 'YouTube' ? null : (
                         <Button
                           size="sm"
                           variant="outline"
@@ -349,6 +348,9 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
                         >
                           Reconnect
                         </Button>
+                      )}
+                      {platform === 'YouTube' && !conn && (
+                        <span className="text-xs text-graystone-500">Manual upload only</span>
                       )}
                     </div>
                   </div>
@@ -412,6 +414,13 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
                     })()}
 
                   {/* BlueSky credential form (shown when not connected) */}
+                  {platform === 'YouTube' && (
+                    <div className="mt-4 border-t border-graystone-100 pt-4 text-xs text-graystone-500">
+                      Content Hub can store a YouTube connection for channel reference, but it does
+                      not publish videos directly. Use YouTube Studio for uploads.
+                    </div>
+                  )}
+
                   {platform === 'BlueSky' && !conn && (
                     <div className="mt-4 space-y-3 border-t border-graystone-100 pt-4">
                       <p className="text-xs text-graystone-500">

@@ -663,3 +663,22 @@
   - Updated `.github/workflows/staging.yml` so Cloudflare Pages staging no longer triggers on `main` pushes and is limited to the `staging` branch plus pull request previews
   - This prevents production merges from going to Cloudflare Pages when GitHub Pages is the intended live target
 - Status: Complete
+
+## 2026-04-15 - Harden social platform connections
+
+- Tool: Codex
+- Branch: codex/platform-connection-hardening
+- Changes:
+  - Moved platform connection management behind a new admin-only `platform-connections` edge function so the browser no longer reads or writes `platform_connections` rows directly
+  - Added a Supabase migration to drop the permissive browser RLS policies on `platform_connections`, leaving token handling to service-role functions only
+  - Hardened OAuth connection storage so Meta connections bind to exactly one supported destination, record `createdByEmail`, and deactivate older active connections for the same platform
+  - Updated publishing to reject ambiguous multiple active connections, target the stored Meta page instead of the first accessible page, and refresh LinkedIn and Google tokens before publish when possible
+  - Updated the platform connections UI to stop presenting YouTube as a direct-publish integration and to route BlueSky connect and disconnect actions through the new admin API
+- Verification:
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm test -- src/features/publishing/__tests__/PlatformConnectionsView.test.ts src/hooks/domain/__tests__/useEntries.test.ts src/hooks/domain/__tests__/useAdmin.test.ts`
+  - `deno check --node-modules-dir=auto supabase/functions/oauth-callback/index.ts`
+  - `deno check --node-modules-dir=auto supabase/functions/publish-entry/index.ts`
+  - `deno check --node-modules-dir=auto supabase/functions/platform-connections/index.ts`
+- Status: Complete

@@ -5,6 +5,152 @@ import type { PublishPayload, PlatformResult, PlatformConnection } from '../_sha
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const WEBHOOK_SECRET = Deno.env.get('PUBLISH_WEBHOOK_SECRET');
+const LINKEDIN_CLIENT_ID = Deno.env.get('LINKEDIN_CLIENT_ID') ?? '';
+const LINKEDIN_CLIENT_SECRET = Deno.env.get('LINKEDIN_CLIENT_SECRET') ?? '';
+const LINKEDIN_ORG_CLIENT_ID = Deno.env.get('LINKEDIN_ORG_CLIENT_ID') ?? '';
+const LINKEDIN_ORG_CLIENT_SECRET = Deno.env.get('LINKEDIN_ORG_CLIENT_SECRET') ?? '';
+const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
+const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '';
+
+function isTokenExpired(expiresAt: string | null | undefined): boolean {
+  if (!expiresAt) return false;
+  const expiryTime = new Date(expiresAt).getTime();
+  return Number.isFinite(expiryTime) && expiryTime <= Date.now() + 60_000;
+}
+
+async function refreshLinkedInAccessToken(
+  conn: PlatformConnection,
+): Promise<{ access_token: string; refresh_token: string | null; expires_at: string | null }> {
+  if (!conn.refresh_token) {
+    throw new Error('LinkedIn connection has expired and must be reconnected.');
+  }
+
+  const clientId = conn.platform === 'LinkedIn Org' ? LINKEDIN_ORG_CLIENT_ID : LINKEDIN_CLIENT_ID;
+  const clientSecret =
+    conn.platform === 'LinkedIn Org' ? LINKEDIN_ORG_CLIENT_SECRET : LINKEDIN_CLIENT_SECRET;
+
+  const tokenRes = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: conn.refresh_token,
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  });
+
+  if (!tokenRes.ok) {
+    throw new Error(`LinkedIn token refresh failed: ${await tokenRes.text()}`);
+  }
+
+  const tokens = (await tokenRes.json()) as {
+    access_token: string;
+    refresh_token?: string;
+    expires_in?: number;
+  };
+
+  return {
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token ?? conn.refresh_token,
+    expires_at: tokens.expires_in
+      ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+      : conn.expires_at,
+  };
+}
+
+async function refreshGoogleAccessToken(
+  conn: PlatformConnection,
+): Promise<{ access_token: string; refresh_token: string | null; expires_at: string | null }> {
+  if (!conn.refresh_token) {
+    throw new Error('Google connection has expired and must be reconnected.');
+  }
+
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: conn.refresh_token,
+      client_id: GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+    }),
+  });
+
+  if (!tokenRes.ok) {
+    throw new Error(`Google token refresh failed: ${await tokenRes.text()}`);
+  }
+
+  const tokens = (await tokenRes.json()) as {
+    access_token: string;
+    expires_in?: number;
+  };
+
+  return {
+    access_token: tokens.access_token,
+    refresh_token: conn.refresh_token,
+    expires_at: tokens.expires_in
+      ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+      : conn.expires_at,
+  };
+}
+
+async function persistRefreshedConnection(
+  connectionId: string,
+  updates: { access_token: string; refresh_token: string | null; expires_at: string | null },
+) {
+  const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  await serviceClient
+    .from('platform_connections')
+    .update({
+      access_token: updates.access_token,
+      refresh_token: updates.refresh_token,
+      expires_at: updates.expires_at,
+      last_error: null,
+    })
+    .eq('id', connectionId);
+}
+
+async function ensureFreshConnection(
+  conn: PlatformConnection,
+  timestamp: string,
+): Promise<PlatformConnection | PlatformResult> {
+  if (!isTokenExpired(conn.expires_at)) {
+    return conn;
+  }
+
+  try {
+    if (conn.platform === 'LinkedIn' || conn.platform === 'LinkedIn Org') {
+      const refreshed = await refreshLinkedInAccessToken(conn);
+      const updated = { ...conn, ...refreshed };
+      await persistRefreshedConnection(conn.id, refreshed);
+      return updated;
+    }
+
+    if (conn.platform === 'YouTube') {
+      const refreshed = await refreshGoogleAccessToken(conn);
+      const updated = { ...conn, ...refreshed };
+      await persistRefreshedConnection(conn.id, refreshed);
+      return updated;
+    }
+
+    return {
+      status: 'failed',
+      url: null,
+      postId: null,
+      error: `${conn.platform} connection has expired. Reconnect it before publishing.`,
+      timestamp,
+    };
+  } catch (error) {
+    return {
+      status: 'failed',
+      url: null,
+      postId: null,
+      error: error instanceof Error ? error.message : `${conn.platform} token refresh failed.`,
+      timestamp,
+    };
+  }
+}
 
 // ─── Platform publishers ────────────────────────────────────────────────────
 
@@ -204,6 +350,7 @@ async function uploadBlueskyBlob(imageUrl: string, accessJwt: string): Promise<u
 }
 
 async function resolveInstagramCredentials(
+  conn: PlatformConnection,
   userToken: string,
   timestamp: string,
 ): Promise<
@@ -224,13 +371,14 @@ async function resolveInstagramCredentials(
   const pagesData = (await pagesRes.json()) as {
     data?: Array<{ id?: string; access_token?: string }>;
   };
-  const page = pagesData.data?.[0];
+  const page = pagesData.data?.find((candidate) => candidate.id === conn.account_id);
   if (!page?.id)
     return {
       status: 'failed',
       url: null,
       postId: null,
-      error: 'Instagram publish failed: no Facebook Pages found',
+      error:
+        'Instagram publish failed: the connected Facebook Page is no longer accessible for this token',
       timestamp,
     };
   if (!page.access_token)
@@ -351,7 +499,7 @@ async function publishToInstagram(
       };
     }
 
-    const creds = await resolveInstagramCredentials(userToken, timestamp);
+    const creds = await resolveInstagramCredentials(conn, userToken, timestamp);
     if ('status' in creds) return creds;
     const { page, instagramUserId } = creds;
 
@@ -445,6 +593,7 @@ async function publishToInstagram(
 }
 
 async function resolveFacebookPage(
+  conn: PlatformConnection,
   userToken: string,
   timestamp: string,
 ): Promise<{ page: { id: string; access_token: string } } | PlatformResult> {
@@ -463,13 +612,14 @@ async function resolveFacebookPage(
   const pagesData = (await pagesRes.json()) as {
     data?: Array<{ id?: string; access_token?: string }>;
   };
-  const page = pagesData.data?.[0];
+  const page = pagesData.data?.find((candidate) => candidate.id === conn.account_id);
   if (!page?.id)
     return {
       status: 'failed',
       url: null,
       postId: null,
-      error: 'Facebook publish failed: no Facebook Pages found',
+      error:
+        'Facebook publish failed: the connected Facebook Page is no longer accessible for this token',
       timestamp,
     };
   if (!page.access_token)
@@ -503,7 +653,7 @@ async function publishToFacebook(
       };
     }
 
-    const creds = await resolveFacebookPage(userToken, timestamp);
+    const creds = await resolveFacebookPage(conn, userToken, timestamp);
     if ('status' in creds) return creds;
     const { page } = creds;
 
@@ -862,8 +1012,10 @@ Deno.serve(async (req: Request) => {
 
     await Promise.all(
       payload.platforms.map(async (platform) => {
-        const conn = (connections ?? []).find((c) => c.platform === platform);
-        if (!conn) {
+        const matchingConnections = (connections ?? []).filter(
+          (connection) => connection.platform === platform,
+        );
+        if (matchingConnections.length === 0) {
           results[platform] = {
             status: 'failed',
             url: null,
@@ -871,6 +1023,23 @@ Deno.serve(async (req: Request) => {
             error: `No active connection found for ${platform}`,
             timestamp,
           };
+          return;
+        }
+        if (matchingConnections.length > 1) {
+          results[platform] = {
+            status: 'failed',
+            url: null,
+            postId: null,
+            error: `Multiple active connections found for ${platform}. Disconnect the extra account before publishing.`,
+            timestamp,
+          };
+          return;
+        }
+
+        const baseConnection = matchingConnections[0];
+        const freshConnection = await ensureFreshConnection(baseConnection, timestamp);
+        if ('status' in freshConnection) {
+          results[platform] = freshConnection;
           return;
         }
 
@@ -892,7 +1061,7 @@ Deno.serve(async (req: Request) => {
           return;
         }
 
-        results[platform] = await publisher(conn, platformPayload);
+        results[platform] = await publisher(freshConnection, platformPayload);
 
         // Update last_used_at and any errors
         await supabase
@@ -901,7 +1070,7 @@ Deno.serve(async (req: Request) => {
             last_used_at: timestamp,
             last_error: results[platform].status === 'failed' ? results[platform].error : null,
           })
-          .eq('id', conn.id);
+          .eq('id', freshConnection.id);
       }),
     );
 

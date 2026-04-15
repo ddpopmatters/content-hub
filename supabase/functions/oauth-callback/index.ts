@@ -7,7 +7,7 @@
  * 3. Stores tokens in platform_connections
  * 4. Redirects browser to success page in the app
  *
- * State param format: base64(JSON({ platform, createdBy, redirectTo }))
+ * State param format: base64(JSON({ platform, createdByEmail, redirectTo }))
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
@@ -47,7 +47,11 @@ interface TokenResult {
   scope: string | null;
 }
 
-async function exchangeMetaCode(code: string, redirectUri: string): Promise<TokenResult> {
+async function exchangeMetaCode(
+  code: string,
+  redirectUri: string,
+  platform: 'Instagram' | 'Facebook',
+): Promise<TokenResult> {
   // Exchange code for short-lived token
   const tokenRes = await fetch(
     `https://graph.facebook.com/v19.0/oauth/access_token?` +
@@ -78,14 +82,63 @@ async function exchangeMetaCode(code: string, redirectUri: string): Promise<Toke
     expires_in: number;
   };
 
-  // Get user info
-  const meRes = await fetch(`https://graph.facebook.com/v19.0/me?access_token=${longToken}`);
-  const me = (await meRes.json()) as { id: string; name: string };
+  const pagesRes = await fetch(
+    `https://graph.facebook.com/v19.0/me/accounts?${new URLSearchParams({
+      access_token: longToken,
+      fields: 'id,name,instagram_business_account{id,username}',
+    })}`,
+  );
+  if (!pagesRes.ok) {
+    throw new Error(`Meta page lookup failed: ${await pagesRes.text()}`);
+  }
+
+  const pagesData = (await pagesRes.json()) as {
+    data?: Array<{
+      id?: string;
+      name?: string;
+      instagram_business_account?: { id?: string; username?: string } | null;
+    }>;
+  };
+
+  const pages = Array.isArray(pagesData.data) ? pagesData.data : [];
+
+  if (platform === 'Instagram') {
+    const instagramPages = pages.filter((page) => page.instagram_business_account?.id);
+    if (instagramPages.length !== 1) {
+      throw new Error(
+        instagramPages.length === 0
+          ? 'Instagram connection failed: no linked Instagram Business Account was found for this Facebook login.'
+          : 'Instagram connection failed: this login can access multiple Instagram Business Accounts. Reduce it to one supported account before reconnecting.',
+      );
+    }
+
+    const page = instagramPages[0];
+    return {
+      platform,
+      accountId: page.id ?? '',
+      accountName:
+        page.instagram_business_account?.username || page.name || 'Instagram Business Account',
+      accessToken: longToken,
+      refreshToken: null,
+      expiresAt: new Date(Date.now() + (expires_in ?? 5184000) * 1000),
+      scope: null,
+    };
+  }
+
+  if (pages.length !== 1) {
+    throw new Error(
+      pages.length === 0
+        ? 'Facebook connection failed: no Facebook Page was found for this login.'
+        : 'Facebook connection failed: this login can access multiple Facebook Pages. Reduce it to one supported Page before reconnecting.',
+    );
+  }
+
+  const page = pages[0];
 
   return {
-    platform: 'Instagram', // caller can override for Facebook
-    accountId: me.id,
-    accountName: me.name,
+    platform,
+    accountId: page.id ?? '',
+    accountName: page.name || 'Facebook Page',
     accessToken: longToken,
     refreshToken: null,
     expiresAt: new Date(Date.now() + (expires_in ?? 5184000) * 1000),
@@ -246,7 +299,7 @@ Deno.serve(async (req: Request) => {
     return new Response('Missing code or state', { status: 400 });
   }
 
-  let state: { platform: string; createdBy: string; redirectTo?: string };
+  let state: { platform: string; createdByEmail: string; redirectTo?: string };
   try {
     state = JSON.parse(atob(stateRaw));
   } catch {
@@ -260,8 +313,7 @@ Deno.serve(async (req: Request) => {
     switch (state.platform) {
       case 'Instagram':
       case 'Facebook':
-        result = await exchangeMetaCode(code, redirectUri);
-        result.platform = state.platform;
+        result = await exchangeMetaCode(code, redirectUri, state.platform);
         break;
       case 'LinkedIn':
         result = await exchangeLinkedInCode(code, redirectUri);
@@ -287,7 +339,7 @@ Deno.serve(async (req: Request) => {
         refresh_token: result.refreshToken,
         expires_at: result.expiresAt?.toISOString() ?? null,
         scope: result.scope,
-        created_by: state.createdBy,
+        created_by: state.createdByEmail,
         is_active: true,
         last_error: null,
       },
@@ -297,6 +349,13 @@ Deno.serve(async (req: Request) => {
     if (upsertError) {
       return new Response(`Failed to save connection: ${upsertError.message}`, { status: 500 });
     }
+
+    await supabase
+      .from('platform_connections')
+      .update({ is_active: false })
+      .eq('platform', result.platform)
+      .neq('account_id', result.accountId)
+      .eq('is_active', true);
 
     // Redirect back to the app with success signal
     const successUrl = new URL(state.redirectTo ?? APP_URL);
