@@ -682,3 +682,21 @@
   - `deno check --node-modules-dir=auto supabase/functions/publish-entry/index.ts`
   - `deno check --node-modules-dir=auto supabase/functions/platform-connections/index.ts`
 - Status: Complete
+
+## 2026-04-15 - Deploy platform connection hardening live
+
+- Tool: Codex
+- Branch: codex/platform-connection-hardening
+- Changes:
+  - Deployed the `platform-connections`, `oauth-callback`, and `publish-entry` edge functions to Supabase project `oepehanwmfelowfumkes`
+  - Verified the live `platform_connections` table still had the four permissive authenticated-user RLS policies that exposed browser token access
+  - Applied the targeted SQL from `20260415200841_harden_platform_connections.sql` through the Supabase Management API because the project migration history is divergent and `supabase migration up --linked` cannot safely replay the local migration graph
+  - Confirmed live `platform_connections` still has row-level security enabled and now has no remaining browser-facing policies
+- Verification:
+  - `supabase functions deploy platform-connections --project-ref oepehanwmfelowfumkes`
+  - `supabase functions deploy oauth-callback --project-ref oepehanwmfelowfumkes`
+  - `supabase functions deploy publish-entry --project-ref oepehanwmfelowfumkes`
+  - Supabase Management API read-only query confirming the old `platform_connections_*` policies existed before the SQL change
+  - Supabase Management API verification query confirming `relrowsecurity = true`
+  - Supabase Management API verification query confirming no remaining policies on `public.platform_connections`
+- Status: Complete
