@@ -1,6 +1,25 @@
-import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useAuth } from '../useAuth';
+import { AUTH, SUPABASE_API, getSupabase } from '../../../lib/supabase';
+
+const originalLocation = window.location;
+
+const setWindowLocation = (href: string) => {
+  const url = new URL(href);
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: {
+      ...originalLocation,
+      href: url.toString(),
+      origin: url.origin,
+      pathname: url.pathname,
+      search: url.search,
+      hash: url.hash,
+      hostname: url.hostname,
+    },
+  });
+};
 
 // Mock all dependencies that useAuth imports
 vi.mock('../../../lib/utils', () => ({
@@ -38,6 +57,20 @@ vi.mock('../../../lib/supabase', () => ({
 describe('useAuth — viewer utilities', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState({}, '', '/');
+    setWindowLocation('https://content-hub.test/');
+    vi.mocked(AUTH.getSession).mockResolvedValue(null);
+    vi.mocked(AUTH.signIn).mockResolvedValue({ error: 'mock' });
+    vi.mocked(SUPABASE_API.fetchCurrentUserProfile).mockResolvedValue(null);
+    vi.mocked(getSupabase).mockReturnValue(null);
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
+    });
+    window.history.replaceState({}, '', '/');
   });
 
   function setupAuthenticatedHook(name: string, email: string) {
@@ -178,6 +211,114 @@ describe('useAuth — viewer utilities', () => {
       expect(result.current.currentUser).toBe('');
       expect(result.current.currentUserEmail).toBe('');
       expect(result.current.authStatus).toBe('login');
+    });
+  });
+
+  describe('invite activation', () => {
+    it('enters invite mode for native Supabase recovery links', async () => {
+      vi.mocked(AUTH.getSession).mockResolvedValue({
+        user: { email: 'invitee@pm.org' },
+      } as never);
+      vi.mocked(SUPABASE_API.fetchCurrentUserProfile).mockResolvedValue({
+        email: 'invitee@pm.org',
+        name: 'Invitee',
+        avatar_url: '',
+        features: ['calendar'],
+        is_admin: false,
+      } as never);
+      setWindowLocation(
+        'https://ddpopmatters.github.io/content-hub/#access_token=test&type=recovery',
+      );
+
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.authStatus).toBe('invite');
+        expect(result.current.currentUserEmail).toBe('invitee@pm.org');
+      });
+      expect(result.current.currentUserHasPassword).toBe(false);
+    });
+
+    it('allows password setup from native invite flow without a legacy invite token', async () => {
+      const updateUser = vi.fn().mockResolvedValue({
+        data: { user: { email: 'invitee@pm.org' } },
+        error: null,
+      });
+      vi.mocked(AUTH.getSession).mockResolvedValue({
+        user: { email: 'invitee@pm.org' },
+      } as never);
+      vi.mocked(SUPABASE_API.fetchCurrentUserProfile).mockResolvedValue({
+        email: 'invitee@pm.org',
+        name: 'Invitee',
+        avatar_url: '',
+        features: [],
+        is_admin: false,
+      } as never);
+      vi.mocked(getSupabase).mockReturnValue({
+        auth: { updateUser },
+      } as never);
+      setWindowLocation(
+        'https://ddpopmatters.github.io/content-hub/#access_token=test&type=invite',
+      );
+
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.authStatus).toBe('invite');
+      });
+
+      act(() => {
+        result.current.setInvitePassword('strong-pass');
+        result.current.setInvitePasswordConfirm('strong-pass');
+      });
+
+      await act(async () => {
+        await result.current.submitInvite({ preventDefault() {} } as Event);
+      });
+
+      expect(updateUser).toHaveBeenCalledWith({ password: 'strong-pass' });
+      expect(result.current.authStatus).toBe('ready');
+      expect(result.current.currentUserHasPassword).toBe(true);
+    });
+  });
+
+  describe('handleChangePassword', () => {
+    it('updates the password without reauth when no current password is provided', async () => {
+      const updateUser = vi.fn().mockResolvedValue({ error: null });
+      vi.mocked(AUTH.getSession).mockResolvedValue({
+        user: { email: 'invitee@pm.org' },
+      } as never);
+      vi.mocked(AUTH.signIn).mockResolvedValue({ error: 'unexpected reauth' });
+      vi.mocked(SUPABASE_API.fetchCurrentUserProfile).mockResolvedValue({
+        email: 'invitee@pm.org',
+        name: 'Invitee',
+        avatar_url: '',
+        features: [],
+        is_admin: false,
+      } as never);
+      vi.mocked(getSupabase).mockReturnValue({
+        auth: { updateUser },
+      } as never);
+      setWindowLocation(
+        'https://ddpopmatters.github.io/content-hub/#access_token=test&type=recovery',
+      );
+
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.authStatus).toBe('invite');
+      });
+
+      await act(async () => {
+        await result.current.handleChangePassword({
+          currentPassword: '',
+          newPassword: 'new-password',
+        });
+      });
+
+      expect(AUTH.signIn).not.toHaveBeenCalled();
+      expect(updateUser).toHaveBeenCalledWith({ password: 'new-password' });
+      expect(result.current.currentUserHasPassword).toBe(true);
     });
   });
 });

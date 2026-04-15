@@ -88,7 +88,6 @@ function ContentDashboard() {
     currentUserHasPassword,
     authStatus,
     setAuthStatus,
-    setInviteToken,
     invitePassword,
     setInvitePassword,
     invitePasswordConfirm,
@@ -943,9 +942,8 @@ function ContentDashboard() {
             type="button"
             className="mt-4 text-xs text-ocean-600 underline"
             onClick={() => {
-              setInviteToken('');
-              setAuthStatus('login');
               clearInviteParam();
+              setAuthStatus('login');
             }}
           >
             Have an account already? Sign in instead

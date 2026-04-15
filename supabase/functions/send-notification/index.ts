@@ -3,7 +3,8 @@ import { corsHeaders, handleCors } from '../_shared/cors.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const POSTMARK_SERVER_TOKEN = Deno.env.get('POSTMARK_SERVER_TOKEN')!;
+const POSTMARK_SERVER_TOKEN = Deno.env.get('POSTMARK_SERVER_TOKEN') ?? '';
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
 const FROM_EMAIL = Deno.env.get('FROM_EMAIL') ?? 'noreply@populationmatters.org';
 const FROM_NAME = Deno.env.get('FROM_NAME') ?? 'Population Matters';
 const APPROVAL_TOKEN_SECRET = Deno.env.get('APPROVAL_TOKEN_SECRET') ?? '';
@@ -116,25 +117,52 @@ function buildApproveButton(approveUrl: string): string {
 }
 
 async function sendEmail(to: string, payload: NotificationPayload, html?: string): Promise<void> {
-  const res = await fetch('https://api.postmarkapp.com/email', {
-    method: 'POST',
-    headers: {
-      'X-Postmark-Server-Token': POSTMARK_SERVER_TOKEN,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      From: FROM_NAME + ' <' + FROM_EMAIL + '>',
-      To: to,
-      Subject: payload.subject,
-      TextBody: payload.text,
-      ...(html ? { HtmlBody: html } : payload.html ? { HtmlBody: payload.html } : {}),
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error('Postmark error ' + res.status + ': ' + body);
+  if (RESEND_API_KEY) {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: `${FROM_NAME} <${FROM_EMAIL}>`,
+        to: [to],
+        subject: payload.subject,
+        text: payload.text,
+        ...(html ? { html } : payload.html ? { html: payload.html } : {}),
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error('Resend error ' + res.status + ': ' + body);
+    }
+    return;
   }
+
+  if (POSTMARK_SERVER_TOKEN) {
+    const res = await fetch('https://api.postmarkapp.com/email', {
+      method: 'POST',
+      headers: {
+        'X-Postmark-Server-Token': POSTMARK_SERVER_TOKEN,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        From: FROM_NAME + ' <' + FROM_EMAIL + '>',
+        To: to,
+        Subject: payload.subject,
+        TextBody: payload.text,
+        ...(html ? { HtmlBody: html } : payload.html ? { HtmlBody: payload.html } : {}),
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error('Postmark error ' + res.status + ': ' + body);
+    }
+    return;
+  }
+
+  throw new Error('No email provider configured for send-notification');
 }
 
 // ── Handler ─────────────────────────────────────────────────────────────────
@@ -190,9 +218,19 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    return new Response(JSON.stringify({ ok: true, sent, failed: failed.length }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: failed.length === 0,
+        sent,
+        failed: failed.length,
+        ...(failed.length
+          ? {
+              error: `Failed to send ${failed.length} notification${failed.length === 1 ? '' : 's'}.`,
+            }
+          : {}),
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   } catch (err) {
     console.error('[send-notification] Unhandled error:', err);
     return new Response(JSON.stringify({ error: 'Internal error' }), {

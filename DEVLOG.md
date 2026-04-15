@@ -582,3 +582,25 @@
   - Confirmed the live runtime config points at the Intel Hub Supabase project (`oepehanwmfelowfumkes`)
   - Verified with `npm run typecheck`
 - Status: Complete
+
+## 2026-04-15 - Codex instruction migration
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - Added a native root `AGENTS.md` covering mission, stack, canonical commands, verification, dangerous actions, browser expectations, and review defaults for Codex sessions
+  - Split longer review guidance into `code_review.md` so the durable repo instructions stay short and operational
+  - Aligned the repo with the shared Codex-first workspace rebuild while preserving existing Content Hub conventions
+- Status: Complete
+
+## 2026-04-15 - Fix invite activation and notification delivery
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - `src/hooks/domain/useAuth.ts` and `src/app.jsx`: native Supabase invite and recovery links now enter the password-setup flow without relying on the legacy `?invite=` param, and first-time password updates no longer require a current password
+  - `src/lib/email.ts`: review links now preserve the GitHub Pages `/content-hub/` base path in approval and comment emails
+  - `src/lib/supabase.ts` and `supabase/functions/send-notification/index.ts`: notification sends now fail loudly enough for the sync queue to surface retries, and the live edge function now supports `RESEND_API_KEY` as well as Postmark
+  - Added regression coverage in `src/hooks/domain/__tests__/useAuth.test.ts`, `src/lib/email.test.ts`, and `src/lib/supabase.test.ts`
+  - Verified with `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, `deno check --node-modules-dir=auto supabase/functions/send-notification/index.ts`, and deployed `send-notification` to Supabase project `oepehanwmfelowfumkes`
+- Status: Complete

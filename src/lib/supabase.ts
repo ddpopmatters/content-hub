@@ -1364,9 +1364,31 @@ export const SUPABASE_API = {
 
   sendNotification: async (payload: Record<string, unknown>): Promise<void> => {
     await initSupabase();
-    if (!supabase) return;
-    const { error } = await supabase.functions.invoke('send-notification', { body: payload });
-    if (error) Logger.error(error, 'sendNotification');
+    if (!supabase) {
+      throw new Error('Supabase is unavailable');
+    }
+    const { data, error } = await supabase.functions.invoke('send-notification', { body: payload });
+    if (error) {
+      Logger.error(error, 'sendNotification');
+      throw new Error(error.message || 'Failed to send notification');
+    }
+    const response = data as {
+      ok?: boolean;
+      sent?: number;
+      failed?: number;
+      error?: string;
+    } | null;
+    if (!response) {
+      throw new Error('Notification service returned no data');
+    }
+    if (response.error) {
+      throw new Error(response.error);
+    }
+    if (response.ok === false || (response.failed ?? 0) > 0) {
+      throw new Error(
+        `Notification delivery incomplete (${response.sent ?? 0} sent, ${response.failed ?? 0} failed).`,
+      );
+    }
   },
 
   // ==========================================

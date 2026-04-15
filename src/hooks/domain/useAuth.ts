@@ -4,7 +4,42 @@ import { ensureFeaturesList } from '../../lib/users';
 import { AUTH, SUPABASE_API } from '../../lib/supabase';
 const USER_STORAGE_KEY = STORAGE_KEYS.USER;
 
+type InviteActivationType = '' | 'invite' | 'recovery';
+
+const INVITE_ACTIVATION_TYPES = new Set<InviteActivationType>(['invite', 'recovery']);
+
+const readHashParams = (hash: string): URLSearchParams => {
+  const trimmedHash = hash.startsWith('#') ? hash.slice(1) : hash;
+  if (!trimmedHash || !trimmedHash.includes('=')) return new URLSearchParams();
+  return new URLSearchParams(trimmedHash);
+};
+
+const readInviteLinkState = (): {
+  inviteToken: string;
+  activationType: InviteActivationType;
+} => {
+  if (typeof window === 'undefined') {
+    return { inviteToken: '', activationType: '' };
+  }
+
+  try {
+    const url = new URL(window.location.href);
+    const hashParams = readHashParams(url.hash);
+    const inviteToken = url.searchParams.get('invite') || '';
+    const authType = (url.searchParams.get('type') ||
+      hashParams.get('type') ||
+      '') as InviteActivationType;
+    const activationType = INVITE_ACTIVATION_TYPES.has(authType) ? authType : '';
+
+    return { inviteToken, activationType };
+  } catch {
+    return { inviteToken: '', activationType: '' };
+  }
+};
+
 export function useAuth() {
+  const initialInviteLinkState = readInviteLinkState();
+
   // Identity state
   const [currentUser, setCurrentUser] = useState('');
   const [currentUserEmail, setCurrentUserEmail] = useState('');
@@ -23,18 +58,14 @@ export function useAuth() {
   const [loginError, setLoginError] = useState('');
 
   // Invite form
-  const [inviteToken, setInviteToken] = useState(() => {
-    if (typeof window === 'undefined') return '';
-    try {
-      const url = new URL(window.location.href);
-      return url.searchParams.get('invite') || '';
-    } catch {
-      return '';
-    }
-  });
+  const [inviteToken, setInviteToken] = useState(initialInviteLinkState.inviteToken);
+  const [inviteActivationType, setInviteActivationType] = useState<InviteActivationType>(
+    initialInviteLinkState.activationType,
+  );
   const [invitePassword, setInvitePassword] = useState('');
   const [invitePasswordConfirm, setInvitePasswordConfirm] = useState('');
   const [inviteError, setInviteError] = useState('');
+  const inviteFlowActive = Boolean(inviteToken || inviteActivationType);
 
   // Profile state
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -200,14 +231,22 @@ export function useAuth() {
       const session = await AUTH.getSession();
       if (!session?.user) throw new Error('No authenticated session');
       const profile = await SUPABASE_API.fetchCurrentUserProfile();
-      if (!profile) throw new Error('No user profile');
+      if (!profile && !inviteFlowActive) throw new Error('No user profile');
+      const fallbackEmail = session.user.email || '';
       const nextName =
-        profile.name && profile.name.trim().length ? profile.name.trim() : profile.email;
+        profile?.name && profile.name.trim().length
+          ? profile.name.trim()
+          : profile?.email || fallbackEmail;
       setCurrentUser(nextName);
-      setCurrentUserEmail(profile.email);
-      setCurrentUserAvatar(profile.avatar_url || '');
-      setCurrentUserFeatures(ensureFeaturesList(profile.features));
-      setCurrentUserIsAdmin(Boolean(profile.is_admin));
+      setCurrentUserEmail(profile?.email || fallbackEmail);
+      setCurrentUserAvatar(profile?.avatar_url || '');
+      setCurrentUserFeatures(ensureFeaturesList(profile?.features));
+      setCurrentUserIsAdmin(Boolean(profile?.is_admin));
+      if (inviteFlowActive) {
+        setCurrentUserHasPassword(false);
+        setAuthStatus('invite');
+        return;
+      }
       setCurrentUserHasPassword(true);
       setAuthStatus('ready');
     } catch {
@@ -218,20 +257,20 @@ export function useAuth() {
       setCurrentUserIsAdmin(false);
       setCurrentUserHasPassword(false);
       setAuthError('');
-      setAuthStatus(inviteToken ? 'invite' : 'login');
+      setAuthStatus(inviteFlowActive ? 'invite' : 'login');
       setProfileMenuOpen(false);
     }
-  }, [inviteToken]);
+  }, [inviteFlowActive]);
 
   useEffect(() => {
     hydrateCurrentUser();
   }, [hydrateCurrentUser]);
 
   useEffect(() => {
-    if (inviteToken && authStatus !== 'ready') {
+    if (inviteFlowActive && authStatus !== 'ready') {
       setAuthStatus('invite');
     }
-  }, [inviteToken, authStatus]);
+  }, [inviteFlowActive, authStatus]);
 
   // Persist currentUser to localStorage
   useEffect(() => {
@@ -293,11 +332,44 @@ export function useAuth() {
 
   // Invite
   const clearInviteParam = useCallback(() => {
+    setInviteToken('');
+    setInviteActivationType('');
+    setInviteError('');
     if (typeof window === 'undefined') return;
     try {
       const url = new URL(window.location.href);
-      if (url.searchParams.has('invite')) {
-        url.searchParams.delete('invite');
+      let hasChanges = false;
+      const authSearchParams = [
+        'invite',
+        'type',
+        'token_hash',
+        'access_token',
+        'refresh_token',
+        'expires_at',
+        'expires_in',
+        'provider_token',
+        'provider_refresh_token',
+        'code',
+      ];
+
+      authSearchParams.forEach((key) => {
+        if (url.searchParams.has(key)) {
+          url.searchParams.delete(key);
+          hasChanges = true;
+        }
+      });
+
+      const hashParams = readHashParams(url.hash);
+      authSearchParams.forEach((key) => {
+        if (hashParams.has(key)) {
+          hashParams.delete(key);
+          hasChanges = true;
+        }
+      });
+
+      if (hasChanges) {
+        const nextHash = hashParams.toString();
+        url.hash = nextHash ? `#${nextHash}` : '';
         window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
       }
     } catch {
@@ -309,7 +381,7 @@ export function useAuth() {
     async (event: Event) => {
       event.preventDefault();
       setInviteError('');
-      if (!inviteToken) {
+      if (!inviteFlowActive) {
         setInviteError('This invite link is invalid.');
         return;
       }
@@ -336,7 +408,6 @@ export function useAuth() {
         setCurrentUserFeatures(ensureFeaturesList(profile?.features));
         setCurrentUserIsAdmin(Boolean(profile?.is_admin));
         setCurrentUserHasPassword(true);
-        setInviteToken('');
         setInvitePassword('');
         setInvitePasswordConfirm('');
         setAuthStatus('ready');
@@ -346,19 +417,21 @@ export function useAuth() {
         setInviteError('This invite link is invalid or has expired.');
       }
     },
-    [inviteToken, invitePassword, invitePasswordConfirm, clearInviteParam],
+    [inviteFlowActive, invitePassword, invitePasswordConfirm, clearInviteParam],
   );
 
   // Change password
   const handleChangePassword = useCallback(
     async ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => {
       try {
-        // Supabase doesn't expose a direct "change password with current password" flow;
-        // re-auth then update via updateUser
         const session = await AUTH.getSession();
         if (!session?.user?.email) throw new Error('Not authenticated');
-        const reauth = await AUTH.signIn(session.user.email, currentPassword);
-        if (reauth.error) throw new Error(reauth.error);
+        if (currentPassword) {
+          // Supabase doesn't expose a direct "change password with current password" flow;
+          // re-auth then update via updateUser.
+          const reauth = await AUTH.signIn(session.user.email, currentPassword);
+          if (reauth.error) throw new Error(reauth.error);
+        }
         const { error } = await (await import('../../lib/supabase'))
           .getSupabase()!
           .auth.updateUser({
@@ -388,13 +461,13 @@ export function useAuth() {
         setCurrentUserAvatar(String(profile?.avatarUrl || profile?.avatar_url || ''));
         setCurrentUserFeatures(ensureFeaturesList(profile?.features));
         setCurrentUserIsAdmin(Boolean(profile?.isAdmin || profile?.is_admin));
-        setCurrentUserHasPassword(true);
-        setAuthStatus('ready');
+        setCurrentUserHasPassword(!inviteFlowActive);
+        setAuthStatus(inviteFlowActive ? 'invite' : 'ready');
       } else {
         hydrateCurrentUser();
       }
     },
-    [hydrateCurrentUser],
+    [hydrateCurrentUser, inviteFlowActive],
   );
 
   // Reset for sign-out (called by orchestrator)

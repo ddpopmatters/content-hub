@@ -21,7 +21,14 @@ interface MockQueryState {
   updateData: Record<string, unknown> | null;
 }
 
-function createMockSupabaseClient(authUser: { id: string; email: string }, rows: MockProfileRow[]) {
+function createMockSupabaseClient(
+  authUser: { id: string; email: string },
+  rows: MockProfileRow[],
+  invokeResult: { data: unknown; error: { message: string } | null } = {
+    data: { ok: true, sent: 1, failed: 0 },
+    error: null,
+  },
+) {
   const profileRows = rows.map((row) => ({ ...row }));
   const updates: Array<{ filters: Record<string, unknown>; payload: Record<string, unknown> }> = [];
 
@@ -74,6 +81,9 @@ function createMockSupabaseClient(authUser: { id: string; email: string }, rows:
       auth: {
         getUser: vi.fn().mockResolvedValue({ data: { user: authUser } }),
         stopAutoRefresh: vi.fn(),
+      },
+      functions: {
+        invoke: vi.fn().mockResolvedValue(invokeResult),
       },
       from,
     },
@@ -221,5 +231,45 @@ describe('SUPABASE_API.updateUserProfile', () => {
     expect(updates).toHaveLength(2);
     expect(updates[0]?.payload).toMatchObject({ auth_user_id: 'intel-user-1' });
     expect(updates[1]?.payload).toMatchObject({ name: 'Francesca H.' });
+  });
+});
+
+describe('SUPABASE_API.sendNotification', () => {
+  it('throws when the notification function reports failed deliveries', async () => {
+    const { client } = createMockSupabaseClient(
+      {
+        id: 'intel-user-1',
+        email: 'francesca.harrison@populationmatters.org',
+      },
+      [],
+      {
+        data: { ok: false, sent: 0, failed: 2, error: 'Failed to send 2 notifications.' },
+        error: null,
+      },
+    );
+    const { SUPABASE_API } = await loadSupabaseModule(client);
+
+    await expect(
+      SUPABASE_API.sendNotification({ subject: 'Test', text: 'Hello', toEmails: ['a@pm.org'] }),
+    ).rejects.toThrow('Failed to send 2 notifications.');
+  });
+
+  it('throws when the notification invoke itself fails', async () => {
+    const { client } = createMockSupabaseClient(
+      {
+        id: 'intel-user-1',
+        email: 'francesca.harrison@populationmatters.org',
+      },
+      [],
+      {
+        data: null,
+        error: { message: 'Edge function unavailable' },
+      },
+    );
+    const { SUPABASE_API } = await loadSupabaseModule(client);
+
+    await expect(
+      SUPABASE_API.sendNotification({ subject: 'Test', text: 'Hello', toEmails: ['a@pm.org'] }),
+    ).rejects.toThrow('Edge function unavailable');
   });
 });

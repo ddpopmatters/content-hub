@@ -38,6 +38,29 @@ export interface EntryEmailPayload {
   html: string;
 }
 
+const getAppBaseUrl = (): string => {
+  if (typeof window === 'undefined') return '';
+
+  try {
+    const url = new URL(window.location.href);
+    url.hash = '';
+    url.search = '';
+
+    if (url.hostname === 'ddpopmatters.github.io') {
+      url.pathname = '/content-hub/';
+      return url.toString();
+    }
+
+    if (!url.pathname.endsWith('/')) {
+      url.pathname = url.pathname.replace(/[^/]*$/, '');
+    }
+
+    return url.toString();
+  } catch {
+    return window.location.href.split('#')[0].replace(/[^/]*$/, '');
+  }
+};
+
 /**
  * Returns a human-readable description of an entry
  */
@@ -59,7 +82,7 @@ export const entryDescriptor = (entry: Partial<Entry> | null | undefined): strin
 export const entryReviewLink = (entry: Partial<Entry> | null | undefined): string => {
   if (typeof window === 'undefined' || !entry) return '';
   try {
-    return `${window.location.origin}/review.html?id=${encodeURIComponent(entry.id || '')}`;
+    return `${getAppBaseUrl()}review.html?id=${encodeURIComponent(entry.id || '')}`;
   } catch {
     return '';
   }
