@@ -1,58 +1,71 @@
+---
+id: content-hub
+display_name: Content Hub
+workspace_path: tools/Content Hub
+repo_root: tools/Content Hub
+category: tool
+status: live
+owner: Dan Davis
+team: Population Matters
+aliases:
+  - Content Hub
+  - pm-dashboard
+  - content planning tool
+package_names:
+  - pm-dashboard
+alias_lifecycle:
+  - Content Hub|canonical
+  - pm-dashboard|legacy
+  - content planning tool|accepted
+stack:
+  - React 19
+  - TypeScript
+  - esbuild
+  - Tailwind CSS 4
+  - Supabase
+deploy_targets:
+  - Vercel
+data_stores:
+  - Supabase Postgres
+  - Supabase Auth
+  - Supabase Storage
+shared_services:
+  - GitHub
+  - OpenAI API
+  - Supabase shared project
+key_commands:
+  - npm run dev
+  - npm run build
+  - npm run lint
+  - npm run typecheck
+  - npm test
+key_paths:
+  - tools/Content Hub/src/app.jsx
+  - tools/Content Hub/src/lib/supabase.ts
+  - tools/Content Hub/docs/platform-docs.md
+  - tools/Content Hub/supabase/config.toml
+dangerous_paths:
+  - tools/Content Hub/supabase/migrations
+  - tools/Content Hub/supabase/functions
+  - tools/Content Hub/src/lib/supabase.ts
+depends_on:
+  - service:Supabase shared project
+  - service:OpenAI API
+dont_confuse_with:
+  - pm-productivity-tool|Separate broader staff productivity tool; this repo is focused on content operations.
+  - pages-hub|Separate request-management tool for page workflows.
+agent_notes:
+  - Simplification is the current product priority.
+  - Keep Supabase access in hooks or lib files, not React components.
+  - Treat the legacy Cloudflare backend as reference code, not the active architecture.
+---
+
 # Content Hub
 
-## Brief
+Internal planning and approval tool for PM's comms workflow. The current priority is reducing complexity so Fran and Madeleine can use it daily without hand-holding.
 
-Content management and planning dashboard for PM's social media and comms workflow. Calendar, kanban board, approvals queue, ideas log, LinkedIn submissions, A/B testing, copy optimiser.
+## Scope Notes
 
-## Goals
-
-- Central place for all content planning and approval
-- Reduce email back-and-forth on content sign-off
-- Give Dan visibility across all content in pipeline
-- Enable Fran and Madeleine to self-serve on scheduling
-
-## Audience
-
-- Dan (Digital & Marketing Manager) — oversight, approvals, strategy
-- Fran (Content Specialist) — daily content creation and scheduling
-- Madeleine (Campaigns & Media Officer) — campaign content
-- Potentially wider A&I team for visibility
-
-## Status
-
-Live but lightly adopted. Used occasionally by Fran and Madeleine — needs simplification to drive daily use.
-
-## Scope
-
-**In:** Content calendar, kanban workflow, approval queue, ideas board, LinkedIn submissions, A/B testing frameworks, copy optimiser (OpenAI), activity logging, notifications.
-
-**Out:** Fundraising content (separate team), website CMS, social media publishing (manual post from here).
-
-**Priority:** Simplification — strip complexity to drive adoption before adding features.
-
-**Planned additions (after simplification):**
-
-- Priority tiering system
-- Exportable calendar
-- New content form UX review
-
-## Technical Decisions
-
-- **Stack:** React 19 + esbuild + Tailwind CSS
-- **Backend:** Supabase (PostgreSQL + Auth + RLS + Realtime)
-- **Hosting:** TBC
-- **Legacy:** Cloudflare D1 backend still in codebase but deprecated
-- **CI:** GitHub Actions (claude-review.yml — currently blocked by Anthropic OAuth bug)
-- **Repo:** github.com/ddpopmatters/content-hub
-- **Tests:** 81 tests, Vitest
-
-## Open Questions
-
-- Should the exportable calendar integrate with Google Calendar or just produce .ics files?
-- Is the copy optimiser (OpenAI) actively used? Worth keeping/improving?
-- Should fundraising team have read access for visibility?
-
-## Dependencies
-
-- Supabase project: "Workstream Tool" (jzalaltexmotkusvqoew)
-- OpenAI API key for copy optimiser (optional)
+- Owns the content calendar, approvals, ideas pipeline, and LinkedIn submission workflow.
+- Does not own website CMS publishing or broader staff productivity workflows.
+- Shares infrastructure patterns with the wider PM tool suite, but the product language and backlog are specific to content operations.

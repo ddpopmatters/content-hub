@@ -641,3 +641,15 @@
   - Updated `src/__tests__/setup.ts` so it no longer relies on deprecated flat-config `eslint-env` comments
   - Verified with `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`
 - Status: Complete
+
+## 2026-04-15 - Consolidate repo metadata and agent instructions
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - Simplified `AGENTS.md` so it points at the canonical project contract instead of duplicating stale repo detail
+  - Reduced `CLAUDE.md` to a compatibility shim for Claude Code sessions
+  - Replaced the old freeform `PROJECT.md` brief with a structured canonical metadata block plus scope notes
+  - Trimmed `README.md` so it points at `PROJECT.md` for canonical metadata and keeps only the practical local entry points
+  - Reverted formatting-only churn in `public/content-hub-config.js` so the commit stays documentation-only
+- Status: Complete
