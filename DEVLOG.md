@@ -617,3 +617,15 @@
   - Verified with `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, and `deno check --node-modules-dir=auto supabase/functions/send-notification/index.ts`
   - Attempted to deploy `send-notification`, but the current shell no longer has a Supabase access token and needs `supabase login` before redeploy
 - Status: Complete
+
+## 2026-04-15 - Remove dead auth context and split Supabase mappers
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - Deleted `src/context/AuthContext.tsx`, which was no longer exported or used after the auth flow moved to `src/hooks/domain/useAuth.ts`
+  - Added `src/types/window.d.ts` so the ambient `window.api` and Supabase bootstrap contract lives in a dedicated type surface instead of an implementation file
+  - Extracted the pure enum/date mapping helpers from `src/lib/supabase.ts` into `src/lib/supabaseMappers.ts` to reduce file size and separate transport mapping from API logic
+  - Cleared touched warning debt in `src/app.jsx`, `src/hooks/domain/useEntries.ts`, `src/hooks/domain/useNotifications.ts`, and `src/hooks/domain/useSyncQueue.ts` without changing behaviour
+  - Verified with `npm run typecheck`, `npm run lint`, and `npm test -- src/lib/supabase.test.ts src/components/auth/LoginScreen.test.tsx src/hooks/domain/__tests__/useAuth.test.ts src/hooks/domain/__tests__/useEntries.test.ts src/hooks/domain/__tests__/useSyncQueue.test.ts`
+- Status: Complete

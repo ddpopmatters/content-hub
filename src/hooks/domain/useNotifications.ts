@@ -43,7 +43,11 @@ interface CommentLike {
   createdAt?: string;
 }
 
-export function useNotifications({ currentUser, runSyncTask, apiPost }: UseNotificationsDeps) {
+export function useNotifications({
+  currentUser,
+  runSyncTask,
+  apiPost: _apiPost,
+}: UseNotificationsDeps) {
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => loadNotifications());
 
   // Persist to localStorage

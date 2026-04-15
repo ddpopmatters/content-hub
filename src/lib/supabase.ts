@@ -2,216 +2,29 @@
 import type { SupabaseClient, Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { APP_CONFIG, Logger } from './config';
 import type { User as AppUser } from '../types/models';
+import { PRIORITY_TIERS } from '../constants';
 import {
-  CONTENT_CATEGORIES,
-  CTA_TYPES,
-  EXECUTION_STATUSES,
-  LINK_PLACEMENTS,
-  PRIORITY_TIERS,
-  RESPONSE_MODES,
-  SIGN_OFF_ROUTES,
-} from '../constants';
-import { daysInMonth } from './utils';
-
-/**
- * Compute the last day of a month from a YYYY-MM string.
- * Returns YYYY-MM-DD format.
- */
-const getMonthEndDate = (monthKey: string): string => {
-  const [yearStr, monthStr] = monthKey.split('-');
-  const year = parseInt(yearStr, 10);
-  const month = parseInt(monthStr, 10) - 1; // 0-indexed
-  const lastDay = daysInMonth(year, month);
-  return `${monthKey}-${String(lastDay).padStart(2, '0')}`;
-};
-
-/**
- * Map app workflow status to DB-allowed values.
- * DB constraint: ('Draft', 'In Review', 'Approved', 'Scheduled', 'Published')
- */
-const mapWorkflowStatusToDb = (status: string | undefined): string => {
-  if (!status) return 'Draft';
-  switch (status) {
-    case 'Draft':
-    case 'Approved':
-    case 'Published':
-      return status;
-    // New streamlined status maps to In Review
-    case 'Ready for Review':
-      return 'In Review';
-    // Legacy statuses for backward compatibility
-    case 'In Review':
-    case 'Approval required':
-    case 'Awaiting brand approval':
-    case 'Awaiting SME approval':
-    case 'Awaiting visual':
-      return 'In Review';
-    case 'Scheduled':
-      return 'Approved'; // Scheduled is now part of Approved
-    default:
-      return 'Draft';
-  }
-};
-
-/**
- * Map DB workflow status back to app values (streamlined 4-status system).
- */
-const mapWorkflowStatusFromDb = (status: string | undefined): string => {
-  if (!status) return 'Draft';
-  switch (status) {
-    case 'Draft':
-      return 'Draft';
-    case 'In Review':
-      return 'Ready for Review';
-    case 'Approved':
-    case 'Scheduled':
-      return 'Approved';
-    case 'Published':
-      return 'Published';
-    default:
-      return 'Draft';
-  }
-};
-
-const mapPriorityTierToDb = (priorityTier: string | undefined): string => {
-  if (!priorityTier) return 'Medium';
-  if (PRIORITY_TIERS.includes(priorityTier as (typeof PRIORITY_TIERS)[number])) {
-    return priorityTier;
-  }
-  return 'Medium';
-};
-
-const mapPriorityTierFromDb = (
-  priorityTier: string | undefined,
-): (typeof PRIORITY_TIERS)[number] => {
-  return PRIORITY_TIERS.find((tier) => tier === priorityTier) ?? 'Medium';
-};
-
-const mapContentCategoryFromDb = (
-  value: string | null | undefined,
-): (typeof CONTENT_CATEGORIES)[number] | undefined =>
-  CONTENT_CATEGORIES.find((option) => option === value) ?? undefined;
-
-const mapResponseModeFromDb = (
-  value: string | null | undefined,
-): (typeof RESPONSE_MODES)[number] | undefined =>
-  RESPONSE_MODES.find((option) => option === value) ?? undefined;
-
-const mapSignOffRouteFromDb = (
-  value: string | null | undefined,
-): (typeof SIGN_OFF_ROUTES)[number] | undefined =>
-  SIGN_OFF_ROUTES.find((option) => option === value) ?? undefined;
-
-const mapExecutionStatusFromDb = (
-  value: string | null | undefined,
-): (typeof EXECUTION_STATUSES)[number] | undefined =>
-  EXECUTION_STATUSES.find((option) => option === value) ?? undefined;
-
-const mapLinkPlacementFromDb = (
-  value: string | null | undefined,
-): (typeof LINK_PLACEMENTS)[number] | undefined =>
-  LINK_PLACEMENTS.find((option) => option === value) ?? undefined;
-
-const mapCtaTypeFromDb = (
-  value: string | null | undefined,
-): (typeof CTA_TYPES)[number] | undefined =>
-  CTA_TYPES.find((option) => option === value) ?? undefined;
-
-const OPPORTUNITY_URGENCY_LEVELS = ['High', 'Medium', 'Low'] as const;
-const OPPORTUNITY_STATUS_VALUES = ['Open', 'Acted', 'Dismissed'] as const;
-const CONTENT_REQUEST_STATUS_VALUES = ['Pending', 'In Progress', 'Converted', 'Declined'] as const;
-
-const mapOpportunityUrgencyToDb = (urgency: string | undefined): string => {
-  if (!urgency) return 'Medium';
-  if (OPPORTUNITY_URGENCY_LEVELS.includes(urgency as (typeof OPPORTUNITY_URGENCY_LEVELS)[number])) {
-    return urgency;
-  }
-  return 'Medium';
-};
-
-const mapOpportunityUrgencyFromDb = (
-  urgency: string | undefined,
-): (typeof OPPORTUNITY_URGENCY_LEVELS)[number] => {
-  return OPPORTUNITY_URGENCY_LEVELS.find((value) => value === urgency) ?? 'Medium';
-};
-
-const mapOpportunityStatusToDb = (status: string | undefined): string => {
-  if (!status) return 'Open';
-  if (OPPORTUNITY_STATUS_VALUES.includes(status as (typeof OPPORTUNITY_STATUS_VALUES)[number])) {
-    return status;
-  }
-  return 'Open';
-};
-
-const mapOpportunityStatusFromDb = (
-  status: string | undefined,
-): (typeof OPPORTUNITY_STATUS_VALUES)[number] => {
-  return OPPORTUNITY_STATUS_VALUES.find((value) => value === status) ?? 'Open';
-};
-
-const mapContentRequestStatusToDb = (status: string | undefined): string => {
-  if (!status) return 'Pending';
-  if (
-    CONTENT_REQUEST_STATUS_VALUES.includes(status as (typeof CONTENT_REQUEST_STATUS_VALUES)[number])
-  ) {
-    return status;
-  }
-  return 'Pending';
-};
-
-const mapContentRequestStatusFromDb = (
-  status: string | undefined,
-): (typeof CONTENT_REQUEST_STATUS_VALUES)[number] => {
-  return CONTENT_REQUEST_STATUS_VALUES.find((value) => value === status) ?? 'Pending';
-};
-
-/**
- * Map app testing framework status to DB-allowed values.
- * DB constraint: ('Planned', 'Running', 'Completed', 'Cancelled')
- */
-const mapTestingStatusToDb = (status: string | undefined): string => {
-  if (!status) return 'Planned';
-  switch (status) {
-    case 'Planned':
-    case 'Completed':
-      return status;
-    case 'In flight':
-      return 'Running';
-    case 'Archived':
-      return 'Cancelled';
-    case 'Running':
-    case 'Cancelled':
-      return status;
-    default:
-      return 'Planned';
-  }
-};
-
-/**
- * Map DB testing framework status back to app values.
- */
-const mapTestingStatusFromDb = (status: string | undefined): string => {
-  if (!status) return 'Planned';
-  switch (status) {
-    case 'Planned':
-    case 'Completed':
-      return status;
-    case 'Running':
-      return 'In flight';
-    case 'Cancelled':
-      return 'Archived';
-    default:
-      return status;
-  }
-};
-
-/**
- * Convert empty string to null for DATE columns.
- */
-const dateOrNull = (value: string | undefined): string | null => {
-  if (!value || value.trim() === '') return null;
-  return value;
-};
+  dateOrNull,
+  getMonthEndDate,
+  mapContentCategoryFromDb,
+  mapContentRequestStatusFromDb,
+  mapContentRequestStatusToDb,
+  mapCtaTypeFromDb,
+  mapExecutionStatusFromDb,
+  mapLinkPlacementFromDb,
+  mapOpportunityStatusFromDb,
+  mapOpportunityStatusToDb,
+  mapOpportunityUrgencyFromDb,
+  mapOpportunityUrgencyToDb,
+  mapPriorityTierFromDb,
+  mapPriorityTierToDb,
+  mapResponseModeFromDb,
+  mapSignOffRouteFromDb,
+  mapTestingStatusFromDb,
+  mapTestingStatusToDb,
+  mapWorkflowStatusFromDb,
+  mapWorkflowStatusToDb,
+} from './supabaseMappers';
 
 /**
  * Map DB testing framework row to app model.
@@ -323,16 +136,6 @@ type TestingFramework = {
   notes: string;
   createdAt: string;
 };
-
-// Extend Window interface for custom properties
-declare global {
-  interface Window {
-    supabase?: { createClient: typeof import('@supabase/supabase-js').createClient };
-    supabaseReady?: Promise<void>;
-    __currentUserEmail?: string | null;
-    __currentUserName?: string | null;
-  }
-}
 
 // Database row types (snake_case as stored in Supabase)
 interface EntryRow {

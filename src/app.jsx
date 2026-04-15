@@ -6,7 +6,7 @@ import { CalendarView } from './features/calendar/CalendarView';
 import { ApprovalsView } from './features/approvals';
 import { DashboardView } from './features/dashboard';
 import { EngagementView } from './features/engagement/EngagementView';
-import { ReportingView, ReportingWorkspace, ReportInsightsView } from './features/reporting';
+import { ReportingView, ReportInsightsView } from './features/reporting';
 import { ContentPeaksView } from './features/peaks';
 import { ContentSeriesView } from './features/series';
 import { RapidResponsesView } from './features/responses';
@@ -75,7 +75,7 @@ const { useState, useMemo, useEffect, useCallback, useRef } = React;
 
 function ContentDashboard() {
   // Destructure stable method references to avoid re-renders when loading/error state changes
-  const { get: apiGet, post: apiPost, put: apiPut, del: apiDel } = useApi();
+  const { get: apiGet, post: apiPost, del: apiDel } = useApi();
   const entryCreatedSideEffectsRef = useRef(() => {});
   const [monthCursor, setMonthCursor] = useState(() => new Date());
   // Domain hooks — Layer 1: needs API
@@ -195,15 +195,7 @@ function ContentDashboard() {
     runSyncTask: sync.runSyncTask,
     pushSyncToast: sync.pushSyncToast,
   });
-  const {
-    reportingPeriods,
-    createReport,
-    updateReport,
-    recalculateReport,
-    updateReportStatus,
-    deleteReport,
-    reset: resetReporting,
-  } = reportingHook;
+  const { reset: resetReporting } = reportingHook;
   const peaksHook = useContentPeaks({ currentUser });
   const { contentPeaks, addContentPeak, updateContentPeak, deleteContentPeak } = peaksHook;
   const seriesHook = useContentSeries({ currentUser });

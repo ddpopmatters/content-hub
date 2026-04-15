@@ -21,7 +21,7 @@ interface RunSyncOptions {
   requiresApi?: boolean;
 }
 
-// Window.api type is declared in context/AuthContext.tsx
+// `window.api` is defined globally by the app bootstrap/runtime surface.
 
 export function useSyncQueue() {
   const [syncQueue, setSyncQueue] = useState<SyncQueueItem[]>([]);

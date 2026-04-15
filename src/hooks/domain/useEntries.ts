@@ -65,6 +65,7 @@ export function useEntries({
   authStatus,
   onEntryCreated,
 }: UseEntriesDeps) {
+  void publishSettings;
   const [entries, setEntries] = useState<Record<string, unknown>[]>([]);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [viewingSnapshot, setViewingSnapshot] = useState<Record<string, unknown> | null>(null);
@@ -294,40 +295,6 @@ export function useEntries({
           }
         }
         try {
-          const payload = {
-            id: entry.id,
-            date: entry.date,
-            platforms: entry.platforms,
-            assetType: entry.assetType,
-            caption: entry.caption,
-            platformCaptions: entry.platformCaptions,
-            firstComment: entry.firstComment,
-            audienceSegments: entry.audienceSegments,
-            goldenThreadPass: entry.goldenThreadPass,
-            assessmentScores: entry.assessmentScores,
-            influencerId: entry.influencerId,
-            status: entry.status,
-            priorityTier: entry.priorityTier,
-            approvers: entry.approvers,
-            author: entry.author || currentUser || 'Unknown',
-            campaign: entry.campaign,
-            contentPillar: entry.contentPillar,
-            previewUrl: entry.previewUrl,
-            script: entry.script,
-            designCopy: entry.designCopy,
-            carouselSlides: entry.carouselSlides,
-            url: entry.url,
-            approvalDeadline: entry.approvalDeadline,
-            checklist: entry.checklist,
-            analytics: entry.analytics,
-            workflowStatus: entry.workflowStatus,
-            statusDetail: entry.statusDetail,
-            aiFlags: entry.aiFlags,
-            aiScore: entry.aiScore,
-            testingFrameworkId: entry.testingFrameworkId,
-            testingFrameworkName: entry.testingFrameworkName,
-            user: currentUser,
-          };
           runSyncTask(
             `Create entry (${entry.id})`,
             () =>
@@ -524,11 +491,6 @@ export function useEntries({
         const isNewEntry = existingEntry?._isNew;
 
         try {
-          const payload = { ...updated } as Record<string, unknown>;
-          delete payload.id;
-          delete payload._isNew;
-          delete payload._sourceIdeaId;
-
           if (isNewEntry) {
             runSyncTask(
               `Create entry (${updated.id})`,
