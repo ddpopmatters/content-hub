@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { PlanningCampaign } from '../../types/models';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -75,6 +75,8 @@ export function CampaignModal({
   const [endDate, setEndDate] = useState(campaign?.endDate ?? '');
   const [colour, setColour] = useState(campaign?.colour ?? GANTT_COLOUR_SWATCHES[8].value);
   const [notes, setNotes] = useState(campaign?.notes ?? '');
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const customTypeInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setName(campaign?.name ?? '');
@@ -89,6 +91,11 @@ export function CampaignModal({
   const isCustom = !isPreset(type);
   const selectValue = isCustom ? CUSTOM_SENTINEL : type;
   const resolvedType = isCustom ? customType.trim() : type;
+
+  useEffect(() => {
+    const nextTarget = isCustom ? customTypeInputRef.current : nameInputRef.current;
+    nextTarget?.focus();
+  }, [isCustom]);
 
   const dateError =
     startDate && endDate && endDate < startDate
@@ -153,10 +160,10 @@ export function CampaignModal({
               <Label htmlFor="campaign-name">Name</Label>
               <Input
                 id="campaign-name"
+                ref={nameInputRef}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Campaign name"
-                autoFocus
               />
             </div>
 
@@ -179,10 +186,10 @@ export function CampaignModal({
               </select>
               {isCustom && (
                 <Input
+                  ref={customTypeInputRef}
                   value={customType}
                   onChange={(e) => setCustomType(e.target.value)}
                   placeholder="Enter type name"
-                  autoFocus
                 />
               )}
             </div>

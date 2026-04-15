@@ -163,13 +163,13 @@ export function ApprovalsView({
   approvals = [],
   outstandingCount = 0,
   unreadMentionsCount = 0,
-  canUseCalendar = true,
+  canUseCalendar: _canUseCalendar = true,
   onApprove,
   onOpenEntry,
   onBackToMenu,
-  onGoToCalendar,
-  onCreateContent,
-  onSwitchUser,
+  onGoToCalendar: _onGoToCalendar,
+  onCreateContent: _onCreateContent,
+  onSwitchUser: _onSwitchUser,
 }: ApprovalsViewProps): React.ReactElement {
   return (
     <div className="space-y-6 p-6">

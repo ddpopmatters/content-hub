@@ -100,7 +100,7 @@ interface GanttShellProps {
   children: React.ReactNode;
 }
 
-function GanttShell({ year, monthWidths, todayPct, children }: GanttShellProps) {
+function GanttShell({ year: _year, monthWidths, todayPct, children }: GanttShellProps) {
   return (
     <div style={{ minWidth: 600 }}>
       <div className="mb-1 flex" style={{ marginLeft: 180 }}>

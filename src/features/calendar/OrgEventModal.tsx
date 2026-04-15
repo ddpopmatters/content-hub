@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button, Label } from '../../components/ui';
 import type { OrgEvent } from '../../types/models';
 import { GANTT_COLOUR_SWATCHES } from './CampaignModal';
@@ -68,6 +68,8 @@ export function OrgEventModal({
   const [endDate, setEndDate] = useState(event?.endDate ?? '');
   const [colour, setColour] = useState(event?.colour ?? TYPE_DEFAULT_COLOURS['conference']);
   const [notes, setNotes] = useState(event?.notes ?? '');
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const customTypeInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setName(event?.name ?? '');
@@ -82,6 +84,11 @@ export function OrgEventModal({
   const isCustom = !isPreset(type);
   const selectValue = isCustom ? CUSTOM_SENTINEL : type;
   const resolvedType = isCustom ? customType.trim() : type;
+
+  useEffect(() => {
+    const nextTarget = isCustom ? customTypeInputRef.current : nameInputRef.current;
+    nextTarget?.focus();
+  }, [isCustom]);
 
   function handleTypeChange(val: string) {
     if (val === CUSTOM_SENTINEL) {
@@ -134,10 +141,13 @@ export function OrgEventModal({
       aria-modal="true"
       aria-label={isEditMode ? 'Edit org event' : 'Add org event'}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
+      <button
+        type="button"
+        aria-label="Close org event modal"
+        onClick={onClose}
+        className="absolute inset-0"
+      />
       <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-graystone-100 px-5 py-4">
@@ -166,12 +176,12 @@ export function OrgEventModal({
             <Label htmlFor="org-event-name">Name</Label>
             <input
               id="org-event-name"
+              ref={nameInputRef}
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. World Population Day"
               className={inputClass}
-              autoFocus
             />
           </div>
 
@@ -194,12 +204,12 @@ export function OrgEventModal({
             </select>
             {isCustom && (
               <input
+                ref={customTypeInputRef}
                 type="text"
                 value={customType}
                 onChange={(e) => setCustomType(e.target.value)}
                 placeholder="Enter type name"
                 className={inputClass}
-                autoFocus
               />
             )}
           </div>

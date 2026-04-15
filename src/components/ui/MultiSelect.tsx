@@ -65,14 +65,9 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
       </Button>
       {open && (
         <div className="absolute left-0 top-12 z-30 w-full rounded-3xl border border-black bg-white text-black shadow-[0_0_25px_rgba(15,157,222,0.3)]">
-          <div className="max-h-52 overflow-y-auto py-2" role="listbox" aria-multiselectable="true">
+          <div className="max-h-52 overflow-y-auto py-2">
             {options.map((option) => (
-              <label
-                key={option.value}
-                className={MULTI_OPTION_BASE}
-                role="option"
-                aria-selected={value.includes(option.value)}
-              >
+              <label key={option.value} className={MULTI_OPTION_BASE}>
                 <input
                   type="checkbox"
                   className={checklistCheckboxClass}

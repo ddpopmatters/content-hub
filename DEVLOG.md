@@ -629,3 +629,15 @@
   - Cleared touched warning debt in `src/app.jsx`, `src/hooks/domain/useEntries.ts`, `src/hooks/domain/useNotifications.ts`, and `src/hooks/domain/useSyncQueue.ts` without changing behaviour
   - Verified with `npm run typecheck`, `npm run lint`, and `npm test -- src/lib/supabase.test.ts src/components/auth/LoginScreen.test.tsx src/hooks/domain/__tests__/useAuth.test.ts src/hooks/domain/__tests__/useEntries.test.ts src/hooks/domain/__tests__/useSyncQueue.test.ts`
 - Status: Complete
+
+## 2026-04-15 - Clear remaining lint warning backlog
+
+- Tool: Codex
+- Branch: codex-content-hub-remediation
+- Changes:
+  - Removed the remaining lint warnings across `src/components/ui/MultiSelect.tsx`, `src/features/approvals/ApprovalsView.tsx`, `src/features/calendar/CalendarView.tsx`, `src/features/calendar/CampaignModal.tsx`, `src/features/calendar/OrgEventModal.tsx`, `src/features/calendar/YearPlanView.tsx`, `src/features/dashboard/widgets/WeeklyStatsWidget.tsx`, `src/features/entry/EntryForm.tsx`, and `src/features/entry/EntryModal.jsx`
+  - Replaced `autoFocus` usage with explicit ref-based focus management in modal flows, fixed the invalid checkbox listbox semantics in `MultiSelect`, and removed stale unused variables and props
+  - Added an explicit captions track placeholder for preview videos so the a11y media checks pass without changing the preview flow
+  - Updated `src/__tests__/setup.ts` so it no longer relies on deprecated flat-config `eslint-env` comments
+  - Verified with `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`
+- Status: Complete

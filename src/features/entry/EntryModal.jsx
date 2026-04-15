@@ -88,6 +88,7 @@ const { useState, useMemo, useEffect, useCallback, useRef } = React;
 const DRAFT_ENTRY_STORAGE_KEY = STORAGE_KEYS.DRAFT_ENTRY;
 // Auto-save interval in milliseconds (30 seconds)
 const DRAFT_AUTO_SAVE_INTERVAL = 30000;
+const EMPTY_CAPTIONS_TRACK = 'data:text/vtt;charset=utf-8,WEBVTT';
 
 // Default user records for mention directory
 const normalizeUserValue = (value) => {
@@ -713,7 +714,6 @@ export function EntryModal({
             },
           ]),
   ];
-  const canApproveReadiness = approvalBlockers.length === 0;
   const formatFriendlyDate = (value) => {
     if (!value) return 'Not set';
     const parsed = new Date(value);
@@ -853,7 +853,14 @@ export function EntryModal({
                       className="max-h-80 w-full object-contain"
                     />
                   ) : isVid ? (
-                    <video src={url} controls className="max-h-80 w-full" />
+                    <video src={url} controls className="max-h-80 w-full">
+                      <track
+                        kind="captions"
+                        src={EMPTY_CAPTIONS_TRACK}
+                        srcLang="en"
+                        label="Captions"
+                      />
+                    </video>
                   ) : (
                     <a
                       href={url}
@@ -1012,7 +1019,14 @@ export function EntryModal({
                         className="max-h-80 w-full object-contain"
                       />
                     ) : isVid ? (
-                      <video src={url} controls className="max-h-80 w-full" />
+                      <video src={url} controls className="max-h-80 w-full">
+                        <track
+                          kind="captions"
+                          src={EMPTY_CAPTIONS_TRACK}
+                          srcLang="en"
+                          label="Captions"
+                        />
+                      </video>
                     ) : (
                       <a
                         href={url}

@@ -26,7 +26,6 @@ import {
   PRIORITY_TIERS,
   recommendApproversForRoute,
   recommendSignOffRoute,
-  SIGN_OFF_ROUTES,
 } from '../../constants';
 import {
   Card,
@@ -192,8 +191,15 @@ export function EntryForm({
   const [autoApprovers, setAutoApprovers] = useState<boolean>(true);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const conflictWarningRef = useRef<HTMLDivElement>(null);
+  const newInfluencerNameRef = useRef<HTMLInputElement>(null);
   const categories = useCategories();
   const { canUploadFiles, uploadFiles } = useAssetPreviewUpload({ pushSyncToast });
+
+  useEffect(() => {
+    if (showNewInfluencerModal) {
+      newInfluencerNameRef.current?.focus();
+    }
+  }, [showNewInfluencerModal]);
 
   useEffect(() => {
     if (!initialValues) return;
@@ -1695,10 +1701,10 @@ export function EntryForm({
                 <Label htmlFor="new-influencer-name">Name</Label>
                 <Input
                   id="new-influencer-name"
+                  ref={newInfluencerNameRef}
                   value={newInfluencerName}
                   onChange={(e) => setNewInfluencerName(e.target.value)}
                   placeholder="Influencer name"
-                  autoFocus
                 />
               </div>
               <div className="space-y-1.5">
