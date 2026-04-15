@@ -7,12 +7,11 @@ const hasStaticApiBridgeScript = (): boolean => {
 };
 
 interface UseApprovalsDeps {
-  apiGet: (url: string) => Promise<unknown>;
   entries: Record<string, unknown>[];
   viewerMatchesValue: (value: unknown) => boolean;
 }
 
-export function useApprovals({ apiGet, entries, viewerMatchesValue }: UseApprovalsDeps) {
+export function useApprovals({ entries, viewerMatchesValue }: UseApprovalsDeps) {
   const [approverDirectory, setApproverDirectory] = useState<string[]>(DEFAULT_APPROVERS);
 
   const refreshApprovers = useCallback(async () => {
@@ -29,7 +28,8 @@ export function useApprovals({ apiGet, entries, viewerMatchesValue }: UseApprova
         setApproverDirectory(DEFAULT_APPROVERS);
         return;
       } else {
-        payload = await apiGet('/api/approvers');
+        setApproverDirectory(DEFAULT_APPROVERS);
+        return;
       }
       if (Array.isArray(payload) && payload.length) {
         setApproverDirectory(
@@ -50,7 +50,7 @@ export function useApprovals({ apiGet, entries, viewerMatchesValue }: UseApprova
       console.warn('Failed to load approvers', error);
       setApproverDirectory(DEFAULT_APPROVERS);
     }
-  }, [apiGet]);
+  }, []);
 
   useEffect(() => {
     refreshApprovers();

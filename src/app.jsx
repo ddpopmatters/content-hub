@@ -286,7 +286,7 @@ function ContentDashboard() {
     trashed,
   } = entriesHook;
 
-  const approvals = useApprovals({ apiGet, entries, viewerMatchesValue });
+  const approvals = useApprovals({ entries, viewerMatchesValue });
   const { approverDirectory, refreshApprovers, outstandingApprovals } = approvals;
 
   const admin = useAdmin({

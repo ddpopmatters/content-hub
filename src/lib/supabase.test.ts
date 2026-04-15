@@ -28,6 +28,7 @@ function createMockSupabaseClient(
     data: { ok: true, sent: 1, failed: 0 },
     error: null,
   },
+  session: { access_token: string } | null = { access_token: 'session-token' },
 ) {
   const profileRows = rows.map((row) => ({ ...row }));
   const updates: Array<{ filters: Record<string, unknown>; payload: Record<string, unknown> }> = [];
@@ -80,6 +81,7 @@ function createMockSupabaseClient(
     client: {
       auth: {
         getUser: vi.fn().mockResolvedValue({ data: { user: authUser } }),
+        getSession: vi.fn().mockResolvedValue({ data: { session } }),
         stopAutoRefresh: vi.fn(),
       },
       functions: {
@@ -295,5 +297,25 @@ describe('SUPABASE_API.sendNotification', () => {
     await expect(
       SUPABASE_API.sendNotification({ subject: 'Test', text: 'Hello', toEmails: ['a@pm.org'] }),
     ).rejects.toThrow('Edge function unavailable');
+  });
+});
+
+describe('SUPABASE_API.fetchAdminUsers', () => {
+  it('returns an empty list without hitting tables when there is no authenticated session', async () => {
+    const { client } = createMockSupabaseClient(
+      {
+        id: 'intel-user-1',
+        email: 'francesca.harrison@populationmatters.org',
+      },
+      [],
+      { data: { users: [] }, error: null },
+      null,
+    );
+    const { SUPABASE_API } = await loadSupabaseModule(client);
+
+    const users = await SUPABASE_API.fetchAdminUsers();
+
+    expect(users).toEqual([]);
+    expect(client.from).not.toHaveBeenCalledWith('user_profiles');
   });
 });

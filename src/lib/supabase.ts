@@ -654,15 +654,14 @@ const disableSupabaseForSession = () => {
 
 const verifySupabaseConnection = async (): Promise<boolean> => {
   try {
-    await fetch(`${APP_CONFIG.SUPABASE_URL}/rest/v1/`, {
+    const response = await fetch(`${APP_CONFIG.SUPABASE_URL}/auth/v1/settings`, {
       method: 'GET',
       headers: {
         apikey: APP_CONFIG.SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${APP_CONFIG.SUPABASE_ANON_KEY}`,
       },
       cache: 'no-store',
     });
-    return true;
+    return response.ok;
   } catch (error) {
     if (isNetworkLikeError(error)) {
       disableSupabaseForSession();
@@ -702,6 +701,17 @@ const resolveEntryActorEmail = (userEmail: string | undefined): string | null =>
   return getCurrentUserEmail() ?? (trimmed || null);
 };
 
+const getAuthenticatedSession = async (): Promise<Session | null> => {
+  await initSupabase();
+  if (!supabase) return null;
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  return session ?? null;
+};
+
 const mapUserProfileToAppUser = (
   row: UserProfileRow,
 ): AppUser & { managerEmail?: string | null } => ({
@@ -722,12 +732,7 @@ const mapUserProfileToAppUser = (
 const invokeAdminUsers = async (
   payload: Record<string, unknown>,
 ): Promise<AdminUserFunctionResponse> => {
-  await initSupabase();
-  if (!supabase) throw new Error('Supabase not initialized');
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const session = await getAuthenticatedSession();
   if (!session?.access_token) {
     throw new Error('Not authenticated');
   }
@@ -2231,8 +2236,8 @@ export const SUPABASE_API = {
   // ==========================================
 
   fetchUserProfiles: async (): Promise<UserProfileRow[]> => {
-    await initSupabase();
-    if (!supabase) return [];
+    const session = await getAuthenticatedSession();
+    if (!session?.access_token || !supabase) return [];
 
     try {
       const { data, error } = await supabase
@@ -2257,6 +2262,9 @@ export const SUPABASE_API = {
       const { users } = await invokeAdminUsers({ action: 'list' });
       return Array.isArray(users) ? users.map(mapUserProfileToAppUser) : [];
     } catch (error) {
+      if (error instanceof Error && error.message === 'Not authenticated') {
+        return [];
+      }
       Logger.error(error, 'fetchAdminUsers');
       const profiles = await SUPABASE_API.fetchUserProfiles();
       return profiles.map(mapUserProfileToAppUser);

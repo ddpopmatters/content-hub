@@ -700,3 +700,18 @@
   - Supabase Management API verification query confirming `relrowsecurity = true`
   - Supabase Management API verification query confirming no remaining policies on `public.platform_connections`
 - Status: Complete
+
+## 2026-04-15 - Remove stale admin and approver console errors
+
+- Tool: Codex
+- Branch: codex/platform-connection-hardening
+- Changes:
+  - Removed the dead `/api/approvers` fallback from `useApprovals` so GitHub Pages no longer makes a guaranteed 404 request when the Cloudflare bridge is absent
+  - Changed the Supabase reachability check to use the public auth settings endpoint instead of probing `rest/v1/`, which was generating an expected-but-noisy 401 in the browser console
+  - Hardened admin/profile fetches so they return early when there is no authenticated Supabase session instead of cascading into repeated 401s from `admin-users` and `user_profiles`
+  - Added regression coverage for the unauthenticated `fetchAdminUsers` path
+- Verification:
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm test -- src/hooks/domain/__tests__/useApprovals.test.ts src/hooks/domain/__tests__/useAdmin.test.ts src/lib/supabase.test.ts`
+- Status: Complete

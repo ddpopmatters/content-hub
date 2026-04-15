@@ -1,12 +1,11 @@
 import { renderHook } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { useApprovals } from '../useApprovals';
 
 describe('useApprovals', () => {
   it('matches outstanding approvals using the shared viewer matcher', () => {
     const { result } = renderHook(() =>
       useApprovals({
-        apiGet: vi.fn(),
         entries: [
           {
             id: 'entry-1',
