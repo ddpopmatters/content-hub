@@ -745,3 +745,17 @@
   - `supabase functions deploy admin-users --project-ref oepehanwmfelowfumkes`
   - `supabase functions deploy platform-connections --project-ref oepehanwmfelowfumkes`
 - Status: Complete
+
+## 2026-04-16 - Retry admin edge auth with direct token verification
+
+- Tool: Codex
+- Branch: codex/admin-edge-auth-fix-2
+- Changes:
+  - Replaced the request-auth lookup in `admin-users` and `platform-connections` with a direct `auth/v1/user` verification call using the incoming bearer token, after the previous request-scoped client approach still returned `401` in production
+  - Redeployed both functions live to Supabase project `oepehanwmfelowfumkes`
+- Verification:
+  - `deno check --node-modules-dir=auto supabase/functions/admin-users/index.ts`
+  - `deno check --node-modules-dir=auto supabase/functions/platform-connections/index.ts`
+  - `supabase functions deploy admin-users --project-ref oepehanwmfelowfumkes`
+  - `supabase functions deploy platform-connections --project-ref oepehanwmfelowfumkes`
+- Status: Complete

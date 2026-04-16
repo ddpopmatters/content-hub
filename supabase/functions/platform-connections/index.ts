@@ -3,6 +3,7 @@ import { corsHeaders, handleCors } from '../_shared/cors.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
 interface PlatformConnectionRow {
   id: string;
@@ -34,18 +35,20 @@ const normalizeEmail = (value: string | null | undefined): string =>
 
 const getServiceClient = () => createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-const getRequestAuthClient = (authHeader: string) =>
-  createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-    global: {
-      headers: {
-        Authorization: authHeader,
-      },
+async function getRequestUser(authHeader: string) {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: authHeader,
     },
   });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return (await response.json()) as { email?: string | null } | null;
+}
 
 async function requireAdmin(req: Request) {
   const authHeader = req.headers.get('Authorization') ?? '';
@@ -54,13 +57,8 @@ async function requireAdmin(req: Request) {
     throw json({ error: 'Unauthorized' }, 401);
   }
 
-  const authClient = getRequestAuthClient(authHeader);
-  const {
-    data: { user },
-    error: userError,
-  } = await authClient.auth.getUser();
-
-  if (userError || !user?.email) {
+  const user = await getRequestUser(authHeader);
+  if (!user?.email) {
     throw json({ error: 'Unauthorized' }, 401);
   }
 
