@@ -730,3 +730,18 @@
   - `npm run typecheck`
   - `npm run lint`
 - Status: Complete
+
+## 2026-04-16 - Fix admin edge auth for invites and platform connections
+
+- Tool: Codex
+- Branch: codex/admin-edge-auth-fix
+- Changes:
+  - Updated `supabase/functions/admin-users/index.ts` and `supabase/functions/platform-connections/index.ts` to validate the caller through a request-scoped Supabase auth client using the incoming `Authorization` header, instead of relying on the previous `auth.getUser(token)` path that was rejecting valid browser sessions
+  - Kept privileged table reads and writes on the service-role client after the user is resolved, so admin-only behaviour is unchanged apart from the authentication fix
+  - Deployed both fixed edge functions live to Supabase project `oepehanwmfelowfumkes`
+- Verification:
+  - `deno check --node-modules-dir=auto supabase/functions/admin-users/index.ts`
+  - `deno check --node-modules-dir=auto supabase/functions/platform-connections/index.ts`
+  - `supabase functions deploy admin-users --project-ref oepehanwmfelowfumkes`
+  - `supabase functions deploy platform-connections --project-ref oepehanwmfelowfumkes`
+- Status: Complete

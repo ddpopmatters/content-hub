@@ -56,6 +56,19 @@ const normalizeEmail = (value: string | null | undefined): string => {
 
 const getServiceClient = () => createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+const getRequestAuthClient = (authHeader: string) =>
+  createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+    global: {
+      headers: {
+        Authorization: authHeader,
+      },
+    },
+  });
+
 const isExistingAuthUserError = (message: string | null | undefined): boolean => {
   return /already been registered|email_exists/i.test(message ?? '');
 };
@@ -79,8 +92,7 @@ async function findAuthUserByEmail(
     }
 
     const users = Array.isArray(data.users) ? (data.users as AuthAdminUser[]) : [];
-    const existingUser =
-      users.find((user) => normalizeEmail(user.email) === email) ?? null;
+    const existingUser = users.find((user) => normalizeEmail(user.email) === email) ?? null;
 
     if (existingUser) {
       return { user: existingUser, error: null };
@@ -106,11 +118,11 @@ async function requireAdmin(req: Request) {
     });
   }
 
-  const supabase = getServiceClient();
+  const authClient = getRequestAuthClient(authHeader);
   const {
     data: { user },
     error: userError,
-  } = await supabase.auth.getUser(token);
+  } = await authClient.auth.getUser();
 
   if (userError || !user?.email) {
     throw new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -119,6 +131,7 @@ async function requireAdmin(req: Request) {
     });
   }
 
+  const supabase = getServiceClient();
   const email = normalizeEmail(user.email);
   const { data: profile, error: profileError } = await supabase
     .from('user_profiles')
