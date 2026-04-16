@@ -1,10 +1,11 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { getSuperAdminEmail, isSuperAdminEmail } from '../_shared/adminAccess.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-const APP_URL = Deno.env.get('APP_URL') ?? 'https://ddpopmatters.github.io/content-hub';
+const APP_URL = Deno.env.get('APP_URL') ?? 'https://ddpopmatters.github.io/content-hub/';
 
 interface UserProfileRow {
   id: string;
@@ -69,7 +70,7 @@ async function getRequestUser(authHeader: string) {
     return null;
   }
 
-  return (await response.json()) as { email?: string | null } | null;
+  return (await response.json()) as { id?: string | null; email?: string | null } | null;
 }
 
 const isExistingAuthUserError = (message: string | null | undefined): boolean => {
@@ -111,7 +112,96 @@ async function findAuthUserByEmail(
   return { user: null, error: null };
 }
 
-async function requireAdmin(req: Request) {
+async function fetchAdminProfileByAuthUserId(
+  supabase: ReturnType<typeof getServiceClient>,
+  authUserId: string,
+) {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('id, email, is_admin, auth_user_id')
+    .eq('auth_user_id', authUserId)
+    .maybeSingle();
+
+  if (error) return null;
+  return data as {
+    id: string;
+    email: string;
+    is_admin: boolean;
+    auth_user_id: string | null;
+  } | null;
+}
+
+async function fetchAdminProfileByEmail(
+  supabase: ReturnType<typeof getServiceClient>,
+  email: string,
+) {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('id, email, is_admin, auth_user_id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (error) return null;
+  return data as {
+    id: string;
+    email: string;
+    is_admin: boolean;
+    auth_user_id: string | null;
+  } | null;
+}
+
+async function relinkAdminProfileAuthUser(
+  supabase: ReturnType<typeof getServiceClient>,
+  profile: { id: string; email: string; is_admin: boolean; auth_user_id: string | null },
+  authUserId: string,
+) {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .update({ auth_user_id: authUserId })
+    .eq('id', profile.id)
+    .select('id, email, is_admin, auth_user_id')
+    .maybeSingle();
+
+  if (error) return profile;
+  return (
+    (data as { id: string; email: string; is_admin: boolean; auth_user_id: string | null }) ??
+    profile
+  );
+}
+
+async function resolveAdminProfile(
+  supabase: ReturnType<typeof getServiceClient>,
+  authUserId: string | null,
+  email: string,
+) {
+  if (authUserId) {
+    const profileByAuthUserId = await fetchAdminProfileByAuthUserId(supabase, authUserId);
+    if (profileByAuthUserId) return profileByAuthUserId;
+  }
+
+  const profileByEmail = await fetchAdminProfileByEmail(supabase, email);
+  if (!profileByEmail) return null;
+
+  if (!authUserId || profileByEmail.auth_user_id === authUserId) {
+    return profileByEmail;
+  }
+
+  return relinkAdminProfileAuthUser(supabase, profileByEmail, authUserId);
+}
+
+async function syncCanonicalAdminState(supabase: ReturnType<typeof getServiceClient>) {
+  const superAdminEmail = getSuperAdminEmail();
+
+  await supabase
+    .from('user_profiles')
+    .update({ is_admin: false })
+    .eq('is_admin', true)
+    .neq('email', superAdminEmail);
+
+  await supabase.from('user_profiles').update({ is_admin: true }).eq('email', superAdminEmail);
+}
+
+async function requireSuperAdmin(req: Request) {
   const authHeader = req.headers.get('Authorization') ?? '';
   const token = authHeader.replace(/^Bearer\s+/i, '').trim();
   if (!token) {
@@ -130,19 +220,18 @@ async function requireAdmin(req: Request) {
   }
 
   const supabase = getServiceClient();
+  const authUserId = typeof user.id === 'string' ? user.id : null;
   const email = normalizeEmail(user.email);
-  const { data: profile, error: profileError } = await supabase
-    .from('user_profiles')
-    .select('id, email, is_admin')
-    .eq('email', email)
-    .maybeSingle();
+  const profile = await resolveAdminProfile(supabase, authUserId, email);
 
-  if (profileError || !profile?.is_admin) {
+  if (!profile || !isSuperAdminEmail(email)) {
     throw new Response(JSON.stringify({ error: 'Forbidden' }), {
       status: 403,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
+
+  await syncCanonicalAdminState(supabase);
 
   return { supabase, user };
 }
@@ -163,7 +252,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { supabase } = await requireAdmin(req);
+    const { supabase } = await requireSuperAdmin(req);
 
     switch (payload.action) {
       case 'list': {

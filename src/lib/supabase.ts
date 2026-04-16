@@ -1,6 +1,7 @@
 // Supabase client and API wrapper - matching PM-Productivity-Tool pattern
 import type { SupabaseClient, Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { APP_CONFIG, Logger } from './config';
+import { isSuperAdminEmail } from './adminAccess';
 import type { User as AppUser } from '../types/models';
 import { PRIORITY_TIERS } from '../constants';
 import {
@@ -719,7 +720,7 @@ const mapUserProfileToAppUser = (
   email: row.email,
   name: row.name,
   status: row.status,
-  isAdmin: Boolean(row.is_admin),
+  isAdmin: isSuperAdminEmail(row.email),
   isApprover: Boolean(row.is_approver),
   managerEmail: row.manager_email ?? null,
   avatarUrl: row.avatar_url ?? null,

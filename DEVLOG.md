@@ -759,3 +759,79 @@
   - `supabase functions deploy admin-users --project-ref oepehanwmfelowfumkes`
   - `supabase functions deploy platform-connections --project-ref oepehanwmfelowfumkes`
 - Status: Complete
+
+## 2026-04-16 - Normalise shared Supabase Auth config for Content Hub and Intel Hub
+
+- Tool: Codex
+- Branch: codex/edge-jwt-config-fix
+- Changes:
+  - Audited Content Hub and Intel Hub invite and auth redirect flows to confirm both products use explicit product redirects instead of depending on the shared Supabase Auth `site_url`
+  - Updated the live shared Supabase Auth config for project `oepehanwmfelowfumkes` so `site_url` is the neutral `https://populationmatters.org` fallback instead of a product-specific URL
+  - Updated the live shared invite template copy to remove the misleading product-specific `{{ .SiteURL }}` wording
+  - Expanded the live redirect allow-list to cover both Content Hub and Intel Hub URLs, including Intel Hub Pages and Vercel routes used by the current codebase
+- Verification:
+  - `curl -sS https://api.supabase.com/v1/projects/oepehanwmfelowfumkes/config/auth -H 'Authorization: Bearer [token]'`
+  - Confirmed `site_url` is `https://populationmatters.org`
+  - Confirmed `mailer_templates_invite_content` now uses neutral Population Matters tool wording
+  - Confirmed `uri_allow_list` includes Content Hub and Intel Hub redirect targets
+- Status: Complete
+
+## 2026-04-16 - Fix Content Hub invite acceptance fallback to shared site URL
+
+- Tool: Codex
+- Branch: codex/edge-jwt-config-fix
+- Changes:
+  - Identified that Content Hub invite acceptance was falling back to the shared Supabase Auth `site_url` because the invite redirect used the bare `https://ddpopmatters.github.io/content-hub` URL, while the hosted allow-list only covered the path wildcard variant
+  - Updated `supabase/functions/admin-users/index.ts` so new Content Hub invites use the canonical trailing-slash redirect `https://ddpopmatters.github.io/content-hub/`
+  - Updated the live shared Supabase Auth allow-list to include both exact Content Hub root URLs and explicit Intel Hub login URLs alongside the existing wildcard entries
+  - Redeployed the live `admin-users` function to Supabase project `oepehanwmfelowfumkes`
+- Verification:
+  - `curl -sS https://api.supabase.com/v1/projects/oepehanwmfelowfumkes/config/auth -H 'Authorization: Bearer [token]'`
+  - Confirmed `uri_allow_list` now includes `https://ddpopmatters.github.io/content-hub` and `https://ddpopmatters.github.io/content-hub/`
+  - `supabase functions deploy admin-users --project-ref oepehanwmfelowfumkes --no-verify-jwt`
+- Status: Complete
+
+## 2026-04-16 - Brand the shared invite email for PM internal tools
+
+- Tool: Codex
+- Branch: codex/edge-jwt-config-fix
+- Changes:
+  - Replaced the plain shared Supabase invite email with a branded HTML template using the Population Matters logo, ocean accent header, card layout, and button CTA
+  - Kept the wording neutral so the same shared-auth project still works for both Content Hub and Intel Hub without implying a single product
+  - Included the raw confirmation link fallback in the email body for mail clients that suppress buttons or HTML styling
+- Verification:
+  - `curl -I -sS https://populationmatters.org/wp-content/uploads/2022/03/PM-logo.png`
+  - `curl -sS https://api.supabase.com/v1/projects/oepehanwmfelowfumkes/config/auth -H 'Authorization: Bearer [token]'`
+  - Confirmed `mailer_templates_invite_content` now stores the branded HTML template in the live shared auth project
+- Status: Complete
+
+## 2026-04-16 - Align admin edge auth with frontend profile resolution
+
+- Tool: Codex
+- Branch: codex/edge-jwt-config-fix
+- Changes:
+  - Updated `supabase/functions/admin-users/index.ts` so the admin guard resolves the caller the same way as the frontend: by `auth_user_id` first, then by email, with automatic relinking when the profile row exists but the stored `auth_user_id` has drifted
+  - Removed the edge-only dependency on exact email matching that was producing `Forbidden` even when the browser session already resolved to an admin profile in the app
+  - Redeployed the live `admin-users` function to Supabase project `oepehanwmfelowfumkes`
+- Verification:
+  - `deno check --node-modules-dir=auto supabase/functions/admin-users/index.ts`
+  - `supabase functions deploy admin-users --project-ref oepehanwmfelowfumkes --no-verify-jwt`
+- Status: Complete
+
+## 2026-04-16 - Lock Content Hub admin access to the canonical PM super-admin account
+
+- Tool: Codex
+- Branch: codex/edge-jwt-config-fix
+- Changes:
+  - Added a single canonical super-admin identity for `daniel.davis@populationmatters.org` in both the frontend and edge-function layers
+  - Updated the browser auth model so admin UI and admin feature access only recognise the canonical super-admin email rather than any row with `is_admin = true`
+  - Updated `admin-users` and `platform-connections` to require the canonical super-admin email server-side and to normalise `user_profiles.is_admin` so every other account is demoted on the next privileged admin request
+  - Kept user creation as non-admin by default, which means only the canonical super-admin account can retain or restore admin capability
+- Verification:
+  - `npm test -- src/hooks/domain/__tests__/useAuth.test.ts src/lib/adminAccess.test.ts src/lib/supabase.test.ts`
+  - `npm run typecheck`
+  - `deno check --node-modules-dir=auto supabase/functions/admin-users/index.ts`
+  - `deno check --node-modules-dir=auto supabase/functions/platform-connections/index.ts`
+  - `supabase functions deploy admin-users --project-ref oepehanwmfelowfumkes --no-verify-jwt`
+  - `supabase functions deploy platform-connections --project-ref oepehanwmfelowfumkes --no-verify-jwt`
+- Status: Complete

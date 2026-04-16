@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { ensurePeopleArray, normalizeEmail, storageAvailable, STORAGE_KEYS } from '../../lib/utils';
 import { ensureFeaturesList } from '../../lib/users';
+import { isSuperAdminEmail } from '../../lib/adminAccess';
 import { AUTH, SUPABASE_API } from '../../lib/supabase';
 const USER_STORAGE_KEY = STORAGE_KEYS.USER;
 
@@ -241,7 +242,7 @@ export function useAuth() {
       setCurrentUserEmail(profile?.email || fallbackEmail);
       setCurrentUserAvatar(profile?.avatar_url || '');
       setCurrentUserFeatures(ensureFeaturesList(profile?.features));
-      setCurrentUserIsAdmin(Boolean(profile?.is_admin));
+      setCurrentUserIsAdmin(isSuperAdminEmail(profile?.email || fallbackEmail));
       if (inviteFlowActive) {
         setCurrentUserHasPassword(false);
         setAuthStatus('invite');
@@ -317,7 +318,7 @@ export function useAuth() {
         setCurrentUserEmail(profile.email);
         setCurrentUserAvatar(profile.avatar_url || '');
         setCurrentUserFeatures(ensureFeaturesList(profile.features));
-        setCurrentUserIsAdmin(Boolean(profile.is_admin));
+        setCurrentUserIsAdmin(isSuperAdminEmail(profile.email));
         setCurrentUserHasPassword(true);
         setAuthStatus('ready');
         setAuthError('');
@@ -406,7 +407,7 @@ export function useAuth() {
         setCurrentUserEmail(profile?.email || email);
         setCurrentUserAvatar(profile?.avatar_url || '');
         setCurrentUserFeatures(ensureFeaturesList(profile?.features));
-        setCurrentUserIsAdmin(Boolean(profile?.is_admin));
+        setCurrentUserIsAdmin(isSuperAdminEmail(profile?.email || email));
         setCurrentUserHasPassword(true);
         setInvitePassword('');
         setInvitePasswordConfirm('');
@@ -460,7 +461,7 @@ export function useAuth() {
         setCurrentUserEmail(String(profile?.email || user?.email || ''));
         setCurrentUserAvatar(String(profile?.avatarUrl || profile?.avatar_url || ''));
         setCurrentUserFeatures(ensureFeaturesList(profile?.features));
-        setCurrentUserIsAdmin(Boolean(profile?.isAdmin || profile?.is_admin));
+        setCurrentUserIsAdmin(isSuperAdminEmail(String(profile?.email || user?.email || '')));
         setCurrentUserHasPassword(!inviteFlowActive);
         setAuthStatus(inviteFlowActive ? 'invite' : 'ready');
       } else {

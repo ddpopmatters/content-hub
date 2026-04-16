@@ -157,15 +157,36 @@ describe('useAuth — viewer utilities', () => {
   });
 
   describe('hasFeature', () => {
-    it('returns true for admin regardless of features', () => {
+    it('returns true for the super-admin account regardless of features', () => {
       const { result } = renderHook(() => useAuth());
       act(() => {
         result.current.handleAuthChange({
-          profile: { id: '1', email: 'admin@pm.org', is_admin: true, features: [] },
+          profile: {
+            id: '1',
+            email: 'daniel.davis@populationmatters.org',
+            is_admin: true,
+            features: [],
+          },
         });
       });
       expect(result.current.hasFeature('calendar')).toBe(true);
       expect(result.current.hasFeature('anything')).toBe(true);
+    });
+
+    it('does not treat other flagged admin rows as admins', () => {
+      const { result } = renderHook(() => useAuth());
+      act(() => {
+        result.current.handleAuthChange({
+          profile: {
+            id: '1',
+            email: 'someone.else@populationmatters.org',
+            is_admin: true,
+            features: [],
+          },
+        });
+      });
+      expect(result.current.hasFeature('calendar')).toBe(false);
+      expect(result.current.currentUserIsAdmin).toBe(false);
     });
 
     it('returns true when feature is in user features list', () => {
