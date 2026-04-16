@@ -49,22 +49,22 @@ export function StrategyMixWidget({ entries }: StrategyMixWidgetProps): React.Re
         <CardTitle className="text-base text-ocean-900">Strategy Mix (30 days)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 py-4">
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="rounded-xl bg-graystone-50 px-3 py-2">
+        <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+          <div className="rounded-2xl border border-graystone-100 bg-graystone-50/70 px-4 py-3">
             <div className="text-graystone-500">Tagged posts</div>
             <div className="mt-1 font-semibold text-ocean-800">
               {snapshot.totalTagged}/{snapshot.totalRecent}
             </div>
           </div>
-          <div className="rounded-xl bg-graystone-50 px-3 py-2">
+          <div className="rounded-2xl border border-graystone-100 bg-graystone-50/70 px-4 py-3">
             <div className="text-graystone-500">Reactive modes</div>
             <div className="mt-1 font-semibold text-ocean-800">{snapshot.reactiveCount}</div>
           </div>
-          <div className="rounded-xl bg-graystone-50 px-3 py-2">
+          <div className="rounded-2xl border border-graystone-100 bg-graystone-50/70 px-4 py-3">
             <div className="text-graystone-500">Partner-led</div>
             <div className="mt-1 font-semibold text-ocean-800">{snapshot.partnerCount}</div>
           </div>
-          <div className="rounded-xl bg-graystone-50 px-3 py-2">
+          <div className="rounded-2xl border border-graystone-100 bg-graystone-50/70 px-4 py-3">
             <div className="text-graystone-500">Series / peaks</div>
             <div className="mt-1 font-semibold text-ocean-800">
               {snapshot.seriesCount} / {snapshot.peakCount}
@@ -74,8 +74,11 @@ export function StrategyMixWidget({ entries }: StrategyMixWidgetProps): React.Re
 
         <div className="space-y-3">
           {snapshot.mix.map((row) => (
-            <div key={row.category}>
-              <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+            <div
+              key={row.category}
+              className="rounded-2xl border border-graystone-100 bg-white px-3 py-3"
+            >
+              <div className="mb-2 flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                 <span className="truncate font-medium text-graystone-700">{row.category}</span>
                 <span className="shrink-0 text-graystone-500">
                   {row.actual}% / {row.target}% target

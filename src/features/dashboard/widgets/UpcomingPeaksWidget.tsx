@@ -28,9 +28,14 @@ export function UpcomingPeaksWidget({
   return (
     <Card className="shadow-md">
       <CardHeader className="border-b border-graystone-200 py-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base text-ocean-900">Upcoming Peaks</CardTitle>
-          <Button variant="ghost" size="sm" onClick={onOpenPeaks}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenPeaks}
+            className="justify-center sm:justify-start"
+          >
             Open peaks
           </Button>
         </div>
@@ -42,9 +47,12 @@ export function UpcomingPeaksWidget({
           </div>
         ) : (
           upcoming.map(({ peak, snapshot }) => (
-            <div key={peak.id} className="rounded-2xl border border-graystone-200 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
+            <div
+              key={peak.id}
+              className="rounded-2xl border border-graystone-200 bg-white px-4 py-4"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
                   <div className="font-semibold text-ocean-900">{peak.title}</div>
                   <div className="mt-1 text-xs text-graystone-500">
                     {peak.startDate} to {peak.endDate}
@@ -55,20 +63,20 @@ export function UpcomingPeaksWidget({
                 </Badge>
               </div>
 
-              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                <div className="rounded-xl bg-graystone-50 px-3 py-2">
+              <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+                <div className="rounded-2xl border border-graystone-100 bg-graystone-50/70 px-4 py-3">
                   <div className="text-graystone-500">Readiness</div>
                   <div className="mt-1 font-semibold text-ocean-800">
                     {snapshot.readinessScore}%
                   </div>
                 </div>
-                <div className="rounded-xl bg-graystone-50 px-3 py-2">
+                <div className="rounded-2xl border border-graystone-100 bg-graystone-50/70 px-4 py-3">
                   <div className="text-graystone-500">Entries</div>
                   <div className="mt-1 font-semibold text-ocean-800">
                     {snapshot.linkedEntries.length}
                   </div>
                 </div>
-                <div className="rounded-xl bg-graystone-50 px-3 py-2">
+                <div className="rounded-2xl border border-graystone-100 bg-graystone-50/70 px-4 py-3">
                   <div className="text-graystone-500">Approved</div>
                   <div className="mt-1 font-semibold text-ocean-800">
                     {snapshot.approvedEntries.length}

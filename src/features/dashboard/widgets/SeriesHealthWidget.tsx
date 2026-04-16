@@ -35,24 +35,29 @@ export function SeriesHealthWidget({
   return (
     <Card className="shadow-md">
       <CardHeader className="border-b border-graystone-200 py-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base text-ocean-900">Series Health</CardTitle>
-          <Button variant="ghost" size="sm" onClick={onOpenSeries}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenSeries}
+            className="justify-center sm:justify-start"
+          >
             Open series
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4 py-4">
-        <div className="grid grid-cols-3 gap-2 text-xs">
-          <div className="rounded-xl bg-graystone-50 px-3 py-2">
+        <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+          <div className="rounded-2xl border border-graystone-100 bg-graystone-50/70 px-4 py-3">
             <div className="text-graystone-500">Active</div>
             <div className="mt-1 font-semibold text-ocean-800">{snapshot.activeCount}</div>
           </div>
-          <div className="rounded-xl bg-graystone-50 px-3 py-2">
+          <div className="rounded-2xl border border-graystone-100 bg-graystone-50/70 px-4 py-3">
             <div className="text-graystone-500">Episodes</div>
             <div className="mt-1 font-semibold text-ocean-800">{snapshot.totalEpisodes}</div>
           </div>
-          <div className="rounded-xl bg-graystone-50 px-3 py-2">
+          <div className="rounded-2xl border border-graystone-100 bg-graystone-50/70 px-4 py-3">
             <div className="text-graystone-500">Review due</div>
             <div className="mt-1 font-semibold text-ocean-800">{snapshot.reviewDueCount}</div>
           </div>
@@ -65,8 +70,11 @@ export function SeriesHealthWidget({
             </div>
           ) : (
             snapshot.topSeries.map(({ series, snapshot: item }) => (
-              <div key={series.id} className="rounded-2xl border border-graystone-200 p-3">
-                <div className="flex items-center justify-between gap-3">
+              <div
+                key={series.id}
+                className="rounded-2xl border border-graystone-200 bg-white px-4 py-4"
+              >
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                   <div className="font-semibold text-ocean-900">{series.title}</div>
                   <div className="text-xs font-semibold text-ocean-700">
                     {item.progressPercent}%

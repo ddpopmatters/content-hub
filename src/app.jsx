@@ -50,6 +50,7 @@ import { loadIdeas, loadEntries } from './lib/storage';
 import { InfluencersView, InfluencerModal } from './features/influencers';
 import { DEFAULT_USER_RECORDS, DEFAULT_FEATURES } from './lib/users';
 import { mergePerformanceData } from './lib/performance';
+import { APP_CONFIG } from './lib/config';
 import {
   useSyncQueue,
   usePublishing,
@@ -72,6 +73,82 @@ import {
 } from './hooks/domain';
 
 const { useState, useMemo, useEffect, useCallback, useRef } = React;
+
+function AuthShell({ kicker, title, description, children }) {
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(15,157,222,0.18),_transparent_34%),linear-gradient(180deg,_#f5fcff_0%,_#ffffff_100%)] text-ocean-950">
+      <div className="mx-auto grid min-h-screen max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1.08fr_0.92fr] lg:items-center lg:px-8">
+        <section className="order-2 rounded-[2rem] border border-aqua-100 bg-white/80 p-6 shadow-[0_24px_70px_-34px_rgba(11,44,75,0.45)] backdrop-blur lg:order-1 lg:p-10">
+          <div className="flex items-center gap-4">
+            <img
+              src={APP_CONFIG.LOGO_URL}
+              alt={APP_CONFIG.ORG_NAME}
+              className="h-14 w-14 rounded-[1.25rem] border border-aqua-200 bg-white p-2.5 object-contain shadow-sm"
+            />
+            <div>
+              <div className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-ocean-500">
+                Population Matters
+              </div>
+              <h1 className="heading-font text-3xl font-semibold text-ocean-950 sm:text-4xl">
+                Content Hub
+              </h1>
+            </div>
+          </div>
+
+          <div className="mt-8 max-w-xl">
+            <p className="text-lg leading-8 text-graystone-700">
+              The internal workspace for planning content peaks, managing approvals and keeping
+              publishing organised across the team.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            {[
+              ['Plan clearly', 'Keep campaigns, responses and requests in one place.'],
+              [
+                'Review quickly',
+                'Share clean approval links without dragging people into the full app.',
+              ],
+              [
+                'Publish with context',
+                'Carry captions, assets and publishing notes through to the finish.',
+              ],
+            ].map(([cardTitle, cardDescription]) => (
+              <div
+                key={cardTitle}
+                className="rounded-[1.5rem] border border-aqua-100 bg-aqua-50/70 p-4"
+              >
+                <div className="text-sm font-semibold text-ocean-900">{cardTitle}</div>
+                <p className="mt-2 text-sm leading-6 text-graystone-600">{cardDescription}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 flex flex-wrap gap-2 text-xs font-medium text-ocean-700">
+            <span className="rounded-full bg-ocean-100 px-3 py-1.5">Rights-based messaging</span>
+            <span className="rounded-full bg-ocean-100 px-3 py-1.5">Team approvals</span>
+            <span className="rounded-full bg-ocean-100 px-3 py-1.5">
+              Shared publishing workflow
+            </span>
+          </div>
+        </section>
+
+        <section className="order-1 lg:order-2">
+          <div className="mx-auto w-full max-w-md rounded-[2rem] border border-aqua-100 bg-white p-8 shadow-[0_24px_70px_-34px_rgba(11,44,75,0.45)] sm:p-9">
+            <div className="mb-8">
+              <div className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-ocean-500">
+                {kicker}
+              </div>
+              <h2 className="mt-3 heading-font text-3xl font-semibold text-ocean-950">{title}</h2>
+              <p className="mt-2 text-sm leading-6 text-graystone-600">{description}</p>
+            </div>
+            {children}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
 
 function ContentDashboard() {
   // Destructure stable method references to avoid re-renders when loading/error state changes
@@ -127,6 +204,7 @@ function ContentDashboard() {
   const [showApprovalsModal, setShowApprovalsModal] = useState(false);
   const [showOpportunitiesModal, setShowOpportunitiesModal] = useState(false);
   const [entryFormPrefill, setEntryFormPrefill] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Domain hooks — Layer 0: standalone
   const sync = useSyncQueue();
@@ -876,6 +954,7 @@ function ContentDashboard() {
       const mapping = viewMap[view] || { view: 'dashboard', tab: 'plan' };
       setCurrentView(mapping.view);
       setPlanTab(mapping.tab);
+      setSidebarOpen(false);
 
       try {
         window.location.hash = `#${view}`;
@@ -884,64 +963,74 @@ function ContentDashboard() {
     [closeEntry],
   );
 
+  const currentSectionTitle = useMemo(() => {
+    if (currentView === 'dashboard') return 'Dashboard';
+    if (currentView === 'form') return 'Add content';
+    if (currentView === 'plan') return 'Content';
+    if (currentView === 'insights') return 'Insights';
+    if (currentView === 'reporting') return 'Reporting';
+    if (currentView === 'influencers') return 'Influencers';
+    if (currentView === 'admin') return 'Admin';
+    return 'Content Hub';
+  }, [currentView]);
+
   if (authStatus === 'invite') {
     return (
-      <div className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-4 py-16 text-ocean-900">
-        <div className="rounded-3xl border border-aqua-200 bg-white p-8 shadow-2xl">
-          <h1 className="heading-font text-3xl font-semibold text-ocean-600">
-            Welcome to PM Dashboard
-          </h1>
-          <p className="mt-2 text-sm text-graystone-600">
-            Set your password to finish activating your account.
-          </p>
-          {inviteError ? (
-            <div className="mt-3 rounded-2xl bg-rose-50 px-4 py-2 text-xs text-rose-700">
-              {inviteError}
-            </div>
-          ) : null}
-          <form className="mt-6 space-y-4" onSubmit={submitInvite}>
-            <div className="space-y-2">
-              <Label className="text-sm text-graystone-600" htmlFor="invite-password">
-                Password
-              </Label>
-              <Input
-                id="invite-password"
-                type="password"
-                autoComplete="new-password"
-                value={invitePassword}
-                onChange={(event) => setInvitePassword(event.target.value)}
-                className="w-full rounded-2xl border border-graystone-200 px-4 py-3 text-sm focus:border-ocean-500 focus:ring-2 focus:ring-aqua-200"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm text-graystone-600" htmlFor="invite-password-confirm">
-                Confirm password
-              </Label>
-              <Input
-                id="invite-password-confirm"
-                type="password"
-                autoComplete="new-password"
-                value={invitePasswordConfirm}
-                onChange={(event) => setInvitePasswordConfirm(event.target.value)}
-                className="w-full rounded-2xl border border-graystone-200 px-4 py-3 text-sm focus:border-ocean-500 focus:ring-2 focus:ring-aqua-200"
-              />
-            </div>
-            <Button type="submit" className="w-full">
-              Set password & enter
-            </Button>
-          </form>
+      <AuthShell
+        kicker="Activate account"
+        title="Set your password"
+        description="Finish activating your Content Hub account so you can enter the workspace."
+      >
+        {inviteError ? (
+          <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {inviteError}
+          </div>
+        ) : null}
+        <form className="space-y-4" onSubmit={submitInvite}>
+          <div className="space-y-2">
+            <Label className="text-sm text-graystone-600" htmlFor="invite-password">
+              Password
+            </Label>
+            <Input
+              id="invite-password"
+              type="password"
+              autoComplete="new-password"
+              value={invitePassword}
+              onChange={(event) => setInvitePassword(event.target.value)}
+              className="w-full rounded-2xl border border-graystone-200 px-4 py-3 text-sm focus:border-ocean-500 focus:ring-2 focus:ring-aqua-200"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm text-graystone-600" htmlFor="invite-password-confirm">
+              Confirm password
+            </Label>
+            <Input
+              id="invite-password-confirm"
+              type="password"
+              autoComplete="new-password"
+              value={invitePasswordConfirm}
+              onChange={(event) => setInvitePasswordConfirm(event.target.value)}
+              className="w-full rounded-2xl border border-graystone-200 px-4 py-3 text-sm focus:border-ocean-500 focus:ring-2 focus:ring-aqua-200"
+            />
+          </div>
+          <Button type="submit" className="w-full rounded-2xl py-3.5">
+            Set password and enter
+          </Button>
+        </form>
+        <div className="mt-6 rounded-2xl border border-aqua-100 bg-aqua-50/70 px-4 py-4 text-sm text-graystone-700">
+          Already set up?{' '}
           <button
             type="button"
-            className="mt-4 text-xs text-ocean-600 underline"
+            className="font-medium text-ocean-600 underline decoration-aqua-300 underline-offset-4"
             onClick={() => {
               clearInviteParam();
               setAuthStatus('login');
             }}
           >
-            Have an account already? Sign in instead
+            Sign in instead
           </button>
         </div>
-      </div>
+      </AuthShell>
     );
   }
 
@@ -951,1071 +1040,1136 @@ function ContentDashboard() {
 
   if (authStatus === 'loading') {
     return (
-      <div className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-4 py-16 text-ocean-900">
-        <div className="rounded-3xl border border-aqua-200 bg-white p-8 text-center shadow-2xl">
-          <div className="heading-font text-3xl font-semibold text-ocean-600">Loading…</div>
-          <p className="mt-4 text-sm text-graystone-600">Checking your session.</p>
-          <div className="mt-6 animate-pulse rounded-2xl bg-aqua-100 px-4 py-3 text-sm text-ocean-700">
-            Hang tight—this only takes a moment.
+      <AuthShell
+        kicker="Checking session"
+        title="Loading Content Hub"
+        description="We are checking your session and loading the workspace."
+      >
+        <div className="flex flex-col items-center gap-5 py-6 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-ocean-100">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-aqua-200 border-t-ocean-500" />
+          </div>
+          <div className="space-y-2">
+            <div className="text-base font-semibold text-ocean-900">Checking your session</div>
+            <p className="text-sm text-graystone-600">Hang tight. This only takes a moment.</p>
           </div>
         </div>
-      </div>
+        <div className="rounded-2xl border border-aqua-100 bg-aqua-50/70 px-4 py-4 text-sm text-ocean-700">
+          We will take you straight into the tool as soon as your session is ready.
+        </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
-      {/* Sidebar */}
-      <Sidebar
-        currentView={currentView}
-        planTab={planTab}
-        onNavigate={handleSidebarNavigate}
-        currentUser={currentUser}
-        currentUserEmail={currentUserEmail}
-        currentUserAvatar={currentUserAvatar}
-        profileInitials={profileInitials}
-        onProfileClick={handleProfileMenuToggle}
-        onSignOut={handleSignOut}
-        canUseCalendar={canUseCalendar}
-        canUseKanban={canUseKanban}
-        canUseApprovals={canUseApprovals}
-        canUseIdeas={canUseIdeas}
-        canUseRequests={canUseRequests}
-        canUseInfluencers={canUseInfluencers}
-        currentUserIsAdmin={currentUserIsAdmin}
-        outstandingCount={outstandingCount}
-      />
-
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto ml-64 bg-white">
-        <div className="container mx-auto p-8 max-w-7xl">
-          {/* Sync Queue Toast */}
-          {syncQueue.length ? (
-            <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <span className="font-semibold">Sync pending.</span> {syncQueue.length} update
-                  {syncQueue.length === 1 ? '' : 's'} waiting to send.
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={retryAllSync}>
-                    Retry all
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={sync.reset}>
-                    Dismiss
-                  </Button>
-                </div>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs text-amber-800">
-                {syncQueue.slice(0, 3).map((item) => (
-                  <span key={item.id} className="rounded-full bg-amber-100 px-3 py-1">
-                    {item.label}
-                    {item.attempts > 1 ? ` (x${item.attempts})` : ''}
-                  </span>
-                ))}
-                {syncQueue.length > 3 ? (
-                  <span className="rounded-full bg-amber-100 px-3 py-1">
-                    +{syncQueue.length - 3} more
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-
-          {/* Profile Modal */}
-          {profileMenuOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-              <div
-                ref={profileMenuRef}
-                className="w-80 max-w-sm rounded-3xl border border-graystone-200 bg-white p-6 shadow-2xl"
-              >
-                <form className="space-y-4" onSubmit={handleProfileSave}>
-                  <div className="flex items-center gap-3">
-                    <div className="h-14 w-14 overflow-hidden rounded-full border border-graystone-200 bg-aqua-50">
-                      {avatarPreview ? (
-                        <img
-                          src={avatarPreview}
-                          alt="Avatar preview"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center text-lg font-semibold text-ocean-700">
-                          {profileInitials}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-base font-semibold text-ocean-800">
-                        {currentUser || 'Your profile'}
-                      </div>
-                      <div className="text-xs text-graystone-500">
-                        {currentUserEmail || 'No email'}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-graystone-600" htmlFor="profile-name">
-                      Display name
-                    </Label>
-                    <Input
-                      id="profile-name"
-                      value={profileFormName}
-                      onChange={(event) => setProfileFormName(event.target.value)}
-                      className="w-full rounded-xl border border-graystone-200 px-3 py-2 text-sm focus:border-ocean-500 focus:ring-2 focus:ring-aqua-200"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-graystone-600">Profile photo</Label>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <label className="cursor-pointer rounded-full border border-graystone-200 px-3 py-1 text-xs font-semibold text-ocean-700 shadow-sm transition hover:border-ocean-300">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleAvatarFileChange}
-                        />
-                        Upload photo
-                      </label>
-                      {avatarPreview ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setProfileAvatarDraft('')}
-                        >
-                          Remove photo
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-                  {profileError ? (
-                    <div className="rounded-xl bg-rose-50 px-4 py-2 text-xs text-rose-700">
-                      {profileError}
-                    </div>
-                  ) : null}
-                  {profileStatus ? (
-                    <div className="rounded-xl bg-emerald-50 px-4 py-2 text-xs text-emerald-700">
-                      {profileStatus}
-                    </div>
-                  ) : null}
-                  <div className="flex flex-col gap-2 pt-2">
-                    <Button type="submit" disabled={profileSaving}>
-                      {profileSaving ? 'Saving...' : 'Save profile'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setProfileMenuOpen(false);
-                        setChangePasswordOpen(true);
-                      }}
-                    >
-                      Change password
-                    </Button>
-                    <Button type="button" variant="ghost" onClick={() => setProfileMenuOpen(false)}>
-                      Close
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* Dashboard View */}
-          {currentView === 'dashboard' && (
-            <DashboardView
-              entries={entries}
-              currentUser={currentUser}
-              assetGoals={assetGoals}
-              engagementActivities={engagementActivities}
-              engagementGoals={engagementGoals}
-              contentPeaks={contentPeaks}
-              contentSeries={contentSeries}
-              pendingApprovalCount={outstandingCount}
-              urgentOpportunityCount={urgentOpenCount}
-              onOpenEntry={openEntry}
-              onNavigate={(view, tab) => {
-                setCurrentView(view);
-                if (tab) setPlanTab(tab);
-                closeEntry();
-              }}
-              onOpenGuidelines={() => setGuidelinesOpen(true)}
-              onOpenApprovals={() => setShowApprovalsModal(true)}
-              onOpenOpportunities={() => setShowOpportunitiesModal(true)}
+    <>
+      <div className="sticky top-0 z-30 border-b border-aqua-200 bg-white/95 backdrop-blur md:hidden">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <img
+              src={APP_CONFIG.LOGO_URL}
+              alt={APP_CONFIG.ORG_NAME}
+              className="h-11 w-11 rounded-2xl border border-aqua-200 bg-white p-2 object-contain shadow-sm"
             />
-          )}
-
-          {currentView === 'form' && canUseCalendar && (
-            <div className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-col gap-1">
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setCurrentView('dashboard');
-                      setPlanTab('plan');
-                      closeEntry();
-                    }}
-                    className="self-start"
-                  >
-                    Dashboard
-                  </Button>
-                  <h2 className="text-2xl font-semibold text-ocean-700">Create Content</h2>
-                  <p className="text-sm text-graystone-600">
-                    {entryFormPrefill?.sourceRequestId
-                      ? `Converting request: ${entryFormPrefill.sourceRequestTitle}`
-                      : 'Submit a brief and it will appear on the calendar instantly.'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setCurrentView('plan');
-                      setPlanTab('plan');
-                      closeEntry();
-                    }}
-                  >
-                    View calendar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={handleSignOut}
-                    className="heading-font text-sm normal-case"
-                  >
-                    Switch user
-                  </Button>
-                  <NotificationBell
-                    notifications={userNotifications}
-                    unreadCount={unreadNotifications.length}
-                    onOpenItem={(note) => {
-                      if (note.entryId) {
-                        openEntry(note.entryId);
-                      }
-                      markNotificationsAsReadForEntry(note.entryId, currentUser);
-                    }}
-                  />
-                </div>
+            <div className="min-w-0">
+              <div className="text-[0.65rem] font-semibold uppercase tracking-[0.26em] text-ocean-500">
+                Content Hub
               </div>
-
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(260px,1fr)]">
-                <div className="w-full">
-                  <EntryForm
-                    onSubmit={handleEntryFormSubmit}
-                    existingEntries={entries.filter((entry) => !entry.deletedAt)}
-                    guidelines={guidelines}
-                    currentUser={currentUser}
-                    currentUserEmail={currentUserEmail}
-                    approverOptions={approverOptions}
-                    influencers={influencers}
-                    teamsWebhookUrl={guidelines?.teamsWebhookUrl ?? ''}
-                    pushSyncToast={pushSyncToast}
-                    initialValues={entryFormPrefill}
-                  />
-                </div>
-                <div className="flex w-full flex-col gap-6">
-                  <div className="rounded-3xl border border-aqua-200 bg-white px-4 py-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-black px-4 py-2 text-sm font-semibold text-graystone-800">
-                        <CalendarIcon className="h-4 w-4 text-ocean-600" />
-                        {monthLabel}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setMonthCursor(
-                              new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1),
-                            )
-                          }
-                        >
-                          Prev
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setMonthCursor(
-                              new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1),
-                            )
-                          }
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    </div>
-                    <p className="mt-2 text-xs text-graystone-500">
-                      This selector only updates the Month at a glance calendar.
-                    </p>
-                  </div>
-                  <MiniCalendar
-                    monthCursor={monthCursor}
-                    entries={monthEntries}
-                    onPreviewEntry={(entry) => {
-                      setPreviewEntryId(entry?.id || '');
-                      setPreviewEntryContext(entry?.id ? 'form' : 'default');
-                    }}
-                  />
-                </div>
+              <div className="truncate text-sm font-semibold text-ocean-950">
+                {currentSectionTitle}
               </div>
             </div>
-          )}
-
-          {currentView === 'plan' && (
-            <div className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setCurrentView('dashboard');
-                      setPlanTab('plan');
-                      closeEntry();
-                    }}
-                  >
-                    Dashboard
-                  </Button>
-                  <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-ocean-200 bg-ocean-50 p-1 text-ocean-600">
-                    {canUseCalendar && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => setPlanTab('plan')}
-                        className={cx(
-                          'rounded-2xl px-4 py-2 text-sm transition',
-                          planTab === 'plan'
-                            ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                            : 'text-ocean-600 hover:bg-ocean-100',
-                        )}
-                      >
-                        Calendar
-                      </Button>
-                    )}
-                    {canUseCalendar && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => setPlanTab('peaks')}
-                        className={cx(
-                          'rounded-2xl px-4 py-2 text-sm transition',
-                          planTab === 'peaks'
-                            ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                            : 'text-ocean-600 hover:bg-ocean-100',
-                        )}
-                      >
-                        Peaks
-                      </Button>
-                    )}
-                    {canUseCalendar && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => setPlanTab('series')}
-                        className={cx(
-                          'rounded-2xl px-4 py-2 text-sm transition',
-                          planTab === 'series'
-                            ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                            : 'text-ocean-600 hover:bg-ocean-100',
-                        )}
-                      >
-                        Series
-                      </Button>
-                    )}
-                    {canUseCalendar && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => setPlanTab('responses')}
-                        className={cx(
-                          'rounded-2xl px-4 py-2 text-sm transition',
-                          planTab === 'responses'
-                            ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                            : 'text-ocean-600 hover:bg-ocean-100',
-                        )}
-                      >
-                        Responses
-                      </Button>
-                    )}
-                    {canUseIdeas && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => setPlanTab('ideas')}
-                        className={cx(
-                          'rounded-2xl px-4 py-2 text-sm transition',
-                          planTab === 'ideas'
-                            ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                            : 'text-ocean-600 hover:bg-ocean-100',
-                        )}
-                      >
-                        Ideas
-                      </Button>
-                    )}
-                    {canUseRequests && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => setPlanTab('requests')}
-                        className={cx(
-                          'rounded-2xl px-4 py-2 text-sm transition',
-                          planTab === 'requests'
-                            ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                            : 'text-ocean-600 hover:bg-ocean-100',
-                        )}
-                      >
-                        Requests
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {canUseCalendar && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowTrashModal(true)}
-                      className="gap-1.5 text-graystone-600"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                      Trash
-                    </Button>
-                  )}
-                  <Button
-                    onClick={() => {
-                      if (!canUseCalendar) return;
-                      setCurrentView('form');
-                      setPlanTab('plan');
-                      closeEntry();
-                      try {
-                        window.location.hash = '#create';
-                      } catch {}
-                    }}
-                    className="gap-2"
-                    disabled={!canUseCalendar}
-                  >
-                    <PlusIcon className="h-4 w-4 text-white" />
-                    Create content
-                  </Button>
-                </div>
-              </div>
-
-              {(() => {
-                switch (planTab) {
-                  case 'plan':
-                    if (!canUseCalendar) return null;
-                    return (
-                      <CalendarView
-                        entries={entries}
-                        monthCursor={monthCursor}
-                        onMonthChange={setMonthCursor}
-                        onApprove={toggleApprove}
-                        onDelete={softDelete}
-                        onOpenEntry={openEntry}
-                        onImportPerformance={() => setPerformanceImportOpen(true)}
-                        assetGoals={assetGoals}
-                        onGoalsChange={setAssetGoals}
-                        onEntryDateChange={handleEntryDateChange}
-                        dailyPostTarget={dailyPostTarget}
-                        onDailyPostTargetChange={handleDailyPostTargetChange}
-                        onBulkDateShift={handleBulkDateShift}
-                        onUpdateStatus={updateWorkflowStatus}
-                        onUpdate={upsert}
-                        outstandingCount={canUseApprovals ? outstandingCount : undefined}
-                        onOpenApprovals={
-                          canUseApprovals ? () => setShowApprovalsModal(true) : undefined
-                        }
-                        openOpportunitiesCount={openOpportunities.length}
-                        onOpenOpportunities={() => setShowOpportunitiesModal(true)}
-                        userEmail={currentUserEmail}
-                        campaigns={campaigns}
-                        onAddCampaign={addCampaign}
-                        onUpdateCampaign={updateCampaign}
-                        onDeleteCampaign={deleteCampaign}
-                        onRefresh={refreshEntries}
-                      />
-                    );
-                  case 'peaks':
-                    if (!canUseCalendar) return null;
-                    return (
-                      <ContentPeaksView
-                        contentPeaks={contentPeaks}
-                        entries={entries}
-                        currentUser={currentUser}
-                        ownerOptions={managerCandidates
-                          .map((user) => user.name || user.email || '')
-                          .filter(Boolean)}
-                        onAddContentPeak={addContentPeak}
-                        onUpdateContentPeak={updateContentPeak}
-                        onDeleteContentPeak={deleteContentPeak}
-                        onOpenEntry={openEntry}
-                        onCreateEntryFromPeak={handleCreateEntryFromPeak}
-                      />
-                    );
-                  case 'series':
-                    if (!canUseCalendar) return null;
-                    return (
-                      <ContentSeriesView
-                        contentSeries={contentSeries}
-                        entries={entries}
-                        currentUser={currentUser}
-                        ownerOptions={managerCandidates
-                          .map((user) => user.name || user.email || '')
-                          .filter(Boolean)}
-                        onAddContentSeries={addContentSeries}
-                        onUpdateContentSeries={updateContentSeries}
-                        onDeleteContentSeries={deleteContentSeries}
-                        onOpenEntry={openEntry}
-                        onCreateEntryFromSeries={handleCreateEntryFromSeries}
-                      />
-                    );
-                  case 'responses':
-                    if (!canUseCalendar) return null;
-                    return (
-                      <RapidResponsesView
-                        rapidResponses={rapidResponses}
-                        opportunities={openOpportunities}
-                        entries={entries}
-                        currentUser={currentUser}
-                        ownerOptions={managerCandidates
-                          .map((user) => user.name || user.email || '')
-                          .filter(Boolean)}
-                        onAddRapidResponse={addRapidResponse}
-                        onUpdateRapidResponse={updateRapidResponse}
-                        onDeleteRapidResponse={deleteRapidResponse}
-                        onOpenEntry={openEntry}
-                        onCreateEntryFromResponse={handleCreateEntryFromResponse}
-                      />
-                    );
-                  case 'ideas':
-                    if (!canUseIdeas) return null;
-                    return (
-                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                        <IdeaForm onSubmit={addIdea} currentUser={currentUser} />
-                        <IdeasBoard
-                          ideas={ideas}
-                          onDelete={deleteIdea}
-                          onCreateEntry={createEntryFromIdea}
-                        />
-                      </div>
-                    );
-                  case 'requests':
-                    return (
-                      <ContentRequestsView
-                        contentRequests={contentRequests}
-                        currentUser={currentUser || currentUserEmail || null}
-                        approverOptions={approverOptions}
-                        onAddContentRequest={addContentRequest}
-                        onUpdateStatus={updateContentRequestStatus}
-                        onConvertToEntry={handleConvertRequestToEntry}
-                      />
-                    );
-                  default:
-                    return null;
-                }
-              })()}
-            </div>
-          )}
-
-          {currentView === 'insights' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 rounded-3xl border border-ocean-200 bg-ocean-50 p-1 text-ocean-600">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setPlanTab('analytics')}
-                    className={cx(
-                      'rounded-2xl px-4 py-2 text-sm transition',
-                      planTab === 'analytics'
-                        ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                        : 'text-ocean-600 hover:bg-ocean-100',
-                    )}
-                  >
-                    Analytics
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => setPlanTab('engagement')}
-                    className={cx(
-                      'rounded-2xl px-4 py-2 text-sm transition',
-                      planTab === 'engagement'
-                        ? 'bg-ocean-500 text-white hover:bg-ocean-600'
-                        : 'text-ocean-600 hover:bg-ocean-100',
-                    )}
-                  >
-                    Engagement
-                  </Button>
-                </div>
-              </div>
-              {planTab === 'analytics' && <ReportInsightsView />}
-              {planTab === 'engagement' && (
-                <EngagementView
-                  activities={engagementActivities}
-                  accounts={engagementAccounts}
-                  goals={engagementGoals}
-                  currentUser={currentUser}
-                  onAddActivity={(activity) => {
-                    const newActivity = {
-                      ...activity,
-                      id: uuid(),
-                      createdAt: new Date().toISOString(),
-                      createdBy: currentUser,
-                    };
-                    setEngagementActivities((prev) => [newActivity, ...prev]);
-                  }}
-                  onDeleteActivity={(id) => {
-                    setEngagementActivities((prev) => prev.filter((a) => a.id !== id));
-                  }}
-                  onAddAccount={(account) => {
-                    const newAccount = {
-                      ...account,
-                      id: uuid(),
-                      createdAt: new Date().toISOString(),
-                      createdBy: currentUser,
-                    };
-                    setEngagementAccounts((prev) => [newAccount, ...prev]);
-                  }}
-                  onDeleteAccount={(id) => {
-                    setEngagementAccounts((prev) => prev.filter((a) => a.id !== id));
-                  }}
-                  onUpdateAccount={(id, updates) => {
-                    setEngagementAccounts((prev) =>
-                      prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
-                    );
-                  }}
-                  onUpdateGoals={(goals) => setEngagementGoals(goals)}
-                />
-              )}
-            </div>
-          )}
-
-          {currentView === 'reporting' && (
-            <ReportingView currentUser={currentUser} currentUserEmail={currentUserEmail} />
-          )}
-
-          {currentView === 'influencers' && canUseInfluencers && (
-            <InfluencersView
-              influencers={influencers}
-              entries={entries}
-              currentUser={currentUser}
-              onAdd={handleAddInfluencer}
-              onUpdate={handleUpdateInfluencer}
-              onDelete={handleDeleteInfluencer}
-              onOpenDetail={handleOpenInfluencerDetail}
-            />
-          )}
-
-          {currentView === 'admin' && currentUserIsAdmin && (
-            <div className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setCurrentView('dashboard')}
-                    className="self-start"
-                  >
-                    Dashboard
-                  </Button>
-                  <h2 className="text-2xl font-semibold text-ocean-700">Admin tools</h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      if (window.api && window.api.enabled) {
-                        apiGet('/api/health').catch(() => {});
-                      }
-                    }}
-                  >
-                    Ping server
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      (async () => {
-                        try {
-                          if (window.api && window.api.enabled) {
-                            const json = await apiGet('/api/audit?limit=200');
-                            setAdminAudits(Array.isArray(json) ? json : []);
-                          } else {
-                            const raw = storageAvailable
-                              ? window.localStorage.getItem('pm-content-audit-log')
-                              : '[]';
-                            const local = raw ? JSON.parse(raw) : [];
-                            setAdminAudits(Array.isArray(local) ? local : []);
-                          }
-                        } catch {}
-                      })();
-                    }}
-                  >
-                    Refresh audits
-                  </Button>
-                </div>
-              </div>
-
-              <Card className="shadow-xl">
-                <CardHeader>
-                  <CardTitle className="text-lg text-ocean-900">Recent audit events</CardTitle>
-                  <p className="mt-2 text-sm text-graystone-500">
-                    Pulled from the server when connected; local fallback otherwise.
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {adminAudits.length === 0 ? (
-                      <p className="text-sm text-graystone-600">No audit events.</p>
-                    ) : (
-                      adminAudits.slice(0, 200).map((row) => (
-                        <div
-                          key={row.id}
-                          className="flex items-center justify-between rounded-xl border border-graystone-200 bg-white px-3 py-2 text-sm"
-                        >
-                          <div className="flex flex-col">
-                            <div className="font-medium text-ocean-800">
-                              {row.action || 'event'}
-                            </div>
-                            <div className="text-[11px] text-graystone-600">
-                              {row.user || 'Unknown'} · {row.entryId || '—'}
-                            </div>
-                          </div>
-                          <div className="text-[11px] text-graystone-500">
-                            {row.ts ? new Date(row.ts).toLocaleString() : ''}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-xl">
-                <CardHeader>
-                  <CardTitle className="text-lg text-ocean-900">Approver directory</CardTitle>
-                  <p className="mt-2 text-sm text-graystone-500">
-                    Approvers are managed via the user roster. Enable the role on a teammate to list
-                    them here.
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  {approverOptions.length ? (
-                    <div className="flex flex-wrap gap-2">
-                      {approverOptions.map((name) => (
-                        <span
-                          key={name}
-                          className="rounded-full bg-aqua-100 px-3 py-1 text-xs font-semibold text-ocean-700"
-                        >
-                          {name}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-graystone-500">
-                      No approvers configured yet. Mark a user as an approver to add them.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-xl">
-                <CardHeader>
-                  <CardTitle className="text-lg text-ocean-900">User roster</CardTitle>
-                  <p className="mt-2 text-sm text-graystone-500">
-                    Add new users (first + last + email); they’ll be emailed when created.
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {userList.length ? (
-                      userList.map((user) => (
-                        <div
-                          key={user.id || user.email || user.name}
-                          className="rounded-xl border border-graystone-200 bg-white px-3 py-3 text-sm text-graystone-700"
-                        >
-                          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                            <div>
-                              <div className="font-medium text-graystone-900">{user.name}</div>
-                              <div className="text-[11px] text-graystone-500">
-                                {user.email || 'No email'} ·{' '}
-                                {user.status === 'disabled'
-                                  ? 'Disabled'
-                                  : user.invitePending || user.status === 'pending'
-                                    ? 'Invite pending'
-                                    : 'Active'}
-                              </div>
-                              <div className="mt-1 flex flex-wrap gap-2 text-[10px] font-semibold uppercase text-graystone-500">
-                                {user.isAdmin ? (
-                                  <span className="rounded-full bg-ocean-50 px-2 py-0.5 text-ocean-700">
-                                    Admin
-                                  </span>
-                                ) : null}
-                                {user.isApprover ? (
-                                  <span className="rounded-full bg-aqua-50 px-2 py-0.5 text-ocean-700">
-                                    Approver
-                                  </span>
-                                ) : null}
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <select
-                                className="rounded-lg border border-graystone-300 bg-white px-2 py-1 text-xs text-graystone-700 focus:border-ocean-500 focus:outline-none focus:ring-2 focus:ring-aqua-200"
-                                value={user.managerEmail || ''}
-                                onChange={(e) => handleManagerChange(user, e.target.value)}
-                              >
-                                <option value="">No manager</option>
-                                {managerCandidates
-                                  .filter((c) => c.email !== user.email)
-                                  .map((c) => (
-                                    <option key={c.email} value={c.email}>
-                                      {c.name}
-                                    </option>
-                                  ))}
-                              </select>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => toggleApproverRole(user)}
-                              >
-                                {user.isApprover ? 'Remove approver' : 'Make approver'}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setAccessModalUser(user)}
-                              >
-                                Access
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => removeUser(user)}>
-                                Remove
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-graystone-500">No users configured yet.</p>
-                    )}
-                  </div>
-                  <AddUserForm
-                    defaultFeatures={DEFAULT_FEATURES}
-                    onSubmit={addUser}
-                    error={userAdminError}
-                    success={userAdminSuccess}
-                  />
-                </CardContent>
-              </Card>
-
-              {/* Publishing Settings */}
-              <PublishSettingsPanel settings={publishSettings} onUpdate={setPublishSettings} />
-
-              {/* Platform Connections */}
-              <PlatformConnectionsView currentUserEmail={currentUserEmail} />
-            </div>
-          )}
-          {/* Trash modal */}
-          <Modal
-            open={showTrashModal}
-            onClose={() => setShowTrashModal(false)}
-            aria-label="Trash (30-day retention)"
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-11 w-11 rounded-2xl border-aqua-200"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open navigation"
           >
-            {trashed.length === 0 ? (
-              <p className="text-sm text-graystone-500">Nothing in the trash.</p>
-            ) : (
-              <div className="space-y-3">
-                {trashed.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="rounded-xl border border-graystone-200 bg-white px-4 py-3 shadow-sm"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline">{entry.assetType}</Badge>
-                        <span className="text-sm font-medium text-graystone-700">
-                          {new Date(entry.date).toLocaleDateString()}
-                        </span>
-                        <span className="text-xs text-graystone-500">
-                          Deleted{' '}
-                          {entry.deletedAt ? new Date(entry.deletedAt).toLocaleString() : ''}
-                        </span>
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M4 7h16M4 12h16M4 17h16"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex min-h-[calc(100vh-74px)] bg-white text-ocean-950 md:min-h-screen">
+        {sidebarOpen ? (
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-ocean-950/45 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close navigation"
+          />
+        ) : null}
+
+        <Sidebar
+          currentView={currentView}
+          planTab={planTab}
+          onNavigate={handleSidebarNavigate}
+          currentUser={currentUser}
+          currentUserEmail={currentUserEmail}
+          currentUserAvatar={currentUserAvatar}
+          profileInitials={profileInitials}
+          onProfileClick={handleProfileMenuToggle}
+          onSignOut={handleSignOut}
+          canUseCalendar={canUseCalendar}
+          canUseKanban={canUseKanban}
+          canUseApprovals={canUseApprovals}
+          canUseIdeas={canUseIdeas}
+          canUseRequests={canUseRequests}
+          canUseInfluencers={canUseInfluencers}
+          currentUserIsAdmin={currentUserIsAdmin}
+          outstandingCount={outstandingCount}
+          onClose={() => setSidebarOpen(false)}
+          showCloseButton
+          className={cx(
+            'fixed inset-y-0 left-0 z-50 transition-transform duration-200 md:translate-x-0',
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+            'md:z-40',
+          )}
+        />
+
+        <div className="min-w-0 flex-1 overflow-y-auto bg-white md:ml-64">
+          <div className="container mx-auto max-w-7xl px-4 py-6 sm:px-6 md:p-8">
+            {/* Sync Queue Toast */}
+            {syncQueue.length ? (
+              <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <span className="font-semibold">Sync pending.</span> {syncQueue.length} update
+                    {syncQueue.length === 1 ? '' : 's'} waiting to send.
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={retryAllSync}>
+                      Retry all
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={sync.reset}>
+                      Dismiss
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs text-amber-800">
+                  {syncQueue.slice(0, 3).map((item) => (
+                    <span key={item.id} className="rounded-full bg-amber-100 px-3 py-1">
+                      {item.label}
+                      {item.attempts > 1 ? ` (x${item.attempts})` : ''}
+                    </span>
+                  ))}
+                  {syncQueue.length > 3 ? (
+                    <span className="rounded-full bg-amber-100 px-3 py-1">
+                      +{syncQueue.length - 3} more
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Profile Modal */}
+            {profileMenuOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+                <div
+                  ref={profileMenuRef}
+                  className="w-80 max-w-sm rounded-3xl border border-graystone-200 bg-white p-6 shadow-2xl"
+                >
+                  <form className="space-y-4" onSubmit={handleProfileSave}>
+                    <div className="flex items-center gap-3">
+                      <div className="h-14 w-14 overflow-hidden rounded-full border border-graystone-200 bg-aqua-50">
+                        {avatarPreview ? (
+                          <img
+                            src={avatarPreview}
+                            alt="Avatar preview"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-lg font-semibold text-ocean-700">
+                            {profileInitials}
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" onClick={() => restore(entry.id)}>
-                          <RotateCcwIcon className="h-4 w-4 text-graystone-600" />
-                          Restore
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => hardDelete(entry.id)}
-                        >
-                          <TrashIcon className="h-4 w-4 text-white" />
-                          Delete forever
-                        </Button>
+                      <div>
+                        <div className="text-base font-semibold text-ocean-800">
+                          {currentUser || 'Your profile'}
+                        </div>
+                        <div className="text-xs text-graystone-500">
+                          {currentUserEmail || 'No email'}
+                        </div>
                       </div>
                     </div>
-                    {entry.caption && (
-                      <p className="mt-2 line-clamp-2 text-sm text-graystone-600">
-                        {entry.caption}
-                      </p>
-                    )}
-                  </div>
-                ))}
+                    <div className="space-y-2">
+                      <Label className="text-xs text-graystone-600" htmlFor="profile-name">
+                        Display name
+                      </Label>
+                      <Input
+                        id="profile-name"
+                        value={profileFormName}
+                        onChange={(event) => setProfileFormName(event.target.value)}
+                        className="w-full rounded-xl border border-graystone-200 px-3 py-2 text-sm focus:border-ocean-500 focus:ring-2 focus:ring-aqua-200"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-graystone-600">Profile photo</Label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="cursor-pointer rounded-full border border-graystone-200 px-3 py-1 text-xs font-semibold text-ocean-700 shadow-sm transition hover:border-ocean-300">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleAvatarFileChange}
+                          />
+                          Upload photo
+                        </label>
+                        {avatarPreview ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setProfileAvatarDraft('')}
+                          >
+                            Remove photo
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                    {profileError ? (
+                      <div className="rounded-xl bg-rose-50 px-4 py-2 text-xs text-rose-700">
+                        {profileError}
+                      </div>
+                    ) : null}
+                    {profileStatus ? (
+                      <div className="rounded-xl bg-emerald-50 px-4 py-2 text-xs text-emerald-700">
+                        {profileStatus}
+                      </div>
+                    ) : null}
+                    <div className="flex flex-col gap-2 pt-2">
+                      <Button type="submit" disabled={profileSaving}>
+                        {profileSaving ? 'Saving...' : 'Save profile'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setProfileMenuOpen(false);
+                          setChangePasswordOpen(true);
+                        }}
+                      >
+                        Change password
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setProfileMenuOpen(false)}
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  </form>
+                </div>
               </div>
             )}
-          </Modal>
 
-          {/* Approvals modal */}
-          <Modal
-            open={showApprovalsModal}
-            onClose={() => setShowApprovalsModal(false)}
-            aria-label="Approvals"
-          >
-            <ApprovalsView
-              approvals={outstandingApprovals}
-              outstandingCount={outstandingCount}
-              unreadMentionsCount={unreadMentionsCount}
-              canUseCalendar={canUseCalendar}
-              onApprove={toggleApprove}
-              onOpenEntry={(id) => {
-                setShowApprovalsModal(false);
-                openEntry(id);
-              }}
-              onBackToMenu={() => setShowApprovalsModal(false)}
-              onGoToCalendar={() => {
-                setShowApprovalsModal(false);
-                setCurrentView('plan');
-                setPlanTab('plan');
-              }}
-              onCreateContent={() => {
-                setShowApprovalsModal(false);
-                setCurrentView('form');
-                setPlanTab('plan');
-                closeEntry();
-                try {
-                  window.location.hash = '#create';
-                } catch {}
-              }}
-              onSwitchUser={handleSignOut}
-            />
-          </Modal>
+            {/* Dashboard View */}
+            {currentView === 'dashboard' && (
+              <DashboardView
+                entries={entries}
+                currentUser={currentUser}
+                assetGoals={assetGoals}
+                engagementActivities={engagementActivities}
+                engagementGoals={engagementGoals}
+                contentPeaks={contentPeaks}
+                contentSeries={contentSeries}
+                pendingApprovalCount={outstandingCount}
+                urgentOpportunityCount={urgentOpenCount}
+                onOpenEntry={openEntry}
+                onNavigate={(view, tab) => {
+                  setCurrentView(view);
+                  if (tab) setPlanTab(tab);
+                  closeEntry();
+                }}
+                onOpenGuidelines={() => setGuidelinesOpen(true)}
+                onOpenApprovals={() => setShowApprovalsModal(true)}
+                onOpenOpportunities={() => setShowOpportunitiesModal(true)}
+              />
+            )}
 
-          {/* Opportunities modal */}
-          <Modal
-            open={showOpportunitiesModal}
-            onClose={() => setShowOpportunitiesModal(false)}
-            aria-label="Opportunities"
-          >
-            <OpportunitiesView
-              opportunities={openOpportunities}
-              entries={entries}
-              currentUser={currentUser}
-              onAddOpportunity={addOpportunity}
-              onStartResponse={handleStartResponseFromOpportunity}
-              onMarkActed={markOpportunityAsActed}
-              onDismiss={dismissOpportunity}
-              onOpenEntry={(id) => {
-                setShowOpportunitiesModal(false);
-                openEntry(id);
-              }}
-            />
-          </Modal>
+            {currentView === 'form' && canUseCalendar && (
+              <div className="space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setCurrentView('dashboard');
+                        setPlanTab('plan');
+                        closeEntry();
+                      }}
+                      className="self-start"
+                    >
+                      Dashboard
+                    </Button>
+                    <h2 className="text-2xl font-semibold text-ocean-700">Create Content</h2>
+                    <p className="text-sm text-graystone-600">
+                      {entryFormPrefill?.sourceRequestId
+                        ? `Converting request: ${entryFormPrefill.sourceRequestTitle}`
+                        : 'Submit a brief and it will appear on the calendar instantly.'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setCurrentView('plan');
+                        setPlanTab('plan');
+                        closeEntry();
+                      }}
+                    >
+                      View calendar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={handleSignOut}
+                      className="heading-font text-sm normal-case"
+                    >
+                      Switch user
+                    </Button>
+                    <NotificationBell
+                      notifications={userNotifications}
+                      unreadCount={unreadNotifications.length}
+                      onOpenItem={(note) => {
+                        if (note.entryId) {
+                          openEntry(note.entryId);
+                        }
+                        markNotificationsAsReadForEntry(note.entryId, currentUser);
+                      }}
+                    />
+                  </div>
+                </div>
 
-          <EntryPreviewModal
-            open={Boolean(previewEntry)}
-            entry={previewEntry}
-            onClose={closePreview}
-            onEdit={handlePreviewEdit}
-            currentUser={currentUser}
-            currentUserEmail={currentUserEmail}
-            reviewMode={previewIsReviewMode}
-            canApprove={previewCanApprove}
-            onApprove={toggleApprove}
-            onUpdate={upsert}
-            onNotifyMentions={handleMentionNotifications}
-            onCommentAdded={handleCommentActivity}
-            approverOptions={approverOptions}
-            users={mentionUsers}
-          />
-          {viewingSnapshot ? (
-            <EntryModal
-              entry={viewingSnapshot}
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(260px,1fr)]">
+                  <div className="w-full">
+                    <EntryForm
+                      onSubmit={handleEntryFormSubmit}
+                      existingEntries={entries.filter((entry) => !entry.deletedAt)}
+                      guidelines={guidelines}
+                      currentUser={currentUser}
+                      currentUserEmail={currentUserEmail}
+                      approverOptions={approverOptions}
+                      influencers={influencers}
+                      teamsWebhookUrl={guidelines?.teamsWebhookUrl ?? ''}
+                      pushSyncToast={pushSyncToast}
+                      initialValues={entryFormPrefill}
+                    />
+                  </div>
+                  <div className="flex w-full flex-col gap-6">
+                    <div className="rounded-3xl border border-aqua-200 bg-white px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-black px-4 py-2 text-sm font-semibold text-graystone-800">
+                          <CalendarIcon className="h-4 w-4 text-ocean-600" />
+                          {monthLabel}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setMonthCursor(
+                                new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1),
+                              )
+                            }
+                          >
+                            Prev
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setMonthCursor(
+                                new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1),
+                              )
+                            }
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-xs text-graystone-500">
+                        This selector only updates the Month at a glance calendar.
+                      </p>
+                    </div>
+                    <MiniCalendar
+                      monthCursor={monthCursor}
+                      entries={monthEntries}
+                      onPreviewEntry={(entry) => {
+                        setPreviewEntryId(entry?.id || '');
+                        setPreviewEntryContext(entry?.id ? 'form' : 'default');
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {currentView === 'plan' && (
+              <div className="space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setCurrentView('dashboard');
+                        setPlanTab('plan');
+                        closeEntry();
+                      }}
+                    >
+                      Dashboard
+                    </Button>
+                    <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-ocean-200 bg-ocean-50 p-1 text-ocean-600">
+                      {canUseCalendar && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => setPlanTab('plan')}
+                          className={cx(
+                            'rounded-2xl px-4 py-2 text-sm transition',
+                            planTab === 'plan'
+                              ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                              : 'text-ocean-600 hover:bg-ocean-100',
+                          )}
+                        >
+                          Calendar
+                        </Button>
+                      )}
+                      {canUseCalendar && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => setPlanTab('peaks')}
+                          className={cx(
+                            'rounded-2xl px-4 py-2 text-sm transition',
+                            planTab === 'peaks'
+                              ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                              : 'text-ocean-600 hover:bg-ocean-100',
+                          )}
+                        >
+                          Peaks
+                        </Button>
+                      )}
+                      {canUseCalendar && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => setPlanTab('series')}
+                          className={cx(
+                            'rounded-2xl px-4 py-2 text-sm transition',
+                            planTab === 'series'
+                              ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                              : 'text-ocean-600 hover:bg-ocean-100',
+                          )}
+                        >
+                          Series
+                        </Button>
+                      )}
+                      {canUseCalendar && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => setPlanTab('responses')}
+                          className={cx(
+                            'rounded-2xl px-4 py-2 text-sm transition',
+                            planTab === 'responses'
+                              ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                              : 'text-ocean-600 hover:bg-ocean-100',
+                          )}
+                        >
+                          Responses
+                        </Button>
+                      )}
+                      {canUseIdeas && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => setPlanTab('ideas')}
+                          className={cx(
+                            'rounded-2xl px-4 py-2 text-sm transition',
+                            planTab === 'ideas'
+                              ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                              : 'text-ocean-600 hover:bg-ocean-100',
+                          )}
+                        >
+                          Ideas
+                        </Button>
+                      )}
+                      {canUseRequests && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => setPlanTab('requests')}
+                          className={cx(
+                            'rounded-2xl px-4 py-2 text-sm transition',
+                            planTab === 'requests'
+                              ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                              : 'text-ocean-600 hover:bg-ocean-100',
+                          )}
+                        >
+                          Requests
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {canUseCalendar && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowTrashModal(true)}
+                        className="gap-1.5 text-graystone-600"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                        Trash
+                      </Button>
+                    )}
+                    <Button
+                      onClick={() => {
+                        if (!canUseCalendar) return;
+                        setCurrentView('form');
+                        setPlanTab('plan');
+                        closeEntry();
+                        try {
+                          window.location.hash = '#create';
+                        } catch {}
+                      }}
+                      className="gap-2"
+                      disabled={!canUseCalendar}
+                    >
+                      <PlusIcon className="h-4 w-4 text-white" />
+                      Create content
+                    </Button>
+                  </div>
+                </div>
+
+                {(() => {
+                  switch (planTab) {
+                    case 'plan':
+                      if (!canUseCalendar) return null;
+                      return (
+                        <CalendarView
+                          entries={entries}
+                          monthCursor={monthCursor}
+                          onMonthChange={setMonthCursor}
+                          onApprove={toggleApprove}
+                          onDelete={softDelete}
+                          onOpenEntry={openEntry}
+                          onImportPerformance={() => setPerformanceImportOpen(true)}
+                          assetGoals={assetGoals}
+                          onGoalsChange={setAssetGoals}
+                          onEntryDateChange={handleEntryDateChange}
+                          dailyPostTarget={dailyPostTarget}
+                          onDailyPostTargetChange={handleDailyPostTargetChange}
+                          onBulkDateShift={handleBulkDateShift}
+                          onUpdateStatus={updateWorkflowStatus}
+                          onUpdate={upsert}
+                          outstandingCount={canUseApprovals ? outstandingCount : undefined}
+                          onOpenApprovals={
+                            canUseApprovals ? () => setShowApprovalsModal(true) : undefined
+                          }
+                          openOpportunitiesCount={openOpportunities.length}
+                          onOpenOpportunities={() => setShowOpportunitiesModal(true)}
+                          userEmail={currentUserEmail}
+                          campaigns={campaigns}
+                          onAddCampaign={addCampaign}
+                          onUpdateCampaign={updateCampaign}
+                          onDeleteCampaign={deleteCampaign}
+                          onRefresh={refreshEntries}
+                        />
+                      );
+                    case 'peaks':
+                      if (!canUseCalendar) return null;
+                      return (
+                        <ContentPeaksView
+                          contentPeaks={contentPeaks}
+                          entries={entries}
+                          currentUser={currentUser}
+                          ownerOptions={managerCandidates
+                            .map((user) => user.name || user.email || '')
+                            .filter(Boolean)}
+                          onAddContentPeak={addContentPeak}
+                          onUpdateContentPeak={updateContentPeak}
+                          onDeleteContentPeak={deleteContentPeak}
+                          onOpenEntry={openEntry}
+                          onCreateEntryFromPeak={handleCreateEntryFromPeak}
+                        />
+                      );
+                    case 'series':
+                      if (!canUseCalendar) return null;
+                      return (
+                        <ContentSeriesView
+                          contentSeries={contentSeries}
+                          entries={entries}
+                          currentUser={currentUser}
+                          ownerOptions={managerCandidates
+                            .map((user) => user.name || user.email || '')
+                            .filter(Boolean)}
+                          onAddContentSeries={addContentSeries}
+                          onUpdateContentSeries={updateContentSeries}
+                          onDeleteContentSeries={deleteContentSeries}
+                          onOpenEntry={openEntry}
+                          onCreateEntryFromSeries={handleCreateEntryFromSeries}
+                        />
+                      );
+                    case 'responses':
+                      if (!canUseCalendar) return null;
+                      return (
+                        <RapidResponsesView
+                          rapidResponses={rapidResponses}
+                          opportunities={openOpportunities}
+                          entries={entries}
+                          currentUser={currentUser}
+                          ownerOptions={managerCandidates
+                            .map((user) => user.name || user.email || '')
+                            .filter(Boolean)}
+                          onAddRapidResponse={addRapidResponse}
+                          onUpdateRapidResponse={updateRapidResponse}
+                          onDeleteRapidResponse={deleteRapidResponse}
+                          onOpenEntry={openEntry}
+                          onCreateEntryFromResponse={handleCreateEntryFromResponse}
+                        />
+                      );
+                    case 'ideas':
+                      if (!canUseIdeas) return null;
+                      return (
+                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                          <IdeaForm onSubmit={addIdea} currentUser={currentUser} />
+                          <IdeasBoard
+                            ideas={ideas}
+                            onDelete={deleteIdea}
+                            onCreateEntry={createEntryFromIdea}
+                          />
+                        </div>
+                      );
+                    case 'requests':
+                      return (
+                        <ContentRequestsView
+                          contentRequests={contentRequests}
+                          currentUser={currentUser || currentUserEmail || null}
+                          approverOptions={approverOptions}
+                          onAddContentRequest={addContentRequest}
+                          onUpdateStatus={updateContentRequestStatus}
+                          onConvertToEntry={handleConvertRequestToEntry}
+                        />
+                      );
+                    default:
+                      return null;
+                  }
+                })()}
+              </div>
+            )}
+
+            {currentView === 'insights' && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 rounded-3xl border border-ocean-200 bg-ocean-50 p-1 text-ocean-600">
+                    <Button
+                      variant="ghost"
+                      onClick={() => setPlanTab('analytics')}
+                      className={cx(
+                        'rounded-2xl px-4 py-2 text-sm transition',
+                        planTab === 'analytics'
+                          ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                          : 'text-ocean-600 hover:bg-ocean-100',
+                      )}
+                    >
+                      Analytics
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setPlanTab('engagement')}
+                      className={cx(
+                        'rounded-2xl px-4 py-2 text-sm transition',
+                        planTab === 'engagement'
+                          ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                          : 'text-ocean-600 hover:bg-ocean-100',
+                      )}
+                    >
+                      Engagement
+                    </Button>
+                  </div>
+                </div>
+                {planTab === 'analytics' && <ReportInsightsView />}
+                {planTab === 'engagement' && (
+                  <EngagementView
+                    activities={engagementActivities}
+                    accounts={engagementAccounts}
+                    goals={engagementGoals}
+                    currentUser={currentUser}
+                    onAddActivity={(activity) => {
+                      const newActivity = {
+                        ...activity,
+                        id: uuid(),
+                        createdAt: new Date().toISOString(),
+                        createdBy: currentUser,
+                      };
+                      setEngagementActivities((prev) => [newActivity, ...prev]);
+                    }}
+                    onDeleteActivity={(id) => {
+                      setEngagementActivities((prev) => prev.filter((a) => a.id !== id));
+                    }}
+                    onAddAccount={(account) => {
+                      const newAccount = {
+                        ...account,
+                        id: uuid(),
+                        createdAt: new Date().toISOString(),
+                        createdBy: currentUser,
+                      };
+                      setEngagementAccounts((prev) => [newAccount, ...prev]);
+                    }}
+                    onDeleteAccount={(id) => {
+                      setEngagementAccounts((prev) => prev.filter((a) => a.id !== id));
+                    }}
+                    onUpdateAccount={(id, updates) => {
+                      setEngagementAccounts((prev) =>
+                        prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+                      );
+                    }}
+                    onUpdateGoals={(goals) => setEngagementGoals(goals)}
+                  />
+                )}
+              </div>
+            )}
+
+            {currentView === 'reporting' && (
+              <ReportingView currentUser={currentUser} currentUserEmail={currentUserEmail} />
+            )}
+
+            {currentView === 'influencers' && canUseInfluencers && (
+              <InfluencersView
+                influencers={influencers}
+                entries={entries}
+                currentUser={currentUser}
+                onAdd={handleAddInfluencer}
+                onUpdate={handleUpdateInfluencer}
+                onDelete={handleDeleteInfluencer}
+                onOpenDetail={handleOpenInfluencerDetail}
+              />
+            )}
+
+            {currentView === 'admin' && currentUserIsAdmin && (
+              <div className="space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      onClick={() => setCurrentView('dashboard')}
+                      className="self-start"
+                    >
+                      Dashboard
+                    </Button>
+                    <h2 className="text-2xl font-semibold text-ocean-700">Admin tools</h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (window.api && window.api.enabled) {
+                          apiGet('/api/health').catch(() => {});
+                        }
+                      }}
+                    >
+                      Ping server
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        (async () => {
+                          try {
+                            if (window.api && window.api.enabled) {
+                              const json = await apiGet('/api/audit?limit=200');
+                              setAdminAudits(Array.isArray(json) ? json : []);
+                            } else {
+                              const raw = storageAvailable
+                                ? window.localStorage.getItem('pm-content-audit-log')
+                                : '[]';
+                              const local = raw ? JSON.parse(raw) : [];
+                              setAdminAudits(Array.isArray(local) ? local : []);
+                            }
+                          } catch {}
+                        })();
+                      }}
+                    >
+                      Refresh audits
+                    </Button>
+                  </div>
+                </div>
+
+                <Card className="shadow-xl">
+                  <CardHeader>
+                    <CardTitle className="text-lg text-ocean-900">Recent audit events</CardTitle>
+                    <p className="mt-2 text-sm text-graystone-500">
+                      Pulled from the server when connected; local fallback otherwise.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {adminAudits.length === 0 ? (
+                        <p className="text-sm text-graystone-600">No audit events.</p>
+                      ) : (
+                        adminAudits.slice(0, 200).map((row) => (
+                          <div
+                            key={row.id}
+                            className="flex items-center justify-between rounded-xl border border-graystone-200 bg-white px-3 py-2 text-sm"
+                          >
+                            <div className="flex flex-col">
+                              <div className="font-medium text-ocean-800">
+                                {row.action || 'event'}
+                              </div>
+                              <div className="text-[11px] text-graystone-600">
+                                {row.user || 'Unknown'} · {row.entryId || '—'}
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-graystone-500">
+                              {row.ts ? new Date(row.ts).toLocaleString() : ''}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-xl">
+                  <CardHeader>
+                    <CardTitle className="text-lg text-ocean-900">Approver directory</CardTitle>
+                    <p className="mt-2 text-sm text-graystone-500">
+                      Approvers are managed via the user roster. Enable the role on a teammate to
+                      list them here.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {approverOptions.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {approverOptions.map((name) => (
+                          <span
+                            key={name}
+                            className="rounded-full bg-aqua-100 px-3 py-1 text-xs font-semibold text-ocean-700"
+                          >
+                            {name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-graystone-500">
+                        No approvers configured yet. Mark a user as an approver to add them.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-xl">
+                  <CardHeader>
+                    <CardTitle className="text-lg text-ocean-900">User roster</CardTitle>
+                    <p className="mt-2 text-sm text-graystone-500">
+                      Add new users (first + last + email); they’ll be emailed when created.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {userList.length ? (
+                        userList.map((user) => (
+                          <div
+                            key={user.id || user.email || user.name}
+                            className="rounded-xl border border-graystone-200 bg-white px-3 py-3 text-sm text-graystone-700"
+                          >
+                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                              <div>
+                                <div className="font-medium text-graystone-900">{user.name}</div>
+                                <div className="text-[11px] text-graystone-500">
+                                  {user.email || 'No email'} ·{' '}
+                                  {user.status === 'disabled'
+                                    ? 'Disabled'
+                                    : user.invitePending || user.status === 'pending'
+                                      ? 'Invite pending'
+                                      : 'Active'}
+                                </div>
+                                <div className="mt-1 flex flex-wrap gap-2 text-[10px] font-semibold uppercase text-graystone-500">
+                                  {user.isAdmin ? (
+                                    <span className="rounded-full bg-ocean-50 px-2 py-0.5 text-ocean-700">
+                                      Admin
+                                    </span>
+                                  ) : null}
+                                  {user.isApprover ? (
+                                    <span className="rounded-full bg-aqua-50 px-2 py-0.5 text-ocean-700">
+                                      Approver
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <select
+                                  className="rounded-lg border border-graystone-300 bg-white px-2 py-1 text-xs text-graystone-700 focus:border-ocean-500 focus:outline-none focus:ring-2 focus:ring-aqua-200"
+                                  value={user.managerEmail || ''}
+                                  onChange={(e) => handleManagerChange(user, e.target.value)}
+                                >
+                                  <option value="">No manager</option>
+                                  {managerCandidates
+                                    .filter((c) => c.email !== user.email)
+                                    .map((c) => (
+                                      <option key={c.email} value={c.email}>
+                                        {c.name}
+                                      </option>
+                                    ))}
+                                </select>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => toggleApproverRole(user)}
+                                >
+                                  {user.isApprover ? 'Remove approver' : 'Make approver'}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setAccessModalUser(user)}
+                                >
+                                  Access
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => removeUser(user)}>
+                                  Remove
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-graystone-500">No users configured yet.</p>
+                      )}
+                    </div>
+                    <AddUserForm
+                      defaultFeatures={DEFAULT_FEATURES}
+                      onSubmit={addUser}
+                      error={userAdminError}
+                      success={userAdminSuccess}
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Publishing Settings */}
+                <PublishSettingsPanel settings={publishSettings} onUpdate={setPublishSettings} />
+
+                {/* Platform Connections */}
+                <PlatformConnectionsView currentUserEmail={currentUserEmail} />
+              </div>
+            )}
+            {/* Trash modal */}
+            <Modal
+              open={showTrashModal}
+              onClose={() => setShowTrashModal(false)}
+              aria-label="Trash (30-day retention)"
+            >
+              {trashed.length === 0 ? (
+                <p className="text-sm text-graystone-500">Nothing in the trash.</p>
+              ) : (
+                <div className="space-y-3">
+                  {trashed.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="rounded-xl border border-graystone-200 bg-white px-4 py-3 shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline">{entry.assetType}</Badge>
+                          <span className="text-sm font-medium text-graystone-700">
+                            {new Date(entry.date).toLocaleDateString()}
+                          </span>
+                          <span className="text-xs text-graystone-500">
+                            Deleted{' '}
+                            {entry.deletedAt ? new Date(entry.deletedAt).toLocaleString() : ''}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="outline" onClick={() => restore(entry.id)}>
+                            <RotateCcwIcon className="h-4 w-4 text-graystone-600" />
+                            Restore
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => hardDelete(entry.id)}
+                          >
+                            <TrashIcon className="h-4 w-4 text-white" />
+                            Delete forever
+                          </Button>
+                        </div>
+                      </div>
+                      {entry.caption && (
+                        <p className="mt-2 line-clamp-2 text-sm text-graystone-600">
+                          {entry.caption}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Modal>
+
+            {/* Approvals modal */}
+            <Modal
+              open={showApprovalsModal}
+              onClose={() => setShowApprovalsModal(false)}
+              aria-label="Approvals"
+            >
+              <ApprovalsView
+                approvals={outstandingApprovals}
+                outstandingCount={outstandingCount}
+                unreadMentionsCount={unreadMentionsCount}
+                canUseCalendar={canUseCalendar}
+                onApprove={toggleApprove}
+                onOpenEntry={(id) => {
+                  setShowApprovalsModal(false);
+                  openEntry(id);
+                }}
+                onBackToMenu={() => setShowApprovalsModal(false)}
+                onGoToCalendar={() => {
+                  setShowApprovalsModal(false);
+                  setCurrentView('plan');
+                  setPlanTab('plan');
+                }}
+                onCreateContent={() => {
+                  setShowApprovalsModal(false);
+                  setCurrentView('form');
+                  setPlanTab('plan');
+                  closeEntry();
+                  try {
+                    window.location.hash = '#create';
+                  } catch {}
+                }}
+                onSwitchUser={handleSignOut}
+              />
+            </Modal>
+
+            {/* Opportunities modal */}
+            <Modal
+              open={showOpportunitiesModal}
+              onClose={() => setShowOpportunitiesModal(false)}
+              aria-label="Opportunities"
+            >
+              <OpportunitiesView
+                opportunities={openOpportunities}
+                entries={entries}
+                currentUser={currentUser}
+                onAddOpportunity={addOpportunity}
+                onStartResponse={handleStartResponseFromOpportunity}
+                onMarkActed={markOpportunityAsActed}
+                onDismiss={dismissOpportunity}
+                onOpenEntry={(id) => {
+                  setShowOpportunitiesModal(false);
+                  openEntry(id);
+                }}
+              />
+            </Modal>
+
+            <EntryPreviewModal
+              open={Boolean(previewEntry)}
+              entry={previewEntry}
+              onClose={closePreview}
+              onEdit={handlePreviewEdit}
               currentUser={currentUser}
               currentUserEmail={currentUserEmail}
-              onClose={closeEntry}
+              reviewMode={previewIsReviewMode}
+              canApprove={previewCanApprove}
               onApprove={toggleApprove}
-              onDelete={softDelete}
-              onClone={cloneEntry}
               onUpdate={upsert}
               onNotifyMentions={handleMentionNotifications}
               onCommentAdded={handleCommentActivity}
-              onPublish={handlePublishEntry}
-              onPostAgain={handlePostAgain}
-              onToggleEvergreen={handleToggleEvergreen}
               approverOptions={approverOptions}
               users={mentionUsers}
             />
-          ) : null}
-          {currentUserIsAdmin && (
-            <AccessModal
-              open={Boolean(accessModalUser)}
-              user={accessModalUser}
-              features={accessModalUser?.features || DEFAULT_FEATURES}
-              onClose={() => setAccessModalUser(null)}
-              onSave={handleAccessSave}
+            {viewingSnapshot ? (
+              <EntryModal
+                entry={viewingSnapshot}
+                currentUser={currentUser}
+                currentUserEmail={currentUserEmail}
+                onClose={closeEntry}
+                onApprove={toggleApprove}
+                onDelete={softDelete}
+                onClone={cloneEntry}
+                onUpdate={upsert}
+                onNotifyMentions={handleMentionNotifications}
+                onCommentAdded={handleCommentActivity}
+                onPublish={handlePublishEntry}
+                onPostAgain={handlePostAgain}
+                onToggleEvergreen={handleToggleEvergreen}
+                approverOptions={approverOptions}
+                users={mentionUsers}
+              />
+            ) : null}
+            {currentUserIsAdmin && (
+              <AccessModal
+                open={Boolean(accessModalUser)}
+                user={accessModalUser}
+                features={accessModalUser?.features || DEFAULT_FEATURES}
+                onClose={() => setAccessModalUser(null)}
+                onSave={handleAccessSave}
+              />
+            )}
+            <ChangePasswordModal
+              open={changePasswordOpen}
+              requiresCurrent={currentUserHasPassword}
+              onClose={() => setChangePasswordOpen(false)}
+              onSubmit={handleChangePassword}
             />
-          )}
-          <ChangePasswordModal
-            open={changePasswordOpen}
-            requiresCurrent={currentUserHasPassword}
-            onClose={() => setChangePasswordOpen(false)}
-            onSubmit={handleChangePassword}
-          />
-          {syncToast ? (
-            <div className="fixed bottom-6 right-6 z-50 max-w-xs">
-              <div
-                className={cx(
-                  'rounded-2xl border px-4 py-3 text-sm shadow-xl',
-                  syncToast.tone === 'success'
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-                    : 'border-amber-200 bg-amber-50 text-amber-900',
-                )}
-              >
-                {syncToast.message}
+            {syncToast ? (
+              <div className="fixed bottom-6 right-6 z-50 max-w-xs">
+                <div
+                  className={cx(
+                    'rounded-2xl border px-4 py-3 text-sm shadow-xl',
+                    syncToast.tone === 'success'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                      : 'border-amber-200 bg-amber-50 text-amber-900',
+                  )}
+                >
+                  {syncToast.message}
+                </div>
               </div>
-            </div>
-          ) : null}
-          <GuidelinesModal
-            open={guidelinesOpen}
-            guidelines={guidelines}
-            onClose={() => setGuidelinesOpen(false)}
-            onSave={handleGuidelinesSave}
-          />
-          <PerformanceImportModal
-            open={performanceImportOpen}
-            onClose={() => setPerformanceImportOpen(false)}
-            onImport={importPerformanceDataset}
-          />
-          <InfluencerModal
-            open={influencerModalOpen}
-            influencer={
-              editingInfluencerId
-                ? influencers.find((i) => i.id === editingInfluencerId) || null
-                : null
-            }
-            entries={entries}
-            currentUser={currentUser}
-            allNiches={customNiches}
-            onClose={() => {
-              setInfluencerModalOpen(false);
-              setEditingInfluencerId(null);
-            }}
-            onSave={(inf) => {
-              if (editingInfluencerId) {
-                handleUpdateInfluencer(inf);
-              } else {
-                handleAddInfluencer(inf);
+            ) : null}
+            <GuidelinesModal
+              open={guidelinesOpen}
+              guidelines={guidelines}
+              onClose={() => setGuidelinesOpen(false)}
+              onSave={handleGuidelinesSave}
+            />
+            <PerformanceImportModal
+              open={performanceImportOpen}
+              onClose={() => setPerformanceImportOpen(false)}
+              onImport={importPerformanceDataset}
+            />
+            <InfluencerModal
+              open={influencerModalOpen}
+              influencer={
+                editingInfluencerId
+                  ? influencers.find((i) => i.id === editingInfluencerId) || null
+                  : null
               }
-            }}
-            onDelete={handleDeleteInfluencer}
-            onLinkEntry={handleLinkEntryToInfluencer}
-            onUnlinkEntry={handleUnlinkEntryFromInfluencer}
-            onAddNiche={handleAddCustomNiche}
-          />
+              entries={entries}
+              currentUser={currentUser}
+              allNiches={customNiches}
+              onClose={() => {
+                setInfluencerModalOpen(false);
+                setEditingInfluencerId(null);
+              }}
+              onSave={(inf) => {
+                if (editingInfluencerId) {
+                  handleUpdateInfluencer(inf);
+                } else {
+                  handleAddInfluencer(inf);
+                }
+              }}
+              onDelete={handleDeleteInfluencer}
+              onLinkEntry={handleLinkEntryToInfluencer}
+              onUnlinkEntry={handleUnlinkEntryFromInfluencer}
+              onAddNiche={handleAddCustomNiche}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

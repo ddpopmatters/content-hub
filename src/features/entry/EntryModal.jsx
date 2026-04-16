@@ -1364,7 +1364,7 @@ export function EntryModal({
                 </FieldRow>
 
                 <FieldRow label="Content approach">
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {['Planned', 'Reactive'].map((mode) => {
                       const label = mode === 'Planned' ? 'Proactive' : 'Reactive';
                       const active = contentApproach === mode;
@@ -1374,7 +1374,7 @@ export function EntryModal({
                           type="button"
                           onClick={() => update('responseMode', mode)}
                           className={cx(
-                            'flex-1 rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+                            'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
                             active
                               ? 'border-ocean-400 bg-ocean-600 text-white'
                               : 'border-graystone-200 bg-white text-graystone-600 hover:border-ocean-300 hover:text-ocean-700',
@@ -1388,7 +1388,7 @@ export function EntryModal({
                 </FieldRow>
 
                 <FieldRow label="Workflow dates">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {[
                       { label: 'First check', key: 'firstCheckDate' },
                       { label: 'Second check', key: 'secondCheckDate' },
@@ -1415,8 +1415,8 @@ export function EntryModal({
                       onChange={(value) => update('approvers', value)}
                       options={approverOptions}
                     />
-                    <div className="flex items-center justify-between gap-3 text-xs text-graystone-500">
-                      <span>
+                    <div className="flex flex-col gap-2 text-xs text-graystone-500 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="leading-5">
                         Recommended for this route:{' '}
                         {recommendedApprovers.length
                           ? recommendedApprovers.join(', ')
@@ -1852,7 +1852,7 @@ export function EntryModal({
                       </button>
                       {showUtm && (
                         <div className="space-y-3 rounded-xl border border-graystone-200 bg-graystone-50 p-3">
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {[
                               {
                                 label: 'Source *',
@@ -1938,7 +1938,7 @@ export function EntryModal({
                       )}
                     </div>
                     {(draft.assetPreviews || []).length > 0 && (
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
                         {(draft.assetPreviews || []).map((url, idx) => (
                           <div
                             key={idx}

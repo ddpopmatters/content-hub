@@ -148,9 +148,9 @@ export function OrgEventModal({
         onClick={onClose}
         className="absolute inset-0"
       />
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-graystone-100 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-graystone-100 px-5 py-4 sm:px-6">
           <h2 className="text-base font-semibold text-graystone-900">
             {isEditMode ? 'Edit org event' : 'Add org event'}
           </h2>
@@ -169,7 +169,7 @@ export function OrgEventModal({
             e.preventDefault();
             handleSave();
           }}
-          className="flex flex-col gap-4 px-5 py-4"
+          className="flex flex-col gap-4 px-5 py-4 sm:px-6"
         >
           {/* Name */}
           <div className="space-y-1.5">
@@ -215,7 +215,7 @@ export function OrgEventModal({
           </div>
 
           {/* Dates */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="org-event-start">Start date</Label>
               <input
@@ -246,7 +246,7 @@ export function OrgEventModal({
             <div
               role="radiogroup"
               aria-labelledby={COLOUR_LABEL_ID}
-              className="grid grid-cols-8 gap-1.5"
+              className="grid grid-cols-6 gap-2 sm:grid-cols-8 sm:gap-1.5"
             >
               {GANTT_COLOUR_SWATCHES.map((swatch) => (
                 <button
@@ -283,7 +283,7 @@ export function OrgEventModal({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center border-t border-graystone-100 pt-3 mt-1">
+          <div className="mt-1 flex flex-col gap-3 border-t border-graystone-100 pt-3 sm:flex-row sm:items-center">
             <div className="flex-1">
               {isEditMode && onDelete && (
                 <button
@@ -298,11 +298,17 @@ export function OrgEventModal({
                 </button>
               )}
             </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={onClose}>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onClose}
+                className="justify-center"
+              >
                 Cancel
               </Button>
-              <Button type="submit" size="sm" disabled={isSaveDisabled}>
+              <Button type="submit" size="sm" disabled={isSaveDisabled} className="justify-center">
                 {isEditMode ? 'Save changes' : 'Add event'}
               </Button>
             </div>

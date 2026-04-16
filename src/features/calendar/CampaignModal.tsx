@@ -141,9 +141,9 @@ export function CampaignModal({
       open
       onClose={onClose}
       aria-labelledby="campaign-modal-title"
-      className="max-w-md rounded-2xl"
+      className="max-w-lg rounded-2xl"
     >
-      <div className="p-6">
+      <div className="p-5 sm:p-6">
         <h2 id="campaign-modal-title" className="mb-5 text-lg font-semibold text-graystone-900">
           {isEditMode ? 'Edit campaign' : 'New campaign'}
         </h2>
@@ -195,7 +195,7 @@ export function CampaignModal({
             </div>
 
             {/* Dates */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="campaign-start">Start date</Label>
                 <Input
@@ -224,7 +224,7 @@ export function CampaignModal({
               <div
                 role="radiogroup"
                 aria-labelledby={COLOUR_LABEL_ID}
-                className="grid grid-cols-8 gap-1.5"
+                className="grid grid-cols-6 gap-2 sm:grid-cols-8 sm:gap-1.5"
               >
                 {GANTT_COLOUR_SWATCHES.map((swatch) => (
                   <button
@@ -261,7 +261,7 @@ export function CampaignModal({
           </div>
 
           {/* Actions */}
-          <div className="mt-6 flex items-center">
+          <div className="mt-6 flex flex-col gap-3 border-t border-graystone-100 pt-4 sm:flex-row sm:items-center">
             <div className="flex-1">
               {isEditMode && onDelete && (
                 <button
@@ -276,11 +276,23 @@ export function CampaignModal({
                 </button>
               )}
             </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={onClose}>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onClose}
+                className="justify-center"
+              >
                 Cancel
               </Button>
-              <Button type="submit" variant="default" size="sm" disabled={isSaveDisabled}>
+              <Button
+                type="submit"
+                variant="default"
+                size="sm"
+                disabled={isSaveDisabled}
+                className="justify-center"
+              >
                 {isEditMode ? 'Save changes' : 'Create'}
               </Button>
             </div>

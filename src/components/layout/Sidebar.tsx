@@ -1,4 +1,5 @@
 import React from 'react';
+import { APP_CONFIG } from '../../lib/config';
 import { cx } from '../../lib/utils';
 
 export interface SidebarProps {
@@ -19,6 +20,9 @@ export interface SidebarProps {
   canUseInfluencers: boolean;
   currentUserIsAdmin: boolean;
   outstandingCount: number;
+  className?: string;
+  onClose?: () => void;
+  showCloseButton?: boolean;
 }
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -164,6 +168,9 @@ export function Sidebar({
   canUseInfluencers,
   currentUserIsAdmin,
   outstandingCount,
+  className = '',
+  onClose,
+  showCloseButton = false,
 }: SidebarProps): React.ReactElement {
   // Determine which sidebar item is active based on currentView and planTab
   const getActiveItem = () => {
@@ -195,38 +202,67 @@ export function Sidebar({
   ].filter((item) => item.enabled);
 
   return (
-    <div className="w-64 bg-ocean-800 flex flex-col h-screen fixed left-0 top-0 z-40">
+    <aside
+      className={cx(
+        'flex h-full min-h-screen w-64 flex-col border-r border-ocean-700 bg-ocean-900 text-white shadow-2xl',
+        className,
+      )}
+      aria-label="Primary navigation"
+    >
       {/* Logo/Header */}
-      <div className="p-6 bg-white border-b border-ocean-100">
-        <div className="flex items-center gap-3">
-          <img
-            src="https://www.wikicorporates.org/mediawiki/images/thumb/d/db/Population-Matters-2020.png/250px-Population-Matters-2020.png"
-            alt="Population Matters"
-            className="h-10 w-10 object-contain"
-          />
-          <div>
-            <h1 className="heading-font text-lg text-ocean-900">Content Hub</h1>
+      <div className="border-b border-ocean-700 bg-white/95 p-6 text-ocean-900 backdrop-blur">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <img
+              src={APP_CONFIG.LOGO_URL}
+              alt={APP_CONFIG.ORG_NAME}
+              className="h-11 w-11 rounded-2xl border border-aqua-200 bg-white p-2 object-contain shadow-sm"
+            />
+            <div>
+              <div className="text-[0.65rem] font-semibold uppercase tracking-[0.26em] text-ocean-500">
+                Internal tool
+              </div>
+              <h1 className="heading-font text-lg text-ocean-950">Content Hub</h1>
+              <p className="mt-1 text-xs text-graystone-600">Plan, review and publish content.</p>
+            </div>
           </div>
+          {showCloseButton ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-aqua-200 text-ocean-700 transition hover:border-ocean-300 hover:bg-aqua-50 hover:text-ocean-900 md:hidden"
+              aria-label="Close navigation"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M6 6l12 12M18 6L6 18"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          ) : null}
         </div>
       </div>
 
       {/* Navigation Items */}
-      <nav className="flex-1 py-4 pl-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-5">
         {menuItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
             className={cx(
-              'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
+              'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors',
               activeItem === item.id
-                ? 'bg-white text-ocean-900 font-medium rounded-l-xl'
-                : 'rounded-xl text-ocean-200 hover:bg-ocean-700 hover:text-white',
+                ? 'rounded-2xl bg-white text-ocean-900 shadow-lg shadow-ocean-950/15'
+                : 'rounded-2xl text-ocean-100 hover:bg-ocean-800 hover:text-white',
             )}
           >
             <span className="shrink-0">{iconMap[item.icon]}</span>
-            <span className="text-sm">{item.label}</span>
+            <span className="text-sm font-medium">{item.label}</span>
             {item.badge && item.badge > 0 && (
-              <span className="ml-auto text-xs font-semibold bg-ocean-500 text-white rounded-full px-2 py-0.5">
+              <span className="ml-auto rounded-full bg-ocean-500 px-2 py-0.5 text-xs font-semibold text-white">
                 {item.badge}
               </span>
             )}
@@ -236,14 +272,14 @@ export function Sidebar({
 
       {/* Add New Item - Special Button */}
       {canUseCalendar && (
-        <div className="p-4 border-t border-ocean-700">
+        <div className="border-t border-ocean-700 p-4">
           <button
             onClick={() => onNavigate('form')}
             className={cx(
-              'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-left transition-all font-semibold',
+              'flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-left font-semibold transition-all',
               currentView === 'form'
                 ? 'bg-white text-ocean-800 shadow-lg'
-                : 'bg-ocean-500 text-white hover:bg-ocean-400 shadow-md',
+                : 'bg-ocean-500 text-white shadow-md hover:bg-ocean-400',
             )}
           >
             {iconMap.plus}
@@ -253,10 +289,10 @@ export function Sidebar({
       )}
 
       {/* User Profile Section */}
-      <div className="p-4 border-t border-ocean-700">
+      <div className="border-t border-ocean-700 p-4">
         <button
           onClick={onProfileClick}
-          className="w-full flex items-center gap-3 p-3 rounded-xl bg-ocean-700 hover:bg-ocean-600 transition-colors text-left"
+          className="flex w-full items-center gap-3 rounded-2xl border border-ocean-700 bg-ocean-800/80 p-3 text-left transition-colors hover:bg-ocean-700"
         >
           {currentUserAvatar ? (
             <img
@@ -265,12 +301,12 @@ export function Sidebar({
               className="w-10 h-10 rounded-full object-cover"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-ocean-500 flex items-center justify-center text-white font-bold text-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-ocean-500 text-sm font-bold text-white">
               {profileInitials}
             </div>
           )}
-          <div className="flex-1 min-w-0">
-            <div className="font-medium text-sm text-white truncate">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium text-white">
               {currentUser || currentUserEmail}
             </div>
             <div className="text-xs text-ocean-300">View profile</div>
@@ -278,12 +314,12 @@ export function Sidebar({
         </button>
         <button
           onClick={onSignOut}
-          className="w-full mt-2 text-xs text-ocean-400 hover:text-white transition-colors"
+          className="mt-2 w-full text-xs text-ocean-300 transition-colors hover:text-white"
         >
           Sign out
         </button>
       </div>
-    </div>
+    </aside>
   );
 }
 

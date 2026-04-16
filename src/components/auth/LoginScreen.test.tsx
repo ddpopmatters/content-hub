@@ -22,7 +22,7 @@ describe('LoginScreen', () => {
 
     expect(screen.queryByRole('button', { name: /sign up/i })).not.toBeInTheDocument();
     expect(
-      screen.getByText(/ask an administrator to invite you to the content dashboard/i),
+      screen.getByText(/ask an administrator to invite you to content hub/i),
     ).toBeInTheDocument();
   });
 

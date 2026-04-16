@@ -1,4 +1,7 @@
 {
   "tool": "content-hub",
-  "status": "ok"
+  "status": "ok",
+  "canonicalRole": "content-operations",
+  "runtimePattern": "next-or-static-supabase-app",
+  "authModel": "supabase-auth-transitioning-to-cloudflare-access"
 }

@@ -45,10 +45,10 @@ export function QuickActionsWidget({
   return (
     <Card className="shadow-md">
       <CardContent className="py-4">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
           <Button
             variant="default"
-            className="flex items-center justify-center gap-2"
+            className="flex items-center justify-center gap-2 py-3"
             onClick={onCreateContent}
           >
             <PlusIcon className="h-4 w-4" />
@@ -56,7 +56,7 @@ export function QuickActionsWidget({
           </Button>
           <Button
             variant="outline"
-            className="flex items-center justify-center gap-2"
+            className="flex items-center justify-center gap-2 py-3"
             onClick={onViewCalendar}
           >
             <CalendarIcon className="h-4 w-4" />
@@ -64,7 +64,7 @@ export function QuickActionsWidget({
           </Button>
           <Button
             variant="outline"
-            className="flex items-center justify-center gap-2"
+            className="flex items-center justify-center gap-2 py-3"
             onClick={onViewRequests}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,7 +77,7 @@ export function QuickActionsWidget({
           </Button>
           <Button
             variant="outline"
-            className="flex items-center justify-center gap-2"
+            className="flex items-center justify-center gap-2 py-3"
             onClick={onViewReporting}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -90,7 +90,7 @@ export function QuickActionsWidget({
           </Button>
           <Button
             variant="outline"
-            className="relative flex items-center justify-center gap-2"
+            className="relative flex items-center justify-center gap-2 py-3"
             onClick={onViewApprovals}
           >
             <CheckCircleIcon className="h-4 w-4" />
@@ -103,7 +103,7 @@ export function QuickActionsWidget({
           </Button>
           <Button
             variant="outline"
-            className="flex items-center justify-center gap-2"
+            className="flex items-center justify-center gap-2 py-3"
             onClick={onOpenGuidelines}
           >
             <BookIcon className="h-4 w-4" />

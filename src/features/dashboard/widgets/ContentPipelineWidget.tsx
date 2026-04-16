@@ -51,17 +51,19 @@ export function ContentPipelineWidget({
         </div>
 
         {/* Stage counts */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {counts.map((stage) => (
             <button
               key={stage.status}
               type="button"
               onClick={() => onNavigate?.('plan', stage.status)}
-              className="flex items-center gap-2 rounded-lg border border-graystone-200 px-3 py-2 text-left transition hover:border-ocean-300 hover:bg-ocean-50"
+              className="flex items-center gap-3 rounded-2xl border border-graystone-200 bg-graystone-50/50 px-4 py-3 text-left transition hover:border-ocean-300 hover:bg-ocean-50"
             >
               <span className={`h-2.5 w-2.5 rounded-full ${stage.color}`} />
               <span className="flex-1 text-xs text-graystone-600">{stage.label}</span>
-              <span className="text-sm font-semibold text-ocean-900">{stage.count}</span>
+              <span className="rounded-full bg-white px-2.5 py-1 text-sm font-semibold text-ocean-900 shadow-sm">
+                {stage.count}
+              </span>
             </button>
           ))}
         </div>

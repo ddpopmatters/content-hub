@@ -511,18 +511,18 @@ export function CalendarView({
   return (
     <div className="flex flex-col gap-4">
       {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         {/* Left: view mode + navigation */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
           {/* Month / Week / Year toggle */}
-          <div className="inline-flex rounded-lg border border-graystone-200 bg-graystone-50 p-0.5">
+          <div className="inline-flex w-full rounded-lg border border-graystone-200 bg-graystone-50 p-0.5 sm:w-auto">
             {(['month', 'week', 'year', 'list'] as const).map((mode) => (
               <button
                 key={mode}
                 type="button"
                 onClick={() => setViewMode(mode)}
                 className={cx(
-                  'rounded-md px-3 py-1 text-xs font-medium transition capitalize',
+                  'flex-1 rounded-md px-3 py-2 text-xs font-medium transition capitalize sm:flex-none',
                   viewMode === mode
                     ? 'bg-white text-ocean-700 shadow-sm'
                     : 'text-graystone-600 hover:text-graystone-900',
@@ -535,14 +535,14 @@ export function CalendarView({
 
           {/* Confirmed / Planning toggle — month view only */}
           {viewMode === 'month' && (
-            <div className="inline-flex rounded-lg border border-graystone-200 bg-graystone-50 p-0.5">
+            <div className="inline-flex w-full rounded-lg border border-graystone-200 bg-graystone-50 p-0.5 sm:w-auto">
               {(['confirmed', 'planning'] as const).map((layer) => (
                 <button
                   key={layer}
                   type="button"
                   onClick={() => setCalendarLayer(layer)}
                   className={cx(
-                    'rounded-md px-3 py-1 text-xs font-medium transition capitalize',
+                    'flex-1 rounded-md px-3 py-2 text-xs font-medium transition capitalize sm:flex-none',
                     calendarLayer === layer
                       ? 'bg-white text-ocean-700 shadow-sm'
                       : 'text-graystone-600 hover:text-graystone-900',
@@ -556,42 +556,44 @@ export function CalendarView({
 
           {/* Prev / date label / Next — hidden in year and list views */}
           {viewMode !== 'year' && viewMode !== 'list' && (
-            <>
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={viewMode === 'month' ? goToPrevMonth : goToPrevWeek}
+                className="justify-center"
               >
                 Prev
               </Button>
               <button
                 type="button"
                 onClick={goToToday}
-                className="inline-flex items-center gap-2 rounded-md border border-graystone-200 bg-white px-3 py-1 text-sm font-medium text-graystone-700 shadow-sm hover:bg-graystone-50"
+                className="inline-flex min-w-0 items-center justify-center gap-2 rounded-md border border-graystone-200 bg-white px-3 py-2 text-center text-sm font-medium text-graystone-700 shadow-sm hover:bg-graystone-50"
               >
                 <CalendarIcon className="h-4 w-4 text-graystone-500" />
-                {viewMode === 'month' ? monthLabel : weekLabel}
+                <span className="truncate">{viewMode === 'month' ? monthLabel : weekLabel}</span>
               </button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={viewMode === 'month' ? goToNextMonth : goToNextWeek}
+                className="justify-center"
               >
                 Next
               </Button>
-            </>
+            </div>
           )}
         </div>
 
         {/* Right: action buttons */}
-        <div className="flex items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           {/* Refresh */}
           {onRefresh && (
             <button
               type="button"
               onClick={onRefresh}
               title="Refresh entries"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-graystone-200 bg-white px-3 py-1.5 text-sm font-medium text-graystone-600 transition hover:border-graystone-300 hover:bg-graystone-50"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-graystone-200 bg-white px-3 py-2 text-sm font-medium text-graystone-600 transition hover:border-graystone-300 hover:bg-graystone-50"
             >
               <svg
                 aria-hidden="true"
@@ -616,7 +618,7 @@ export function CalendarView({
             type="button"
             onClick={() => setShowFilters((v) => !v)}
             className={cx(
-              'inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-medium transition',
+              'inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition',
               showFilters
                 ? 'border-ocean-300 bg-ocean-50 text-ocean-700'
                 : 'border-graystone-200 bg-white text-graystone-600 hover:border-graystone-300 hover:bg-graystone-50',
@@ -635,7 +637,7 @@ export function CalendarView({
             type="button"
             onClick={() => setShowExport((v) => !v)}
             className={cx(
-              'inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-medium transition',
+              'inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition',
               showExport
                 ? 'border-ocean-300 bg-ocean-50 text-ocean-700'
                 : 'border-graystone-200 bg-white text-graystone-600 hover:border-graystone-300 hover:bg-graystone-50',
@@ -644,7 +646,7 @@ export function CalendarView({
             Export
           </button>
 
-          <Button variant="outline" size="sm" onClick={onImportPerformance}>
+          <Button variant="outline" size="sm" onClick={onImportPerformance} className="py-2">
             Import performance
           </Button>
         </div>
@@ -653,16 +655,16 @@ export function CalendarView({
       {/* ── Filters panel ───────────────────────────────────────────────────── */}
       {showFilters && (
         <div className="rounded-2xl border border-graystone-200 bg-white px-4 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <span className="text-sm font-semibold text-graystone-700">
               Filters
               {activeFilterCount > 0 && (
-                <span className="ml-2 text-xs font-normal text-graystone-400">
+                <span className="mt-1 block text-xs font-normal text-graystone-400 sm:ml-2 sm:mt-0 sm:inline">
                   {activeFilterCount} active · showing {monthEntries.length} of {monthEntryTotal}
                 </span>
               )}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <SavedFilters
                 presets={filterPresets}
                 currentFilters={currentFilters}
@@ -681,7 +683,7 @@ export function CalendarView({
           </div>
 
           {/* Five dropdowns */}
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-5 mb-4">
+          <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
             <div>
               <Label className="text-xs text-graystone-600">Asset type</Label>
               <select
@@ -740,7 +742,7 @@ export function CalendarView({
           </div>
 
           {/* Search + toggles */}
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
             <div>
               <Label className="text-xs text-graystone-600" htmlFor="plan-search">
                 Search
@@ -801,7 +803,7 @@ export function CalendarView({
       {/* ── Export panel ────────────────────────────────────────────────────── */}
       {showExport && (
         <div className="rounded-2xl border border-graystone-200 bg-white px-4 py-4">
-          <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <div className="text-xs text-graystone-600">
               <div className="font-semibold text-graystone-700">Export calendar</div>
               <div>
@@ -817,7 +819,7 @@ export function CalendarView({
               />
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
             <div>
               <Label className="text-xs text-graystone-600" htmlFor="export-start-date">
                 From
@@ -848,12 +850,13 @@ export function CalendarView({
                 className="mt-1"
               />
             </div>
-            <div className="flex items-end gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleExportCalendarCSV}
                 disabled={!hasValidExportRange}
+                className="justify-center"
               >
                 Export CSV
               </Button>
@@ -862,6 +865,7 @@ export function CalendarView({
                 size="sm"
                 onClick={handleExportCalendarICS}
                 disabled={!hasValidExportRange}
+                className="justify-center"
               >
                 Export ICS
               </Button>

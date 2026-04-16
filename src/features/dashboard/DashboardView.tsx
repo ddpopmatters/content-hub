@@ -118,14 +118,14 @@ export function DashboardView({
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Dashboard Header */}
-      <div className="gradient-header mb-6 rounded-2xl p-6 text-white shadow-xl flex items-start justify-between">
-        <div>
+      <div className="gradient-header mb-6 flex flex-col gap-4 rounded-2xl p-5 text-white shadow-xl sm:p-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
           <h1 className="heading-font text-2xl font-bold">Dashboard</h1>
           <p className="text-ocean-100 text-sm">Your content at a glance</p>
         </div>
         <button
           onClick={() => setCustomising((v) => !v)}
-          className="mt-1 flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/25 transition-colors"
+          className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/25 sm:w-auto"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="3" strokeWidth="2" />

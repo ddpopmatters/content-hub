@@ -10,6 +10,18 @@
   - Reproduced the live `email_exists` failure against project `oepehanwmfelowfumkes`, deployed the updated `admin-users` function, and verified the frontend contract with targeted tests and type checks
 - Status: Complete
 
+## 2026-04-16 - Publish platform summary metadata
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Enriched `public/healthz.json` with runtime, auth-model, and canonical-role fields so shell-level health checks can classify Content Hub without inferring from repo docs
+  - Added `public/platform-summary.json` as the static summary contract for Unity Hub's app registry
+  - Kept Content Hub positioned as an independent specialist product rather than a Unity Hub module
+- Verification:
+  - Static JSON contract review
+- Status: Complete
+
 ---
 
 ## 2026-04-11 — Clean remaining docs and tracked metadata
@@ -834,4 +846,75 @@
   - `deno check --node-modules-dir=auto supabase/functions/platform-connections/index.ts`
   - `supabase functions deploy admin-users --project-ref oepehanwmfelowfumkes --no-verify-jwt`
   - `supabase functions deploy platform-connections --project-ref oepehanwmfelowfumkes --no-verify-jwt`
+- Status: Complete
+
+## 2026-04-16 - Unify shell, auth, and review UI styling
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Reworked the main app shell to support narrow screens with a mobile top bar, slide-in navigation drawer, overlay dismiss state, and desktop-only sidebar offsetting instead of a hard-coded always-on desktop layout
+  - Replaced the brittle third-party sidebar logo with the canonical Population Matters asset and tightened the sidebar hierarchy so it reads as a deliberate part of the same PM internal tool system
+  - Redesigned the login screen as a branded entry surface with stronger hierarchy, PM identity, and a clearer split between sign-in actions and product context
+  - Refreshed `public/review.html` so approval and review links now use the same PM internal visual language rather than a separate dated microsite style
+- Verification:
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm run build`
+- Status: Complete
+
+## 2026-04-16 - Align invite and loading screens with the new auth surface
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Added a shared auth-shell treatment in `src/app.jsx` so the invite-password flow and loading/session-check state now match the updated PM internal-tool sign-in surface
+  - Replaced the old standalone invite card with a branded activation screen and clearer account-state copy
+  - Replaced the old loading card with a branded session-check screen so the full unauthenticated journey now reads as one coherent product
+- Verification:
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm run build`
+- Status: Complete
+
+## 2026-04-16 - Improve feature-view responsiveness in dashboard, planning, and entry flows
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Updated dashboard quick actions and header controls so they stack and breathe properly on smaller screens instead of assuming dense desktop button rows
+  - Reworked the calendar toolbar, filters, and export controls to collapse more cleanly on narrower widths while keeping the same planning functionality
+  - Relaxed several dense `EntryForm` grid sections so platform selection, workflow dates, UTM fields, and preview grids stop cramping on smaller laptops and mobile widths
+- Verification:
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm run build`
+- Status: Complete
+
+## 2026-04-16 - Refine modal and detail-view layouts for smaller screens
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Restacked dense controls inside `EntryModal` so content approach buttons, workflow dates, UTM fields, preview grids, and approver guidance no longer assume desktop width
+  - Widened and softened the campaign and organisation-event modals so date fields, colour swatches, and footer actions collapse more cleanly on smaller screens
+  - Updated `WeeklyStatsWidget` to use clearer stat cards instead of a cramped bare two-column grid
+- Verification:
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm run build`
+- Status: Complete
+
+## 2026-04-16 - Normalise older dashboard widgets to the new card language
+
+- Tool: Codex
+- Branch: main
+- Changes:
+  - Updated older dashboard widgets so their internal stat grids, stage rows, and summary blocks use the same softer card treatment and responsive stacking as the rest of the refreshed dashboard
+  - Tightened button alignment and header spacing in the series and peaks widgets so secondary controls no longer feel bolted on
+  - Removed several remaining bare two-column metric grids in favour of clearer small stat cards and better spacing on narrower widths
+- Verification:
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm run build`
 - Status: Complete

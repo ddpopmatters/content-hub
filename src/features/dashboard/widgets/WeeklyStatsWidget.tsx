@@ -74,9 +74,12 @@ export function WeeklyStatsWidget({ entries }: WeeklyStatsWidgetProps): React.Re
         <CardTitle className="text-base text-ocean-900">This Week</CardTitle>
       </CardHeader>
       <CardContent className="py-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
           {metrics.map((metric) => (
-            <div key={metric.label} className="text-center">
+            <div
+              key={metric.label}
+              className="rounded-2xl border border-graystone-100 bg-graystone-50/70 px-4 py-4 text-center"
+            >
               <div className={`text-2xl font-bold ${metric.color}`}>{metric.value}</div>
               <div className="text-xs text-graystone-500">{metric.label}</div>
             </div>

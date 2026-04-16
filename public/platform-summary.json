@@ -1,0 +1,22 @@
+{
+  "id": "content-hub",
+  "displayName": "Content Hub",
+  "canonicalRole": "content-operations",
+  "runtimePattern": "next-or-static-supabase-app",
+  "authModel": "supabase-auth-transitioning-to-cloudflare-access",
+  "owner": "Dan Davis",
+  "launchPath": "/",
+  "healthPath": "/healthz.json",
+  "roleVisibilityRules": ["content team", "reviewers", "admins"],
+  "capabilityTags": ["calendar", "approvals", "reporting", "publishing"],
+  "currentStatus": "canonical",
+  "primaryActions": [
+    { "label": "Open dashboard", "href": "#dashboard", "kind": "open" },
+    { "label": "Open content plan", "href": "#content", "kind": "review" }
+  ],
+  "headlineCounts": [{ "label": "Live summary counts", "value": null, "tone": "neutral" }],
+  "notes": [
+    "Content Hub remains an independent specialist product.",
+    "Platform alignment should happen through access and registry contracts, not a backend rewrite."
+  ]
+}

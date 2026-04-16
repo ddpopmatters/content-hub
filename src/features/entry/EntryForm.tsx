@@ -781,7 +781,7 @@ export function EntryForm({
                 aria-describedby={hasPlatformError ? 'platforms-error' : undefined}
               >
                 <legend className="block text-sm font-medium text-graystone-700">Platforms</legend>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <Toggle
                     id="all-platforms"
                     checked={allPlatforms}
@@ -999,7 +999,7 @@ export function EntryForm({
 
               <div className="space-y-2">
                 <Label>Content approach</Label>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {(['Planned', 'Reactive'] as const).map((mode) => {
                     const label = mode === 'Planned' ? 'Proactive' : 'Reactive';
                     const active = contentApproach === mode;
@@ -1009,7 +1009,7 @@ export function EntryForm({
                         type="button"
                         onClick={() => setResponseMode(mode)}
                         className={cx(
-                          'flex-1 rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+                          'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
                           active
                             ? 'border-ocean-400 bg-ocean-600 text-white'
                             : 'border-graystone-200 bg-white text-graystone-600 hover:border-ocean-300 hover:text-ocean-700',
@@ -1024,7 +1024,7 @@ export function EntryForm({
 
               <div className="space-y-2">
                 <Label>Workflow dates</Label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {(
                     [
                       {
@@ -1207,7 +1207,7 @@ export function EntryForm({
                       </button>
                       {showUtm && (
                         <div className="space-y-3 rounded-xl border border-graystone-200 bg-graystone-50 p-3">
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {[
                               {
                                 label: 'Source *',
@@ -1302,7 +1302,7 @@ export function EntryForm({
                         </div>
                       )}
                       {assetPreviews.length > 0 && (
-                        <div className="mt-2 grid grid-cols-3 gap-2">
+                        <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-3">
                           {assetPreviews.map((url, idx) => {
                             const previewKind = getAssetPreviewKind(url);
 
