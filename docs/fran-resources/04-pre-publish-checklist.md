@@ -11,6 +11,7 @@ Print this or keep it open. Run through it before every post goes live.
   - [ ] No blame (problem is systems, not people or places)
   - [ ] No instrumentalisation (rights are the end, not the means)
   - [ ] No co-option risk (hostile accounts can't use this to support their position)
+- [ ] **If the post links population and environment:** structural cause named AND consumption asymmetry present (the wealthiest people and nations carry the heaviest environmental burden)?
 
 ---
 
@@ -19,7 +20,7 @@ Print this or keep it open. Run through it before every post goes live.
 - [ ] **Hook** — Does the first line / first slide / first 3 seconds stop the scroll?
 - [ ] **Platform fit** — Built for this platform specifically, not just cross-posted?
 - [ ] **Terminology checked** — No banned terms used:
-  - "overpopulation" → use "unsustainable population growth" or "rapid population growth"
+  - "overpopulation" → reframe around rights and systems ("unsustainable population growth" may appear only after a rights anchor, never as a hook or headline)
   - "population control" → use "voluntary family planning access" or "reproductive rights"
   - "overpopulated countries" → use "countries where rapid population growth compounds existing pressures"
   - "too many people" → frame around rights, access, empowerment
@@ -36,7 +37,12 @@ Print this or keep it open. Run through it before every post goes live.
 - [ ] **Links checked** — All URLs work and go to the right place
 - [ ] **Platform format correct** — Right dimensions, character count, format type
 - [ ] **Copy proofed** — No typos, no broken sentences, reads well aloud
-- [ ] **Hashtags** — 3-5 niche hashtags (platform-appropriate placement)
+- [ ] **Hashtags** — Max 5 on Instagram (categorisation only — they don't drive reach), platform-appropriate placement
+- [ ] **Keyword phrase in the first line** — captions are search-indexed; front-load the key phrase
+- [ ] **Send/save test** — Would someone DM this to a friend or save it to act on later?
+- [ ] **Links in first comment** — Facebook and LinkedIn links go in the first comment, not the post body
+- [ ] **Chapters on long-form video** — timestamps/chapters present (chaptered long-form is what AI assistants cite)
+- [ ] **AI-generated media disclosed** — any synthetic imagery or audio is declared
 
 ---
 

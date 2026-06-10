@@ -14,7 +14,7 @@ We build the power of people to dismantle the taboo around population growth and
 
 We lead with **cause** (autonomy, rights), not **effect** (population numbers).
 
-When women have genuine reproductive freedom — real access to contraception, education, healthcare, and economic security — they exercise it on their own terms. Sustainable population outcomes follow naturally. That is the only outcome we are working toward.
+When women have genuine reproductive freedom — real access to contraception, education, healthcare, and economic security — they exercise it on their own terms. Genuine reproductive freedom is the goal. Where it is secured, the evidence shows population becoming sustainable as a consequence — never as a target.
 
 We operate at the intersection of **reproductive rights**, **environmental sustainability**, and **social justice**. They are inseparable, and we make that case with clarity and without apology.
 
@@ -118,6 +118,14 @@ The people you're writing for, and what they need to hear:
 | **The Deciders**         | Politicians, civil servants                                     | Evidence and political cover. Show public support exists.                                                         |
 | **The Shapers**          | Journalists, researchers, commentators                          | Quotable data, credible framing, story leads.                                                                     |
 | **The Changemakers**     | E2P partners on the ground                                      | Amplification of their expertise. Co-creators, not subjects.                                                      |
+
+**Hard guardrail — The Anxious Citizens:** content for this audience never cites population numbers. Redirect service and housing pressure to investment, policy, and inequality. Never connect domestic pressure to migration or birth rates. Any draft for this segment that mentions population numbers fails review.
+
+---
+
+## Platform Reality, June 2026
+
+Tactical platform advice in these resources follows the verified facts in the Platform Reality Brief (June 2026) — where older advice conflicts, the brief wins. Be aware of SRHR moderation risk: Meta suppression of reproductive-health content is documented and rising; see the Community & Engagement Guidelines for the response playbook.
 
 ---
 

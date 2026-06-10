@@ -8,6 +8,8 @@ The Golden Thread is PM's content risk assessment. It's the single most importan
 
 > **Would this survive if screenshotted and shared by a hostile account as supporting their position?**
 
+A **hostile account** means a pronatalist, anti-rights, eco-fascist, or anti-migrant account.
+
 If there's any doubt, it doesn't go out.
 
 ---
@@ -55,6 +57,24 @@ Run every piece of content through these. All four must pass.
 | "The world can't support this many people"                    | "Sustainable outcomes require sustainable systems — starting with universal access to the rights people are currently denied" |
 | "Population growth in [country] is unsustainable"             | "Where governments invest in healthcare, education, and reproductive rights, communities build their own sustainable futures" |
 | Any content that could read as "those people are the problem" | Content that consistently frames the problem as systems, access, and power — never as people                                  |
+
+---
+
+## Calibration Set — Test Yourself
+
+Drawn from the PM Communication Doctrine's acceptance tests. Three fails, one pass — note that every fail can be written entirely in "approved" words.
+
+**FAIL:** "Unsustainable population growth is straining ecosystems. Reproductive rights are part of the answer."
+_Why: population leads, rights follow — a sequencing failure even though every word is "approved". Rights framing must come first._
+
+**FAIL:** "Contraception is the cheapest climate solution we have."
+_Why: instrumentalisation — contraception presented as a climate tool, not a right._
+
+**FAIL:** "Great news — global birth rates are falling faster than predicted."
+_Why: celebrating a consequence as if it were a target. Sustainable population is never a goal to cheer._
+
+**PASS:** "You've heard the claim that 'overpopulation' causes climate breakdown. It's wrong — and it's a framing with a coercive history. The real story is restricted rights and the consumption of the wealthiest."
+_Why: quoting to reject is allowed when the rejection is unmistakable — even in a screenshot of this sentence alone._
 
 ---
 

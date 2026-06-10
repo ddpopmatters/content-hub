@@ -19,83 +19,99 @@ Copy this table into a new document each week. Fill in during Monday planning.
 
 ### Monday
 
-| Field             | Detail                                           |
-| ----------------- | ------------------------------------------------ |
-| Platform(s)       |                                                  |
-| Content pillar    |                                                  |
-| Format            | Reel / Carousel / Static / Text / Video / Thread |
-| Audience segment  |                                                  |
-| Hook (first line) |                                                  |
-| Caption draft     |                                                  |
-| Asset status      | Briefed / In production / Ready / N/A            |
-| Golden Thread     | Pass / Needs review                              |
-| Checklist         | [ ] Terms [ ] Alt text [ ] Links [ ] Proofed     |
+| Field                      | Detail                                           |
+| -------------------------- | ------------------------------------------------ |
+| Platform(s)                |                                                  |
+| Content pillar             |                                                  |
+| Format                     | Reel / Carousel / Static / Text / Video / Thread |
+| Audience segment           |                                                  |
+| Hook (first line)          |                                                  |
+| Rights anchor (first line) |                                                  |
+| Send/save trigger          |                                                  |
+| Keyword phrase             |                                                  |
+| Caption draft              |                                                  |
+| Asset status               | Briefed / In production / Ready / N/A            |
+| Golden Thread              | Pass / Needs review                              |
+| Checklist                  | [ ] Terms [ ] Alt text [ ] Links [ ] Proofed     |
 
 ### Tuesday
 
-| Field             | Detail                                       |
-| ----------------- | -------------------------------------------- |
-| Platform(s)       |                                              |
-| Content pillar    |                                              |
-| Format            |                                              |
-| Audience segment  |                                              |
-| Hook (first line) |                                              |
-| Caption draft     |                                              |
-| Asset status      |                                              |
-| Golden Thread     |                                              |
-| Checklist         | [ ] Terms [ ] Alt text [ ] Links [ ] Proofed |
+| Field                      | Detail                                       |
+| -------------------------- | -------------------------------------------- |
+| Platform(s)                |                                              |
+| Content pillar             |                                              |
+| Format                     |                                              |
+| Audience segment           |                                              |
+| Hook (first line)          |                                              |
+| Rights anchor (first line) |                                              |
+| Send/save trigger          |                                              |
+| Keyword phrase             |                                              |
+| Caption draft              |                                              |
+| Asset status               |                                              |
+| Golden Thread              |                                              |
+| Checklist                  | [ ] Terms [ ] Alt text [ ] Links [ ] Proofed |
 
 ### Wednesday
 
-| Field             | Detail                                       |
-| ----------------- | -------------------------------------------- |
-| Platform(s)       |                                              |
-| Content pillar    |                                              |
-| Format            |                                              |
-| Audience segment  |                                              |
-| Hook (first line) |                                              |
-| Caption draft     |                                              |
-| Asset status      |                                              |
-| Golden Thread     |                                              |
-| Checklist         | [ ] Terms [ ] Alt text [ ] Links [ ] Proofed |
+| Field                      | Detail                                       |
+| -------------------------- | -------------------------------------------- |
+| Platform(s)                |                                              |
+| Content pillar             |                                              |
+| Format                     |                                              |
+| Audience segment           |                                              |
+| Hook (first line)          |                                              |
+| Rights anchor (first line) |                                              |
+| Send/save trigger          |                                              |
+| Keyword phrase             |                                              |
+| Caption draft              |                                              |
+| Asset status               |                                              |
+| Golden Thread              |                                              |
+| Checklist                  | [ ] Terms [ ] Alt text [ ] Links [ ] Proofed |
 
 ### Thursday
 
-| Field             | Detail                                       |
-| ----------------- | -------------------------------------------- |
-| Platform(s)       |                                              |
-| Content pillar    |                                              |
-| Format            |                                              |
-| Audience segment  |                                              |
-| Hook (first line) |                                              |
-| Caption draft     |                                              |
-| Asset status      |                                              |
-| Golden Thread     |                                              |
-| Checklist         | [ ] Terms [ ] Alt text [ ] Links [ ] Proofed |
+| Field                      | Detail                                       |
+| -------------------------- | -------------------------------------------- |
+| Platform(s)                |                                              |
+| Content pillar             |                                              |
+| Format                     |                                              |
+| Audience segment           |                                              |
+| Hook (first line)          |                                              |
+| Rights anchor (first line) |                                              |
+| Send/save trigger          |                                              |
+| Keyword phrase             |                                              |
+| Caption draft              |                                              |
+| Asset status               |                                              |
+| Golden Thread              |                                              |
+| Checklist                  | [ ] Terms [ ] Alt text [ ] Links [ ] Proofed |
 
 ### Friday
 
-| Field             | Detail                                       |
-| ----------------- | -------------------------------------------- |
-| Platform(s)       |                                              |
-| Content pillar    |                                              |
-| Format            |                                              |
-| Audience segment  |                                              |
-| Hook (first line) |                                              |
-| Caption draft     |                                              |
-| Asset status      |                                              |
-| Golden Thread     |                                              |
-| Checklist         | [ ] Terms [ ] Alt text [ ] Links [ ] Proofed |
+| Field                      | Detail                                       |
+| -------------------------- | -------------------------------------------- |
+| Platform(s)                |                                              |
+| Content pillar             |                                              |
+| Format                     |                                              |
+| Audience segment           |                                              |
+| Hook (first line)          |                                              |
+| Rights anchor (first line) |                                              |
+| Send/save trigger          |                                              |
+| Keyword phrase             |                                              |
+| Caption draft              |                                              |
+| Asset status               |                                              |
+| Golden Thread              |                                              |
+| Checklist                  | [ ] Terms [ ] Alt text [ ] Links [ ] Proofed |
 
 ---
 
 ### Reactive Slots (to be filled as opportunities arise)
 
-| Trigger                          | Platform | Draft |
-| -------------------------------- | -------- | ----- |
-| News / policy moment             |          |       |
-| Pronatalist narrative to counter |          |       |
-| Partner content received         |          |       |
+| Trigger                                                           | Platform | Draft |
+| ----------------------------------------------------------------- | -------- | ----- |
+| News / policy moment                                              |          |       |
+| Pronatalist narrative to counter                                  |          |       |
+| Partner content received                                          |          |       |
+| Moderation / takedown response (see Daily Operations Cheat Sheet) |          |       |
 
 ---
 

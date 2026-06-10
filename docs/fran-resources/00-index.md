@@ -21,10 +21,12 @@ Everything you need for day-to-day social media content creation at PM, in one p
 
 ## Strategy & Messaging
 
-| Resource                                          | What it is                                                                                      | When to use it                                                                            |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| [Messaging Playbook](02-messaging-playbook.md)    | Core narrative, pillars, audiences, counter-narratives — the strategy in 3 pages                | When you need to check "how would PM say this?"                                           |
-| [Content Creation Prompt Pack](01-prompt-pack.md) | Copy-paste prompts for AI-assisted drafting + **full strategy editorial review** + batch review | Drafting new content, reviewing drafts against strategy, or batch-checking a week's posts |
+| Resource                                                                                                          | What it is                                                                                      | When to use it                                                                            |
+| ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [Messaging Playbook](02-messaging-playbook.md)                                                                    | Core narrative, pillars, audiences, counter-narratives — the strategy in 3 pages                | When you need to check "how would PM say this?"                                           |
+| [Content Creation Prompt Pack](01-prompt-pack.md)                                                                 | Copy-paste prompts for AI-assisted drafting + **full strategy editorial review** + batch review | Drafting new content, reviewing drafts against strategy, or batch-checking a week's posts |
+| [PM Communication Doctrine](../../../../brand/messaging/PM-COMMUNICATION-DOCTRINE.md)                             | **Canonical framing** — rights-first sequencing, vocabulary, reviewer gate, acceptance tests    | Whenever framing is in doubt — this document wins over everything else                    |
+| [Platform Reality Brief — June 2026](../../../../content/social-media/strategy/2026-06-platform-reality-brief.md) | Verified June 2026 platform facts (algorithms, formats, moderation risk)                        | Tactical platform decisions; review by September 2026                                     |
 
 ## Also in the Content Hub app
 
@@ -39,4 +41,4 @@ These are already built into the Content Hub — use them there:
 
 ---
 
-_Last updated: March 2026. Created from the PM Social Media Strategy and Content Hub codebase._
+_Last updated: June 2026. Created from the PM Social Media Strategy and Content Hub codebase; platform tactics aligned to the Platform Reality Brief (June 2026)._
