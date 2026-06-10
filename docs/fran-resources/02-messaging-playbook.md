@@ -6,7 +6,7 @@ Condensed operational guide for day-to-day content creation. For the full strate
 
 ## The One-Line Brief
 
-We build the power of people to dismantle the taboo around population growth and its impact on people and planet. Social media is where that starts.
+We build the power of people to put rights at the heart of the population conversation — dismantling the taboo around population dynamics and their impact on people and planet. Social media is where that starts.
 
 ---
 
