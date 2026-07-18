@@ -5,6 +5,12 @@ This app keeps preview asset file uploads disabled by default.
 Enable uploads only after the `content-media` Supabase Storage bucket exists and the required access
 policies are in place for the target environment.
 
+## Production Status
+
+The shared production Supabase project was initialised on 18 July 2026 with the reviewed public
+`content-media` bucket, MIME/size limits and authenticated insert/delete policies. The GitHub Pages
+production workflow now enables uploads after its backend-readiness gate passes.
+
 ## Required App Config
 
 Set this in the environment used for builds and local development only after storage is ready:
