@@ -55,8 +55,14 @@ verify_jwt = false
 [functions.admin-users]
 verify_jwt = false
 
+[functions.approve-entry]
+verify_jwt = false
+
 [functions.platform-connections]
 verify_jwt = true
+
+[functions.platform-summary]
+verify_jwt = false
 
 [functions.iterate-content]
 verify_jwt = false

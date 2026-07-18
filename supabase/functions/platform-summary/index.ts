@@ -12,6 +12,10 @@ const corsHeaders = {
 
 type CountTone = 'neutral' | 'attention' | 'positive';
 type ActionKind = 'open' | 'review' | 'create';
+type CountFilter =
+  | { operator: 'eq'; column: string; value: string | boolean }
+  | { operator: 'in'; column: string; values: string[] }
+  | { operator: 'is'; column: string; value: null };
 
 type PlatformSummaryResponse = {
   currentStatus: string;
@@ -37,18 +41,25 @@ const json = (body: unknown, status = 200) =>
 
 const getServiceClient = () => createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-const buildAppUrl = (path: string) => new URL(path, APP_URL).toString();
+const buildAppUrl = (fragment: string) => {
+  const url = new URL(APP_URL);
+  url.pathname = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`;
+  url.hash = fragment.replace(/^#/, '');
+  return url.toString();
+};
 
 async function fetchCount(
   supabase: ReturnType<typeof getServiceClient>,
   table: string,
-  configure?: (
-    query: ReturnType<ReturnType<typeof getServiceClient>['from']>['select'],
-  ) => ReturnType<ReturnType<typeof getServiceClient>['from']>['select'],
+  filter?: CountFilter,
 ): Promise<number | null> {
   let query = supabase.from(table).select('*', { count: 'exact', head: true });
-  if (configure) {
-    query = configure(query);
+  if (filter?.operator === 'eq') {
+    query = query.eq(filter.column, filter.value);
+  } else if (filter?.operator === 'in') {
+    query = query.in(filter.column, filter.values);
+  } else if (filter?.operator === 'is') {
+    query = query.is(filter.column, filter.value);
   }
 
   const { count, error } = await query;
@@ -79,9 +90,9 @@ function buildSummary(payload: {
       'Platform alignment should continue through shared access and registry contracts rather than backend consolidation.',
     ],
     primaryActions: [
-      { label: 'Open dashboard', href: buildAppUrl('/#dashboard'), kind: 'open' },
-      { label: 'Open approvals', href: buildAppUrl('/#approvals'), kind: 'review' },
-      { label: 'Create content', href: buildAppUrl('/#create'), kind: 'create' },
+      { label: 'Open dashboard', href: buildAppUrl('dashboard'), kind: 'open' },
+      { label: 'Open approvals', href: buildAppUrl('approvals'), kind: 'review' },
+      { label: 'Create content', href: buildAppUrl('create'), kind: 'create' },
     ],
     headlineCounts: [
       {
@@ -122,12 +133,26 @@ Deno.serve(async (req: Request) => {
     const supabase = getServiceClient();
 
     const [activeEntries, pendingRequests, activeConnections, activeUsers] = await Promise.all([
-      fetchCount(supabase, 'entries', (query) => query.is('deleted_at', null)),
-      fetchCount(supabase, 'content_requests', (query) =>
-        query.in('status', ['Pending', 'In Progress']),
-      ),
-      fetchCount(supabase, 'platform_connections', (query) => query.eq('is_active', true)),
-      fetchCount(supabase, 'user_profiles', (query) => query.eq('status', 'active')),
+      fetchCount(supabase, 'entries', {
+        operator: 'is',
+        column: 'deleted_at',
+        value: null,
+      }),
+      fetchCount(supabase, 'content_requests', {
+        operator: 'in',
+        column: 'status',
+        values: ['Pending', 'In Progress'],
+      }),
+      fetchCount(supabase, 'platform_connections', {
+        operator: 'eq',
+        column: 'is_active',
+        value: true,
+      }),
+      fetchCount(supabase, 'user_profiles', {
+        operator: 'eq',
+        column: 'status',
+        value: 'active',
+      }),
     ]);
 
     return json(

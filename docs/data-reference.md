@@ -1,6 +1,6 @@
 # Data Reference — Content Hub
 
-_Generated: 2026-07-18. Re-run `/update-data-reference` after schema changes._
+_Generated and production-reconciled: 2026-07-18. Re-run `/update-data-reference` after schema changes._
 
 This focused reference covers the direct-publication data boundary. The configured automated analyser was unavailable, so the relationships below were cross-referenced manually against migrations, Edge Function contracts and application types.
 
@@ -98,5 +98,5 @@ This focused reference covers the direct-publication data boundary. The configur
 - `supabase/tests/publication_concurrency.sql` uses separate database sessions to race creation, claim, sibling completion and stale recovery, covering the lock behaviour that single-session invariant tests cannot exercise.
 - Targeted retry is limited to one definitive failed child on the same Partial job and exact approved revision. It uses the immutable payload snapshot and atomically re-checks the authenticated owner and current approval when it claims the selected result. Every retry request key remains on that result so an in-flight, failed or published HTTP replay — including a delayed replay after a later failed attempt — returns durable state without another provider call; a later deliberate retry of a definitive failure uses a new key. Browser projections are not written back through the entry update path. If the browser cannot reconcile a dispatched retry to that same job, only the selected platform becomes Unknown and all further browser retry controls fail closed.
 - New uploads no longer persist inline base64 fallbacks. Existing base64-only entry media still requires a separate inventory and controlled re-upload decision.
-- Generated Supabase database types remain pending because repository-wide local migration replay is blocked by the earlier invalid `CREATE POLICY IF NOT EXISTS` migration.
-- Hosted schema reconciliation also remains pending because the configured shared runtime project is inactive. Its Edge metadata still exposes unauthenticated legacy `publish-entry` version 1, so the production deployment check must continue to fail closed until the attended rollout is complete.
+- Hosted TypeScript type generation succeeds and includes both durable publication tables. The application continues to use its narrower explicit boundary types rather than committing an unused full-schema generated file.
+- Production reconciliation completed against the intended shared runtime project on 18 July 2026. The secured `publish-entry` version 2 requires a gateway JWT, the hosted schema marker is `durable-manual-v1`, and the exact frontend readiness check passes.

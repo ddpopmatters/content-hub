@@ -1,19 +1,21 @@
 # Durable Publication Rollout
 
-_Last verified locally: 18 July 2026._
+_Last verified in production: 18 July 2026._
 
 This runbook keeps direct publishing unavailable until the hosted database, Edge Function and frontend all use `durable-manual-v1`. It covers the Content Hub publication path only.
 
 ## Current hosted baseline
 
-Read-only Supabase inventory on 18 July 2026 found:
+The attended Supabase rollout on 18 July 2026 established:
 
-- The production build and public runtime configuration resolve to the shared `Intel Hub` Supabase project. That project is `INACTIVE`, so table and migration inventory is unavailable without an attended restore.
-- Its deployed `publish-entry` is version 1 with gateway JWT verification disabled. It accepts browser-authored publication fields, treats `PUBLISH_WEBHOOK_SECRET` as optional, uses the service role to load full platform connections and accepts a caller-provided callback URL.
-- It does not contain owner authentication, authoritative entry loading, durable jobs/results, targeted retry or the `durable-manual-v1` readiness contract.
-- The older standalone `Content Hub` project is also `INACTIVE` and retains a separate legacy `publish-entry` version 13. It is not the configured runtime target and must not be substituted during rollout.
+- The production build and public runtime configuration resolve to the shared `Intel Hub` Supabase project, which is active and healthy.
+- `publish-entry` version 2 is active with gateway JWT verification enabled, owner authentication, authoritative entry loading and the reviewed durable orchestration bundle.
+- The approval-revision and durable-publication migrations are recorded in hosted migration history. Both publication tables have RLS, browser writes are revoked and orchestration functions are executable only by `service_role`.
+- `platform-connections` version 5 requires a gateway JWT; `oauth-callback` version 2 remains intentionally public and fails closed without a valid one-time state.
+- The signed `approve-entry` endpoint and read-only aggregate `platform-summary` endpoint are active. Summary action links resolve beneath the canonical GitHub Pages path.
+- The older standalone `Content Hub` project remains outside the runtime path and was not targeted.
 
-Do not deploy the frontend while this baseline remains. Restore only the intended shared runtime project, and only in the attended maintenance window below.
+The backend gate now passes exactly as specified below. Frontend deployment and test-account provider smoke tests remain the final rollout stage.
 
 ## Required order
 

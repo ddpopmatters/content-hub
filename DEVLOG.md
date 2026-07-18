@@ -485,3 +485,26 @@
   - `git diff --check`
   - GitHub Actions passed tests, lint and type-check, dependency security, and the supply-chain IOC scan.
 - Status: Local and GitHub verification passed
+
+## 2026-07-18 - Initialise the production Supabase publication backend
+
+- Tool: Codex
+- Branch: `codex/content-hub-live`
+- Changes:
+  - Restored only the intended shared Intel Hub Supabase project and applied the reviewed approval-revision plus durable-publication migrations in dependency order.
+  - Aligned the five local publication migration filenames with their hosted migration versions so future migration tooling sees one history.
+  - Deployed `publish-entry` version 2 and `platform-connections` version 5 with gateway JWT verification enabled.
+  - Deployed the matching one-time-state `oauth-callback`, signed `approve-entry`, and read-only `platform-summary` functions with their intentional public gateway settings.
+  - Recorded those intentional public gateway settings in the repository's Supabase configuration so future CLI deployments preserve the hosted contract.
+  - Corrected platform-summary action URLs so they retain the canonical `/content-hub/` GitHub Pages path.
+  - Refreshed the Deno lockfile's npm overrides to match the already-reviewed Vite, DOMPurify and JS-YAML security pins.
+  - Preserved existing entries and provider connection records; legacy approvals remain deliberately unbound from a content revision until explicitly re-approved.
+- Verification:
+  - `npm run check:publication-backend` returned `durable-manual-v1` against the production project.
+  - Supabase reports RLS enabled on both durable tables, service-only orchestration privileges, and zero error-level security adviser findings.
+  - Hosted TypeScript type generation includes `publication_jobs` and `publication_results`.
+  - Unauthenticated `publish-entry` and `platform-connections` requests return 401; an OAuth callback without state and an approval request without a signed token return 400.
+  - The live platform summary returns the canonical status and `/content-hub/` action URLs.
+  - Deno checks passed for all five deployed Content Hub Edge Functions after correcting the platform-summary query type.
+  - Full frontend suite passed (40 files, 307 tests), followed by typecheck, lint, build, Prettier and `git diff --check`.
+- Status: Production backend initialisation complete; frontend merge and GitHub Pages smoke verification remain

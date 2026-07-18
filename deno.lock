@@ -3326,7 +3326,9 @@
         "npm:vitest@^4.0.16"
       ],
       "overrides": {
-        "vite": "7.3.2"
+        "dompurify": "3.4.12",
+        "js-yaml": "4.2.0",
+        "vite": "7.3.6"
       }
     }
   }
