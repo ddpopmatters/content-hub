@@ -452,14 +452,15 @@
 - Changes:
   - Audited every local and remote branch, worktree and pull request before changing repository references.
   - Preserved all 20 historical local branches, both existing stashes and the complete dirty worktree in the verified bundle `/Users/dan/dev/population_matters/content-hub-pre-consolidation-20260718.bundle`.
+  - Expanded the repository's previously `main`-only fetch mapping, audited all 28 hidden stale GitHub branches, and preserved every remote ref in `/Users/dan/dev/population_matters/content-hub-all-branches-pre-cleanup-20260718.bundle` before deletion.
   - Renamed the active reviewed branch from `feature/social-docs-2026-refresh` to the canonical `codex/content-hub-live` branch.
-  - Pruned one stale worktree record and removed the backed-up historical local branch pointers, leaving only `main` and `codex/content-hub-live`.
+  - Pruned one stale worktree record and removed the backed-up historical local and GitHub branch pointers, leaving only `main` and `codex/content-hub-live` locally and remotely.
   - Kept the unmerged audience-simulation prototype and obsolete social-publishing implementation out of the forward branch; both remain recoverable from the bundle.
   - Closed stale pull request #6 after confirming its reporting, visual-integrity and strategy-alignment work had been superseded by later work already present in the repository.
   - Excluded generated TDD-guard path metadata from the consolidated source changes.
   - Made the public runtime-config generator apply the repository's canonical Prettier format, preventing build and commit hooks from leaving a formatting-only dirty worktree.
 - Verification:
-  - `git bundle verify` confirmed a complete history and recoverable stash state.
+  - `git bundle verify` confirmed complete history, remote-ref and recoverable stash state in both backup bundles.
   - `git branch -vv` shows only `main` and `codex/content-hub-live`.
   - `git worktree list` shows one valid worktree on the canonical branch.
   - Two consecutive production builds left the generated public config unchanged.
