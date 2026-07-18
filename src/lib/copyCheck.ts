@@ -1,4 +1,4 @@
-import defaultRuleRegistry from '../../../../brand/messaging/rights-framing-qa-assistant/rules.json';
+import defaultRuleRegistry from './rightsFramingRules.json';
 
 export interface CopyCheckScore {
   readingLevel: string;

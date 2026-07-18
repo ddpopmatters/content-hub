@@ -466,3 +466,21 @@
   - Two consecutive production builds left the generated public config unchanged.
   - GitHub reports no stale open pull requests and only `main` plus the published canonical rollout branch.
 - Status: Branch history is consolidated and losslessly backed up; the canonical branch is published and ready for review
+
+## 2026-07-18 - Make rollout CI self-contained
+
+- Tool: Codex
+- Branch: `codex/content-hub-live`
+- Changes:
+  - Vendored the current rights-framing rule registry into Content Hub and changed the copy checker to import the tracked snapshot instead of a file outside the repository.
+  - Removed the obsolete Cloudflare Pages staging workflow so GitHub Pages is the single deployment path.
+- Verification:
+  - The tracked rules registry is valid JSON and byte-for-byte identical to the shared source snapshot.
+  - Focused copy-check suite passed (1 file, 13 tests).
+  - Full frontend suite passed (40 files, 307 tests).
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - `npm audit` reports zero vulnerabilities.
+  - `git diff --check`
+- Status: Local verification passed; pending GitHub Actions rerun
