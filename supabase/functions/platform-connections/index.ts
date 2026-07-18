@@ -1,10 +1,31 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { getSuperAdminEmail, isSuperAdminEmail } from '../_shared/adminAccess.ts';
+import { requireOwnerRequest } from '../_shared/ownerAuth.ts';
+import {
+  buildOAuthAuthorizationUrl,
+  type OAuthPublicConfiguration,
+} from '../_shared/oauthAuthorization.ts';
+import {
+  isOAuthPlatform,
+  issueOAuthState,
+  oauthStateExpiryCutoff,
+  oauthStateKeyPattern,
+  type OAuthPlatform,
+} from '../_shared/oauthState.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+const SUPABASE_PUBLISHABLE_KEY =
+  Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+const OAUTH_CALLBACK_URL = SUPABASE_URL
+  ? `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/oauth-callback`
+  : '';
+const OAUTH_PUBLIC_CONFIG: OAuthPublicConfiguration = {
+  metaAppId: Deno.env.get('META_APP_ID') ?? '',
+  metaConfigId: Deno.env.get('META_FLOB_CONFIG_ID') ?? '',
+  linkedInClientId: Deno.env.get('LINKEDIN_CLIENT_ID') ?? '',
+  linkedInOrgClientId: Deno.env.get('LINKEDIN_ORG_CLIENT_ID') ?? '',
+};
 
 interface PlatformConnectionRow {
   id: string;
@@ -19,10 +40,11 @@ interface PlatformConnectionRow {
 }
 
 interface RequestPayload {
-  action?: 'list' | 'disconnect' | 'connect-bluesky';
+  action?: 'list' | 'disconnect' | 'connect-bluesky' | 'begin-oauth';
   id?: string;
   handle?: string;
   appPassword?: string;
+  platform?: OAuthPlatform;
 }
 
 const json = (body: Record<string, unknown>, status = 200) =>
@@ -31,78 +53,14 @@ const json = (body: Record<string, unknown>, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 
-const normalizeEmail = (value: string | null | undefined): string =>
-  typeof value === 'string' ? value.trim().toLowerCase() : '';
-
 const getServiceClient = () => createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-async function getRequestUser(authHeader: string) {
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: {
-      apikey: SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: authHeader,
-    },
-  });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  return (await response.json()) as { id?: string | null; email?: string | null } | null;
-}
-
-async function syncCanonicalAdminState(supabase: ReturnType<typeof getServiceClient>) {
-  const superAdminEmail = getSuperAdminEmail();
-
-  await supabase
-    .from('user_profiles')
-    .update({ is_admin: false })
-    .eq('is_admin', true)
-    .neq('email', superAdminEmail);
-
-  await supabase.from('user_profiles').update({ is_admin: true }).eq('email', superAdminEmail);
-}
-
 async function requireSuperAdmin(req: Request) {
-  const authHeader = req.headers.get('Authorization') ?? '';
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  if (!token) {
-    throw json({ error: 'Unauthorized' }, 401);
-  }
-
-  const user = await getRequestUser(authHeader);
-  if (!user?.email) {
-    throw json({ error: 'Unauthorized' }, 401);
-  }
-
-  const supabase = getServiceClient();
-  const email = normalizeEmail(user.email);
-  const authUserId = typeof user.id === 'string' ? user.id : null;
-  const { data: profileByAuthUserId } = authUserId
-    ? await supabase
-        .from('user_profiles')
-        .select('id, email, is_admin, auth_user_id')
-        .eq('auth_user_id', authUserId)
-        .maybeSingle()
-    : { data: null };
-  const { data: profileByEmail, error: profileError } = await supabase
-    .from('user_profiles')
-    .select('id, email, is_admin, auth_user_id')
-    .eq('email', email)
-    .maybeSingle();
-  const profile = profileByAuthUserId ?? profileByEmail;
-
-  if (profileError || !profile || !isSuperAdminEmail(email)) {
-    throw json({ error: 'Forbidden' }, 403);
-  }
-
-  if (authUserId && profile.auth_user_id !== authUserId) {
-    await supabase.from('user_profiles').update({ auth_user_id: authUserId }).eq('id', profile.id);
-  }
-
-  await syncCanonicalAdminState(supabase);
-
-  return { supabase, userEmail: email };
+  const owner = await requireOwnerRequest(req, {
+    supabaseUrl: SUPABASE_URL,
+    publishableKey: SUPABASE_PUBLISHABLE_KEY,
+  });
+  return { supabase: getServiceClient(), userEmail: owner.email };
 }
 
 async function verifyBluesky(handle: string, appPassword: string) {
@@ -139,6 +97,43 @@ Deno.serve(async (req: Request) => {
     const { supabase, userEmail } = await requireSuperAdmin(req);
 
     switch (payload.action) {
+      case 'begin-oauth': {
+        if (!isOAuthPlatform(payload.platform)) {
+          return json({ error: 'A supported OAuth platform is required.' }, 400);
+        }
+
+        try {
+          await supabase
+            .from('app_secrets')
+            .delete()
+            .like('key', oauthStateKeyPattern())
+            .lt('updated_at', oauthStateExpiryCutoff());
+
+          const state = await issueOAuthState({
+            platform: payload.platform,
+            ownerEmail: userEmail,
+            store: async (record) => {
+              const { error } = await supabase.from('app_secrets').insert({
+                key: record.key,
+                value: record.value,
+                updated_at: record.updatedAt,
+              });
+              if (error) throw new Error('OAuth state persistence failed.');
+            },
+          });
+          const authorizationUrl = buildOAuthAuthorizationUrl({
+            platform: payload.platform,
+            callbackUrl: OAUTH_CALLBACK_URL,
+            state,
+            config: OAUTH_PUBLIC_CONFIG,
+          });
+
+          return json({ authorizationUrl });
+        } catch {
+          return json({ error: 'Unable to start a secure OAuth connection.' }, 503);
+        }
+      }
+
       case 'list': {
         const { data, error } = await supabase
           .from('platform_connections')

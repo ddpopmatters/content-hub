@@ -1,0 +1,32 @@
+name: Supply-chain IOC guard
+
+on:
+  pull_request:
+  push:
+    branches: [main, staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mini-shai-hulud-ioc-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan tracked files for Mini Shai-Hulud / TanStack IOCs
+        shell: bash
+        run: |
+          set -euo pipefail
+          pattern='@tanstack/setup|router_init\.js|tanstack_runner\.js|79ac49eedf774dd4b0cfa308722bc463cfe5885c|ab4fcadaec49c03278063dd269ea5eef82d24f2124a8e15d7b90f2fa8601266c|2ec78d556d696e208927cc503d48e4b5eb56b31abc2870c2ed2e98d6be27fc96|filev2\.getsession\.org|seed[123]\.getsession\.org|git-tanstack\.com|api\.masscan\.cloud|gh-token-monitor|router_runtime\.js|claude@users\.noreply\.github\.com'
+          if git grep -I -n -E "$pattern" -- . ':!node_modules' ':!.git' ':!.env*' ':!.github/workflows/supply-chain-ioc-guard.yml'; then
+            echo 'Mini Shai-Hulud / TanStack supply-chain IOC match found. Review before merging.' >&2
+            exit 1
+          fi
+          if find .             -path './.git' -prune -o             -path './node_modules' -prune -o             \( -name 'router_init.js' -o -name 'tanstack_runner.js' -o -name 'router_runtime.js' -o -name 'gh-token-monitor*' \)             -print | grep .; then
+            echo 'Suspicious Mini Shai-Hulud file name found. Review before merging.' >&2
+            exit 1
+          fi
+          echo 'No Mini Shai-Hulud / TanStack IOC matches found.'

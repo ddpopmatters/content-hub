@@ -1,25 +1,31 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { uuid, ensurePeopleArray } from '../../lib/utils';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ensurePeopleArray, uuid } from '../../lib/utils';
 import {
-  sanitizeEntry,
   computeStatusDetail,
   createEmptyChecklist,
   entrySignature,
   getWorkflowBlockers,
   hasApproverRelevantChanges,
+  hasPublicationRelevantChanges,
+  sanitizeEntry,
 } from '../../lib/sanitizers';
 import { buildEntryEmailPayload } from '../../lib/email';
 import { appendAudit } from '../../lib/audit';
 import { loadEntries, saveEntries } from '../../lib/storage';
-import { SUPABASE_API } from '../../lib/supabase';
+import { isDurablePublicationJob, SUPABASE_API } from '../../lib/supabase';
 import { APP_CONFIG } from '../../lib/config';
 import {
-  buildPublishPayload,
-  initializePublishStatus,
   canPublish,
+  canRetryFailedPlatform,
+  getPublishRequestError,
+  initializePublishStatus,
 } from '../../features/publishing';
 import { KANBAN_STATUSES } from '../../constants';
-import type { Entry } from '../../types/models';
+import type { DurablePublicationJob, Entry } from '../../types/models';
+import {
+  applyDurablePublicationJob,
+  getDurablePublishStatus,
+} from '../../features/publishing/durablePublication';
 
 interface UseEntriesDeps {
   runSyncTask: (
@@ -42,10 +48,56 @@ interface UseEntriesDeps {
   notifyViaServer: (payload: Record<string, unknown>, label: string) => void;
   markNotificationsAsReadForEntry: (entryId: string, user: string) => void;
   guidelines: Record<string, unknown> | null;
-  publishSettings: Record<string, unknown>;
   authStatus: string;
   onEntryCreated?: (entry: Record<string, unknown>) => void;
 }
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const createPublicationRequestKey = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    const requestKey = crypto.randomUUID();
+    if (UUID_PATTERN.test(requestKey)) return requestKey;
+  }
+
+  if (typeof crypto === 'undefined' || typeof crypto.getRandomValues !== 'function') {
+    throw new Error('Secure publication request keys are unavailable.');
+  }
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(
+    16,
+    20,
+  )}-${hex.slice(20)}`;
+};
+
+const getPublicationRequestKey = (entry: Entry): string => {
+  const storageKey = `content-hub:publication-intent:${entry.id}:${entry.contentRevision}`;
+  if (typeof window === 'undefined') return createPublicationRequestKey();
+
+  try {
+    const existing = window.localStorage.getItem(storageKey)?.trim() ?? '';
+    if (UUID_PATTERN.test(existing)) return existing;
+    const requestKey = createPublicationRequestKey();
+    window.localStorage.setItem(storageKey, requestKey);
+    return requestKey;
+  } catch {
+    return createPublicationRequestKey();
+  }
+};
+
+const clearPublicationRequestKey = (entry: Entry): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(
+      `content-hub:publication-intent:${entry.id}:${entry.contentRevision}`,
+    );
+  } catch {
+    // In-memory request-key reuse still protects this browser session.
+  }
+};
 
 export function useEntries({
   runSyncTask,
@@ -61,15 +113,14 @@ export function useEntries({
   notifyViaServer,
   markNotificationsAsReadForEntry,
   guidelines,
-  publishSettings,
   authStatus,
   onEntryCreated,
 }: UseEntriesDeps) {
-  void publishSettings;
   const [entries, setEntries] = useState<Record<string, unknown>[]>([]);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [viewingSnapshot, setViewingSnapshot] = useState<Record<string, unknown> | null>(null);
   const refreshRequestIdRef = useRef(0);
+  const publicationRequestKeysRef = useRef(new Map<string, string>());
   const [previewEntryId, setPreviewEntryId] = useState('');
   const [previewEntryContext, setPreviewEntryContext] = useState('default');
   const [deepLinkEntryId, setDeepLinkEntryId] = useState<string>(() => {
@@ -96,7 +147,15 @@ export function useEntries({
 
   // Load entries from localStorage on mount
   const hydrateFromLocal = useCallback(() => {
-    setEntries(loadEntries());
+    // Local projections cannot prove that no durable Partial, Published or
+    // Unknown intent exists. Keep direct publishing disabled until the
+    // authenticated server hydration explicitly confirms publication state.
+    setEntries(
+      loadEntries().map((entry) => ({
+        ...entry,
+        publicationStateAvailable: false,
+      })),
+    );
   }, []);
 
   const refreshEntries = useCallback(async () => {
@@ -264,7 +323,9 @@ export function useEntries({
         const descriptor =
           entry.caption && String(entry.caption).trim().length
             ? String(entry.caption).trim()
-            : `${entry.assetType || 'Asset'} on ${new Date(entry.date as string).toLocaleDateString()}`;
+            : `${entry.assetType || 'Asset'} on ${new Date(
+                entry.date as string,
+              ).toLocaleDateString()}`;
         addNotifications(buildApprovalNotifications(entry));
         const entryApprovers = ensurePeopleArray(entry.approvers);
         const shouldEmailApprovers =
@@ -274,7 +335,7 @@ export function useEntries({
             const requesterName = currentUser || entry.author || 'A teammate';
             const emailPayload = buildEntryEmailPayload(entry);
             const fallbackSubject = `[PM Dashboard] Approval requested: ${descriptor}`;
-            const fallbackText = `${requesterName} requested your approval for ${descriptor} scheduled ${new Date(
+            const fallbackText = `${requesterName} requested your approval for ${descriptor}, planned for ${new Date(
               entry.date as string,
             ).toLocaleDateString()}.`;
             notifyViaServer(
@@ -366,6 +427,8 @@ export function useEntries({
         approvers: sourceEntry.approvers || [],
         approvalDeadline: '',
         approvedAt: undefined,
+        contentRevision: 1,
+        approvedRevision: null,
         checklist: createEmptyChecklist(),
         comments: [],
         analytics: {},
@@ -387,7 +450,7 @@ export function useEntries({
       setEntries((prev) => [entryWithStatus, ...prev]);
       setViewingId(newId);
       setViewingSnapshot(entryWithStatus);
-      pushSyncToast('Entry cloned - select a date to schedule', 'success');
+      pushSyncToast('Entry cloned — choose a planned date', 'success');
 
       appendAudit({
         user: currentUser,
@@ -406,6 +469,34 @@ export function useEntries({
   const upsert = useCallback(
     (updated: Record<string, unknown>) => {
       const timestamp = new Date().toISOString();
+      const existingEntry = entries.find((entry) => entry.id === updated.id);
+      const sanitizedForPersistence = sanitizeEntry({
+        ...(existingEntry ?? {}),
+        ...updated,
+        updatedAt: timestamp,
+      });
+      const publicationContentChangedForPersistence = Boolean(
+        existingEntry &&
+          sanitizedForPersistence &&
+          hasPublicationRelevantChanges(existingEntry as Partial<Entry>, sanitizedForPersistence),
+      );
+      const approvalRevokedForPersistence = Boolean(
+        publicationContentChangedForPersistence &&
+          existingEntry &&
+          (existingEntry.workflowStatus === 'Approved' ||
+            existingEntry.workflowStatus === 'Published' ||
+            existingEntry.status === 'Approved'),
+      );
+      const updateForPersistence = approvalRevokedForPersistence
+        ? {
+            ...updated,
+            status: 'Pending',
+            workflowStatus: 'Ready for Review',
+            approvedAt: null,
+            updatedAt: timestamp,
+          }
+        : updated;
+
       let approvalNotifications: Record<string, unknown>[] = [];
       const pendingApproverAlerts: Record<string, unknown>[] = [];
       let newApproverEntryForNotify: Record<string, unknown> | null = null;
@@ -422,19 +513,56 @@ export function useEntries({
                 };
                 const sanitized = sanitizeEntry(merged);
                 if (!sanitized) return entry;
+                const publicationContentChanged = hasPublicationRelevantChanges(
+                  entry as Partial<Entry>,
+                  sanitized,
+                );
+                const approvalRevoked =
+                  publicationContentChanged &&
+                  (entry.workflowStatus === 'Approved' ||
+                    entry.workflowStatus === 'Published' ||
+                    entry.status === 'Approved');
+                const currentRevision =
+                  typeof entry.contentRevision === 'number' &&
+                  Number.isSafeInteger(entry.contentRevision) &&
+                  entry.contentRevision > 0
+                    ? entry.contentRevision
+                    : 1;
+                const approvalSafeEntry = sanitizeEntry({
+                  ...sanitized,
+                  ...(publicationContentChanged
+                    ? {
+                        contentRevision: currentRevision + 1,
+                        approvedRevision: null,
+                      }
+                    : {}),
+                  ...(approvalRevoked
+                    ? {
+                        status: 'Pending',
+                        workflowStatus: 'Ready for Review',
+                        approvedAt: null,
+                      }
+                    : {}),
+                  updatedAt: timestamp,
+                });
+                if (!approvalSafeEntry) return entry;
+
                 const previousApprovers = ensurePeopleArray(entry.approvers);
-                const nextApprovers = ensurePeopleArray(sanitized.approvers);
+                const nextApprovers = ensurePeopleArray(approvalSafeEntry.approvers);
                 const newApprovers = nextApprovers.filter(
                   (name: string) => name && !previousApprovers.includes(name),
                 );
                 if (newApprovers.length) {
                   approvalNotifications = approvalNotifications.concat(
                     buildApprovalNotifications(
-                      sanitized as unknown as Record<string, unknown>,
+                      approvalSafeEntry as unknown as Record<string, unknown>,
                       newApprovers,
                     ),
                   );
-                  newApproverEntryForNotify = sanitized as unknown as Record<string, unknown>;
+                  newApproverEntryForNotify = approvalSafeEntry as unknown as Record<
+                    string,
+                    unknown
+                  >;
                   newApproversForNotify = newApprovers;
                 }
                 const actorIsApprover = normalizedActor
@@ -443,15 +571,17 @@ export function useEntries({
                     )
                   : false;
                 if (
-                  hasApproverRelevantChanges(entry, sanitized) &&
+                  hasApproverRelevantChanges(entry as Partial<Entry>, approvalSafeEntry) &&
                   nextApprovers.length &&
                   !actorIsApprover
                 ) {
-                  pendingApproverAlerts.push(sanitized as unknown as Record<string, unknown>);
+                  pendingApproverAlerts.push(
+                    approvalSafeEntry as unknown as Record<string, unknown>,
+                  );
                 }
                 return {
-                  ...sanitized,
-                  statusDetail: computeStatusDetail(sanitized),
+                  ...approvalSafeEntry,
+                  statusDetail: computeStatusDetail(approvalSafeEntry),
                 };
               })()
             : entry,
@@ -460,7 +590,7 @@ export function useEntries({
       if (approvalNotifications.length) {
         addNotifications(approvalNotifications);
       }
-      // CFA can't trace assignments made inside the setEntries callback, so assert the declared type
+      // CFA cannot trace assignments made inside the setEntries callback.
       const entryForNotify = newApproverEntryForNotify as Record<string, unknown> | null;
       const approversForNotify = newApproversForNotify;
       if (entryForNotify && approversForNotify.length) {
@@ -486,8 +616,11 @@ export function useEntries({
       if (pendingApproverAlerts.length) {
         pendingApproverAlerts.forEach((entry) => notifyApproversAboutChange(entry));
       }
+      if (approvalRevokedForPersistence) {
+        pushSyncToast('Approval cleared because publishing content changed.', 'warning');
+      }
+
       if (updated?.id) {
-        const existingEntry = entries.find((e) => e.id === updated.id);
         const isNewEntry = existingEntry?._isNew;
 
         try {
@@ -496,7 +629,7 @@ export function useEntries({
               `Create entry (${updated.id})`,
               () =>
                 SUPABASE_API.saveEntry(
-                  updated as Partial<Entry>,
+                  updateForPersistence as unknown as Partial<Entry>,
                   currentUserEmail || currentUser || '',
                 ),
               { requiresApi: false },
@@ -507,7 +640,7 @@ export function useEntries({
                 );
                 onEntryCreated?.({
                   ...(existingEntry as Record<string, unknown>),
-                  ...updated,
+                  ...updateForPersistence,
                   _isNew: undefined,
                 });
                 refreshEntries();
@@ -518,7 +651,7 @@ export function useEntries({
               `Update entry (${updated.id})`,
               () =>
                 SUPABASE_API.saveEntry(
-                  updated as Partial<Entry>,
+                  updateForPersistence as unknown as Partial<Entry>,
                   currentUserEmail || currentUser || '',
                 ),
               { requiresApi: false },
@@ -533,7 +666,7 @@ export function useEntries({
       appendAudit({
         user: currentUser,
         entryId: updated?.id as string,
-        action: updated?._isNew ? 'entry-create' : 'entry-update',
+        action: existingEntry?._isNew ? 'entry-create' : 'entry-update',
       });
     },
     [
@@ -545,6 +678,7 @@ export function useEntries({
       notifyApproversAboutChange,
       notifyViaServer,
       guidelines,
+      pushSyncToast,
       runSyncTask,
       refreshEntries,
       onEntryCreated,
@@ -578,6 +712,7 @@ export function useEntries({
             status: nextStatus,
             workflowStatus: nextWorkflowStatus,
             approvedAt: nextStatus === 'Approved' ? timestamp : undefined,
+            approvedRevision: nextStatus === 'Approved' ? entry.contentRevision || 1 : null,
             updatedAt: timestamp,
           });
           const normalized = {
@@ -626,7 +761,9 @@ export function useEntries({
         entryRecord && entryRecord.caption && String(entryRecord.caption).trim().length
           ? String(entryRecord.caption).trim()
           : entryRecord
-            ? `${entryRecord.assetType || 'Asset'} on ${new Date(entryRecord.date as string).toLocaleDateString()}`
+            ? `${entryRecord.assetType || 'Asset'} on ${new Date(
+                entryRecord.date as string,
+              ).toLocaleDateString()}`
             : `Entry ${id}`;
       const shouldNotify =
         (guidelines as Record<string, unknown>)?.teamsWebhookUrl || entryApprovers.length;
@@ -642,7 +779,7 @@ export function useEntries({
           const summaryParts = [
             `${currentUser} ${statusMsg} entry ${entryRecord?.id || id}`,
             entryRecord?.date
-              ? `scheduled for ${new Date(entryRecord.date as string).toLocaleDateString()}`
+              ? `planned for ${new Date(entryRecord.date as string).toLocaleDateString()}`
               : '',
           ].filter(Boolean);
           const emailPayload = buildEntryEmailPayload(entryRecord as Record<string, unknown>, {
@@ -716,35 +853,125 @@ export function useEntries({
       type EdgeResult = {
         success: boolean;
         results?: Record<string, PlatformResult>;
+        job?: DurablePublicationJob;
         error?: string;
       };
 
-      let edgeResult: EdgeResult = { success: false, error: 'Unknown error' };
-      try {
-        const payload = buildPublishPayload(entry);
-        const functionUrl = `${APP_CONFIG.SUPABASE_URL}/functions/v1/publish-entry`;
-        const response = await fetch(functionUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`Publish failed (${response.status}): ${errText}`);
-        }
-        edgeResult = (await response.json()) as EdgeResult;
-      } catch (err) {
-        edgeResult = {
-          success: false,
-          error: err instanceof Error ? err.message : 'Failed to publish',
+      const unknownEdgeResult = (): EdgeResult => ({
+        success: false,
+        results: Object.fromEntries(
+          entry.platforms.map((platform) => [
+            platform,
+            {
+              status: 'unknown',
+              url: null,
+              error: 'Publishing state could not be verified. Check the platform before retrying.',
+              timestamp,
+            },
+          ]),
+        ),
+        error: 'Publishing state could not be verified safely.',
+      });
+
+      const resultFromDurableJob = (
+        durableJob: DurablePublicationJob,
+        error?: string,
+      ): EdgeResult => {
+        const durableStatus = getDurablePublishStatus(durableJob);
+        return {
+          success: durableJob.results.some((result) => result.status === 'published'),
+          job: durableJob,
+          results: Object.fromEntries(
+            Object.entries(durableStatus).map(([platform, status]) => [
+              platform,
+              { ...status, timestamp: status.timestamp ?? timestamp },
+            ]),
+          ),
+          ...(error ? { error } : {}),
         };
+      };
+
+      const loadDurableResult = async (
+        error: string,
+        unknownWhenMissing: boolean,
+      ): Promise<EdgeResult> => {
+        try {
+          const durableJob = await SUPABASE_API.fetchLatestPublicationJob(entry.id);
+          if (
+            durableJob &&
+            durableJob.entryId === entry.id &&
+            durableJob.entryRevision === entry.contentRevision
+          ) {
+            return resultFromDurableJob(durableJob, error);
+          }
+          return unknownWhenMissing ? unknownEdgeResult() : { success: false, error };
+        } catch {
+          return unknownEdgeResult();
+        }
+      };
+
+      let edgeResult: EdgeResult = { success: false, error: 'Unknown error' };
+      let requestDispatched = false;
+      try {
+        const requestIdentity = `${entry.id}:${entry.contentRevision}`;
+        const requestKey =
+          publicationRequestKeysRef.current.get(requestIdentity) ?? getPublicationRequestKey(entry);
+        publicationRequestKeysRef.current.set(requestIdentity, requestKey);
+        const session = await SUPABASE_API.getSession();
+        if (!session?.access_token) {
+          edgeResult = {
+            success: false,
+            error: 'Sign in again before publishing.',
+          };
+        } else {
+          const functionUrl = `${APP_CONFIG.SUPABASE_URL}/functions/v1/publish-entry`;
+          requestDispatched = true;
+          const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+              apikey: APP_CONFIG.SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ entryId: entry.id, requestKey }),
+          });
+          if (!response.ok) {
+            edgeResult = await loadDurableResult(getPublishRequestError(response.status), false);
+          } else {
+            const responseResult = (await response.json()) as EdgeResult;
+            if (
+              responseResult.job &&
+              (responseResult.job.entryId !== entry.id ||
+                responseResult.job.entryRevision !== entry.contentRevision)
+            ) {
+              throw new Error('Publication response identity mismatch');
+            }
+            edgeResult = responseResult.job
+              ? resultFromDurableJob(responseResult.job, responseResult.error)
+              : responseResult;
+          }
+        }
+      } catch {
+        edgeResult = requestDispatched
+          ? await loadDurableResult('Publishing state required verification.', true)
+          : {
+              success: false,
+              error: 'Publishing failed before the request was sent.',
+            };
+      }
+
+      if (edgeResult.job?.status === 'failed') {
+        publicationRequestKeysRef.current.delete(`${entry.id}:${entry.contentRevision}`);
+        clearPublicationRequestKey(entry);
       }
 
       const platforms = entry.platforms as string[];
 
       if (edgeResult.success && edgeResult.results) {
         const publishedStatus: Record<string, unknown> = {};
-        const allSkipped = platforms.every((p) => edgeResult.results![p]?.status === 'skipped');
+        const allPublished = platforms.every(
+          (platform) => edgeResult.results![platform]?.status === 'published',
+        );
         platforms.forEach((platform) => {
           const r = edgeResult.results![platform];
           publishedStatus[platform] = {
@@ -757,10 +984,14 @@ export function useEntries({
 
         const updates = {
           publishStatus: publishedStatus,
-          ...(allSkipped ? {} : { workflowStatus: 'Published', publishedAt: timestamp }),
+          ...(edgeResult.job ? { publicationJob: edgeResult.job } : {}),
+          ...(allPublished ? { workflowStatus: 'Published', publishedAt: timestamp } : {}),
         };
 
         setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
+        setViewingSnapshot((previous) =>
+          previous?.id === id ? { ...previous, ...updates } : previous,
+        );
 
         try {
           await SUPABASE_API.saveEntry(
@@ -774,21 +1005,47 @@ export function useEntries({
         const failedStatus: Record<string, unknown> = {};
         platforms.forEach((platform) => {
           const r = edgeResult.results?.[platform];
+          const status = r?.status || (edgeResult.job ? 'unknown' : 'failed');
           failedStatus[platform] = {
-            status: r?.status || 'failed',
+            status,
             url: null,
-            error: r?.error || edgeResult.error || 'Failed to publish',
+            error:
+              r?.error ||
+              (status === 'pending' || status === 'publishing'
+                ? null
+                : edgeResult.error || 'Failed to publish'),
             timestamp,
           };
         });
 
         setEntries((prev) =>
-          prev.map((e) => (e.id === id ? { ...e, publishStatus: failedStatus } : e)),
+          prev.map((e) =>
+            e.id === id
+              ? {
+                  ...e,
+                  publishStatus: failedStatus,
+                  ...(edgeResult.job ? { publicationJob: edgeResult.job } : {}),
+                }
+              : e,
+          ),
+        );
+        setViewingSnapshot((previous) =>
+          previous?.id === id
+            ? {
+                ...previous,
+                publishStatus: failedStatus,
+                ...(edgeResult.job ? { publicationJob: edgeResult.job } : {}),
+              }
+            : previous,
         );
 
         try {
           await SUPABASE_API.saveEntry(
-            { ...entry, publishStatus: failedStatus } as Partial<Entry>,
+            {
+              ...entry,
+              publishStatus: failedStatus,
+              ...(edgeResult.job ? { publicationJob: edgeResult.job } : {}),
+            } as Partial<Entry>,
             currentUserEmail || currentUser || '',
           );
         } catch (err) {
@@ -805,6 +1062,183 @@ export function useEntries({
     [entries, currentUser, currentUserEmail],
   );
 
+  const handleRetryPublicationPlatform = useCallback(
+    async (id: string, platform: string) => {
+      const entry = entries.find((candidate) => candidate.id === id) as Entry | undefined;
+      if (!entry || !canRetryFailedPlatform(entry, platform) || !entry.publicationJob) {
+        throw new Error('This platform result is not available for a safe retry.');
+      }
+
+      const originalJob = entry.publicationJob;
+      const retryRequestKey = createPublicationRequestKey();
+      const timestamp = new Date().toISOString();
+      const applyProjection = (project: (current: Entry) => Entry): void => {
+        setEntries((previous) =>
+          previous.map((candidate) =>
+            candidate.id === id
+              ? (project(candidate as Entry) as unknown as Record<string, unknown>)
+              : candidate,
+          ),
+        );
+        setViewingSnapshot((previous) =>
+          previous?.id === id
+            ? (project(previous as unknown as Entry) as unknown as Record<string, unknown>)
+            : previous,
+        );
+      };
+
+      applyProjection((current) => ({
+        ...current,
+        publishStatus: {
+          ...current.publishStatus,
+          [platform]: {
+            ...current.publishStatus?.[platform],
+            status: 'publishing',
+            url: current.publishStatus?.[platform]?.url ?? null,
+            error: null,
+            timestamp,
+          },
+        },
+      }));
+
+      let requestDispatched = false;
+      let failureMessage = 'The platform could not be retried safely.';
+      try {
+        const session = await SUPABASE_API.getSession();
+        if (!session?.access_token) {
+          applyProjection((current) => ({
+            ...current,
+            publicationStateAvailable: entry.publicationStateAvailable,
+            publicationJob: entry.publicationJob,
+            publishStatus: entry.publishStatus,
+          }));
+          throw new Error('Sign in again before retrying publication.');
+        }
+
+        const functionUrl = `${APP_CONFIG.SUPABASE_URL}/functions/v1/publish-entry`;
+        requestDispatched = true;
+        const response = await fetch(functionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: APP_CONFIG.SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({
+            action: 'retry_failed',
+            entryId: entry.id,
+            jobId: originalJob.id,
+            retryRequestKey,
+            platform,
+          }),
+        });
+        if (!response.ok) {
+          failureMessage =
+            response.status === 401
+              ? 'Sign in again before retrying publication.'
+              : response.status === 409
+                ? 'This platform result is not available for a safe retry.'
+                : response.status === 422
+                  ? 'The approved media could not be verified for publication.'
+                  : response.status === 503
+                    ? 'Publishing is temporarily unavailable.'
+                    : 'The platform could not be retried safely.';
+          throw new Error(failureMessage);
+        }
+        const responseBody = (await response.json()) as unknown;
+        const responseRecord =
+          responseBody && typeof responseBody === 'object' && !Array.isArray(responseBody)
+            ? (responseBody as Record<string, unknown>)
+            : {};
+        if (typeof responseRecord.error === 'string' && responseRecord.error.trim()) {
+          failureMessage = responseRecord.error;
+        }
+
+        const job = isDurablePublicationJob(responseRecord.job) ? responseRecord.job : undefined;
+        if (
+          !job ||
+          job.id !== originalJob.id ||
+          job.entryId !== entry.id ||
+          job.entryRevision !== entry.contentRevision ||
+          !job.results.some((result) => result.platform === platform)
+        ) {
+          throw new Error('Publication retry response identity mismatch.');
+        }
+
+        applyProjection((current) =>
+          applyDurablePublicationJob({ ...current, publicationStateAvailable: true }, job),
+        );
+        appendAudit({
+          user: currentUser,
+          entryId: id,
+          action: 'entry-publication-platform-retry',
+          meta: { jobId: originalJob.id, platform },
+        });
+        return;
+      } catch (error) {
+        if (!requestDispatched) throw error;
+
+        let durableJob: DurablePublicationJob | null = null;
+        try {
+          const latestJob = await SUPABASE_API.fetchLatestPublicationJob(entry.id);
+          if (
+            latestJob?.id === originalJob.id &&
+            latestJob.entryId === entry.id &&
+            latestJob.entryRevision === entry.contentRevision
+          ) {
+            durableJob = latestJob;
+          }
+        } catch {
+          // The fail-closed projection below prevents another browser retry.
+        }
+
+        if (durableJob) {
+          applyProjection((current) =>
+            applyDurablePublicationJob({ ...current, publicationStateAvailable: true }, durableJob),
+          );
+          const selectedResult = durableJob.results.find((result) => result.platform === platform);
+          if (
+            selectedResult?.status === 'published' ||
+            selectedResult?.status === 'pending' ||
+            selectedResult?.status === 'publishing'
+          ) {
+            return;
+          }
+          failureMessage =
+            selectedResult?.status === 'unknown'
+              ? 'The provider may have received this post. Check the platform before taking any further action.'
+              : failureMessage;
+        } else {
+          applyProjection((current) => ({
+            ...current,
+            publicationStateAvailable: false,
+            publishStatus: {
+              ...current.publishStatus,
+              [platform]: {
+                status: 'unknown',
+                url: null,
+                error:
+                  'Publishing state could not be verified. Check the platform before taking any further action.',
+                timestamp,
+              },
+            },
+          }));
+          failureMessage =
+            'Publishing state could not be verified. Check the platform before taking any further action.';
+        }
+
+        appendAudit({
+          user: currentUser,
+          entryId: id,
+          action: 'entry-publication-platform-retry',
+          meta: { jobId: originalJob.id, platform, outcome: 'unconfirmed' },
+        });
+        throw new Error(failureMessage);
+      }
+    },
+    [entries, currentUser],
+  );
+
   const handlePostAgain = useCallback(
     (id: string) => {
       const original = entries.find((e) => e.id === id);
@@ -819,6 +1253,8 @@ export function useEntries({
         status: 'Pending',
         workflowStatus: 'Draft',
         approvedAt: null,
+        contentRevision: 1,
+        approvedRevision: null,
         publishStatus: {},
         publishedAt: null,
         variantOfId: original.id,
@@ -847,7 +1283,11 @@ export function useEntries({
       setEntries((prev) =>
         prev.map((entry) => {
           if (entry.id !== id) return entry;
-          return { ...entry, evergreen: !entry.evergreen, updatedAt: timestamp };
+          return {
+            ...entry,
+            evergreen: !entry.evergreen,
+            updatedAt: timestamp,
+          };
         }),
       );
 
@@ -925,7 +1365,11 @@ export function useEntries({
       setEntries((prev) =>
         prev.map((entry) => {
           if (!entryIdSet.has(entry.id as string)) return entry;
-          return { ...entry, date: shiftDate(entry.date as string), updatedAt: timestamp };
+          return {
+            ...entry,
+            date: shiftDate(entry.date as string),
+            updatedAt: timestamp,
+          };
         }),
       );
 
@@ -968,6 +1412,12 @@ export function useEntries({
             status: syncedStatus,
             approvedAt:
               syncedStatus === 'Approved' && !entry.approvedAt ? timestamp : entry.approvedAt,
+            approvedRevision:
+              nextStatus === 'Approved'
+                ? entry.contentRevision || 1
+                : nextStatus === 'Published'
+                  ? entry.approvedRevision
+                  : null,
             updatedAt: timestamp,
           });
           return {
@@ -1026,7 +1476,11 @@ export function useEntries({
       } catch {
         /* sync failure handled by queue */
       }
-      appendAudit({ user: currentUser, entryId: id, action: 'entry-delete-soft' });
+      appendAudit({
+        user: currentUser,
+        entryId: id,
+        action: 'entry-delete-soft',
+      });
     },
     [currentUser, viewingId, closeEntry, runSyncTask, refreshEntries],
   );
@@ -1068,7 +1522,11 @@ export function useEntries({
       } catch {
         /* sync failure handled by queue */
       }
-      appendAudit({ user: currentUser, entryId: id, action: 'entry-delete-hard' });
+      appendAudit({
+        user: currentUser,
+        entryId: id,
+        action: 'entry-delete-hard',
+      });
     },
     [currentUser, viewingId, closeEntry, runSyncTask, refreshEntries],
   );
@@ -1127,6 +1585,7 @@ export function useEntries({
     upsert,
     toggleApprove,
     handlePublishEntry,
+    handleRetryPublicationPlatform,
     handlePostAgain,
     handleToggleEvergreen,
     handleEntryDateChange,

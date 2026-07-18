@@ -129,7 +129,7 @@ describe('hasTerminologyIssues', () => {
 - [ ] **Step 2: Run tests to verify they fail (module loads, assertions check logic)**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm test -- --run src/lib/terminology.test.ts
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm test -- --run src/lib/terminology.test.ts
 ```
 
 Expected: Tests may pass immediately — the functions are already implemented. If failures appear, check that `TERMINOLOGY_MAP` in `src/constants.ts` contains the expected terms. Fix tests to match constants, not the other way around.
@@ -137,7 +137,7 @@ Expected: Tests may pass immediately — the functions are already implemented. 
 - [ ] **Step 3: Run tests to verify they all pass**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm test -- --run src/lib/terminology.test.ts
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm test -- --run src/lib/terminology.test.ts
 ```
 
 Expected: All 13 tests PASS
@@ -145,7 +145,7 @@ Expected: All 13 tests PASS
 - [ ] **Step 4: Commit**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub"
+cd "/Users/dan/dev/population_matters/tools/content-hub"
 git add src/lib/terminology.test.ts
 git commit -m "test(lib): add terminology checker tests — locks in PM messaging compliance gate"
 ```
@@ -248,7 +248,7 @@ describe('matchesSearch', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm test -- --run src/lib/filters.test.ts
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm test -- --run src/lib/filters.test.ts
 ```
 
 Expected: Import resolves, tests run. Any failures indicate type mismatches — read `src/types/models.ts` and adjust the `makeEntry` stub to match the real `Entry` shape.
@@ -256,7 +256,7 @@ Expected: Import resolves, tests run. Any failures indicate type mismatches — 
 - [ ] **Step 3: Fix any type mismatches in the Entry stub, then run again**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm test -- --run src/lib/filters.test.ts
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm test -- --run src/lib/filters.test.ts
 ```
 
 Expected: All tests PASS
@@ -264,7 +264,7 @@ Expected: All tests PASS
 - [ ] **Step 4: Commit**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub"
+cd "/Users/dan/dev/population_matters/tools/content-hub"
 git add src/lib/filters.test.ts
 git commit -m "test(lib): add filters tests — isApprovalOverdue, matchesSearch"
 ```
@@ -415,7 +415,7 @@ describe('ensurePeopleArray', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm test -- --run src/lib/utils.test.ts
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm test -- --run src/lib/utils.test.ts
 ```
 
 - [ ] **Step 3: Run tests to verify they all pass**
@@ -423,7 +423,7 @@ cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm test -- --run sr
 All functions are already implemented — tests should pass without code changes.
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm test -- --run src/lib/utils.test.ts
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm test -- --run src/lib/utils.test.ts
 ```
 
 Expected: All tests PASS
@@ -431,7 +431,7 @@ Expected: All tests PASS
 - [ ] **Step 4: Commit**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub"
+cd "/Users/dan/dev/population_matters/tools/content-hub"
 git add src/lib/utils.test.ts
 git commit -m "test(lib): add utils tests — cx, date helpers, array utilities"
 ```
@@ -523,13 +523,13 @@ describe('Button', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm test -- --run "src/components/ui/__tests__/Button.test.tsx"
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm test -- --run "src/components/ui/__tests__/Button.test.tsx"
 ```
 
 - [ ] **Step 3: Run tests to verify they all pass**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm test -- --run "src/components/ui/__tests__/Button.test.tsx"
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm test -- --run "src/components/ui/__tests__/Button.test.tsx"
 ```
 
 Expected: All 7 tests PASS
@@ -537,7 +537,7 @@ Expected: All 7 tests PASS
 - [ ] **Step 4: Run the full test suite to confirm no regressions**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm test
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm test
 ```
 
 Expected: All tests PASS. New total should be approximately 21 + ~35 = ~56 tests.
@@ -545,7 +545,7 @@ Expected: All tests PASS. New total should be approximately 21 + ~35 = ~56 tests
 - [ ] **Step 5: Commit**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub"
+cd "/Users/dan/dev/population_matters/tools/content-hub"
 git add src/components/ui/__tests__/Button.test.tsx
 git commit -m "test(ui): add Button smoke tests — regression guard for simplification"
 ```

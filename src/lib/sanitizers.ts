@@ -131,6 +131,19 @@ export const sanitizeEntry = (entry: unknown): Entry | null => {
       : 'Medium';
   const createdAt = typeof raw.createdAt === 'string' ? raw.createdAt : new Date().toISOString();
   const updatedAt = typeof raw.updatedAt === 'string' ? raw.updatedAt : createdAt;
+  const contentRevision =
+    typeof raw.contentRevision === 'number' &&
+    Number.isSafeInteger(raw.contentRevision) &&
+    raw.contentRevision > 0
+      ? raw.contentRevision
+      : 1;
+  const approvedRevision =
+    typeof raw.approvedRevision === 'number' &&
+    Number.isSafeInteger(raw.approvedRevision) &&
+    raw.approvedRevision > 0 &&
+    raw.approvedRevision <= contentRevision
+      ? raw.approvedRevision
+      : null;
   const author =
     typeof raw.author === 'string'
       ? raw.author.trim()
@@ -206,6 +219,8 @@ export const sanitizeEntry = (entry: unknown): Entry | null => {
     aiScore:
       raw.aiScore && typeof raw.aiScore === 'object' ? (raw.aiScore as Record<string, number>) : {},
     approvedAt: typeof raw.approvedAt === 'string' ? raw.approvedAt : null,
+    contentRevision,
+    approvedRevision,
     deletedAt: typeof raw.deletedAt === 'string' ? raw.deletedAt : null,
   };
 
@@ -355,7 +370,7 @@ export const computeStatusDetail = (entry: Partial<Entry> | null | undefined): s
   if (completed === 0) return 'Briefing';
   if (completed < Math.ceil(total / 3)) return 'Production';
   if (completed < total) return 'Ready for review';
-  if (completed >= total) return 'Scheduled';
+  if (completed >= total) return 'Planned';
 
   return entry.statusDetail || WORKFLOW_STAGES[0];
 };
@@ -583,6 +598,32 @@ export const APPROVER_ALERT_FIELDS: readonly string[] = [
   'designCopy',
   'script',
 ] as const;
+
+// Fields used to construct the authoritative provider payload. Changing one
+// invalidates approval even when the wider planning metadata is unchanged.
+export const PUBLICATION_APPROVAL_FIELDS: readonly string[] = [
+  'platforms',
+  'assetType',
+  'caption',
+  'platformCaptions',
+  'firstComment',
+  'assetPreviews',
+  'previewUrl',
+] as const;
+
+export const hasPublicationRelevantChanges = (
+  previousEntry: Partial<Entry> | null | undefined,
+  nextEntry: Partial<Entry> | null | undefined,
+): boolean => {
+  if (!nextEntry) return false;
+  if (!previousEntry) return true;
+
+  return PUBLICATION_APPROVAL_FIELDS.some((field) => {
+    const prevValue = (previousEntry as Record<string, unknown>)[field];
+    const nextValue = (nextEntry as Record<string, unknown>)[field];
+    return serializeForComparison(prevValue) !== serializeForComparison(nextValue);
+  });
+};
 
 /**
  * Checks if entry changes are relevant to approvers (require re-notification)

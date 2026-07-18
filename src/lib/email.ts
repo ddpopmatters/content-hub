@@ -71,7 +71,7 @@ export const entryDescriptor = (entry: Partial<Entry> | null | undefined): strin
   const dateLabel =
     dateValue && !Number.isNaN(dateValue.getTime())
       ? dateValue.toLocaleDateString()
-      : entry.date || 'an unscheduled date';
+      : entry.date || 'a date not yet planned';
   const asset = entry.assetType || 'Asset';
   return `${asset} on ${dateLabel}`;
 };
@@ -102,7 +102,7 @@ export const buildEntryEmailContext = (
         day: 'numeric',
         year: 'numeric',
       })
-    : 'Not scheduled';
+    : 'No planned date';
   const platformsArray = ensureArray(entry.platforms || []);
   const platformsLabel = platformsArray.length ? platformsArray.join(', ') : 'Not set';
   const descriptor =
@@ -164,7 +164,7 @@ export const buildEntryEmailHtml = (context: EntryEmailContext | null): string =
 <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
   <tbody>
     <tr>
-      <td style="padding: 8px 0; color: #6b7280; font-size: 13px;">Scheduled</td>
+      <td style="padding: 8px 0; color: #6b7280; font-size: 13px;">Planned date</td>
       <td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtml(context.dateLabel)}</td>
     </tr>
     <tr>
@@ -248,7 +248,7 @@ export const buildEntryEmailText = (context: EntryEmailContext | null): string =
   if (!context) return '';
   return [
     `${context.author} has asked you to approve social media content`,
-    `Scheduled: ${context.dateLabel}`,
+    `Planned date: ${context.dateLabel}`,
     `Platforms: ${context.platformsLabel}`,
     `Author: ${context.author}`,
     `Campaign: ${context.campaign}`,

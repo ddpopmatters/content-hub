@@ -1,8 +1,8 @@
 ---
 id: content-hub
 display_name: Content Hub
-workspace_path: tools/Content Hub
-repo_root: tools/Content Hub
+workspace_path: apps/content-hub
+repo_root: apps/content-hub
 category: tool
 status: live
 owner: Dan Davis
@@ -40,14 +40,14 @@ key_commands:
   - npm run typecheck
   - npm test
 key_paths:
-  - tools/Content Hub/src/app.jsx
-  - tools/Content Hub/src/lib/supabase.ts
-  - tools/Content Hub/docs/platform-docs.md
-  - tools/Content Hub/supabase/config.toml
+  - apps/content-hub/src/app.jsx
+  - apps/content-hub/src/lib/supabase.ts
+  - apps/content-hub/docs/platform-docs.md
+  - apps/content-hub/supabase/config.toml
 dangerous_paths:
-  - tools/Content Hub/supabase/migrations
-  - tools/Content Hub/supabase/functions
-  - tools/Content Hub/src/lib/supabase.ts
+  - apps/content-hub/supabase/migrations
+  - apps/content-hub/supabase/functions
+  - apps/content-hub/src/lib/supabase.ts
 depends_on:
   - service:Supabase shared project
   - service:OpenAI API

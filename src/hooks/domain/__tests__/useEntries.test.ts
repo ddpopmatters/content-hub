@@ -1,6 +1,9 @@
-import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import { useEntries } from '../useEntries';
+import type { DurablePublicationJob } from '../../../types/models';
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const {
   mockFetchEntries,
@@ -8,6 +11,11 @@ const {
   mockSanitizeEntry,
   mockSaveEntry,
   mockCanPublish,
+  mockCanRetryFailedPlatform,
+  mockGetSession,
+  mockFetchLatestPublicationJob,
+  mockHasPublicationRelevantChanges,
+  mockLoadEntries,
 } = vi.hoisted(() => ({
   mockFetchEntries: vi.fn(() => Promise.resolve([])),
   mockGetWorkflowBlockers: vi.fn<
@@ -19,9 +27,21 @@ const {
       complete: boolean;
     }>
   >(() => []),
-  mockSanitizeEntry: vi.fn((e: Record<string, unknown>) => ({ ...e, _sanitized: true })),
+  mockSanitizeEntry: vi.fn((e: Record<string, unknown>) => ({
+    ...e,
+    _sanitized: true,
+  })),
   mockSaveEntry: vi.fn(() => Promise.resolve({ id: 'saved-entry' })),
   mockCanPublish: vi.fn(() => false),
+  mockCanRetryFailedPlatform: vi.fn(() => false),
+  mockGetSession: vi.fn<() => Promise<{ access_token: string } | null>>(() =>
+    Promise.resolve({ access_token: 'test-jwt-token' }),
+  ),
+  mockFetchLatestPublicationJob: vi.fn<() => Promise<DurablePublicationJob | null>>(() =>
+    Promise.resolve(null),
+  ),
+  mockHasPublicationRelevantChanges: vi.fn(() => false),
+  mockLoadEntries: vi.fn<() => Array<Record<string, unknown>>>(() => []),
 }));
 
 // Mock all external dependencies
@@ -29,11 +49,12 @@ vi.mock('../../../lib/utils', () => ({
   uuid: () => 'test-uuid-' + Math.random().toString(36).slice(2, 8),
   ensurePeopleArray: (val: unknown) => {
     if (Array.isArray(val)) return val;
-    if (typeof val === 'string')
+    if (typeof val === 'string') {
       return val
         .split(',')
         .map((s: string) => s.trim())
         .filter(Boolean);
+    }
     return [];
   },
 }));
@@ -45,6 +66,7 @@ vi.mock('../../../lib/sanitizers', () => ({
   entrySignature: () => 'sig',
   getWorkflowBlockers: mockGetWorkflowBlockers,
   hasApproverRelevantChanges: () => false,
+  hasPublicationRelevantChanges: mockHasPublicationRelevantChanges,
 }));
 
 vi.mock('../../../lib/email', () => ({
@@ -56,11 +78,18 @@ vi.mock('../../../lib/audit', () => ({
 }));
 
 vi.mock('../../../lib/storage', () => ({
-  loadEntries: vi.fn(() => []),
+  loadEntries: mockLoadEntries,
   saveEntries: vi.fn(),
 }));
 
 vi.mock('../../../lib/supabase', () => ({
+  isDurablePublicationJob: (value: unknown) =>
+    Boolean(
+      value &&
+        typeof value === 'object' &&
+        typeof (value as Record<string, unknown>).id === 'string' &&
+        Array.isArray((value as Record<string, unknown>).results),
+    ),
   SUPABASE_API: {
     fetchEntries: mockFetchEntries,
     subscribeToEntries: vi.fn(() => ({ unsubscribe: vi.fn() })),
@@ -68,21 +97,21 @@ vi.mock('../../../lib/supabase', () => ({
     deleteEntry: vi.fn(() => Promise.resolve(true)),
     restoreEntry: vi.fn(() => Promise.resolve(true)),
     hardDeleteEntry: vi.fn(() => Promise.resolve(true)),
-    getSession: vi.fn(() => Promise.resolve({ access_token: 'test-jwt-token' })),
+    getSession: mockGetSession,
+    fetchLatestPublicationJob: mockFetchLatestPublicationJob,
   },
 }));
 
 vi.mock('../../../features/publishing', () => ({
-  buildPublishPayload: vi.fn((entry: Record<string, unknown>) => ({
-    entryId: entry.id,
-    platforms: entry.platforms,
-    caption: entry.caption,
-  })),
-  triggerPublish: vi.fn(),
   initializePublishStatus: vi.fn((platforms: string[]) =>
     Object.fromEntries(platforms.map((p) => [p, { status: 'publishing', url: null, error: null }])),
   ),
   canPublish: mockCanPublish,
+  canRetryFailedPlatform: mockCanRetryFailedPlatform,
+  getPublishRequestError: (status: number) =>
+    status === 503
+      ? 'Publishing is temporarily unavailable.'
+      : 'Publishing failed. No confirmed result was recorded.',
 }));
 
 vi.mock('../../../lib/config', () => ({
@@ -113,7 +142,6 @@ function mockDeps(overrides: Partial<Parameters<typeof useEntries>[0]> = {}) {
     notifyViaServer: vi.fn(),
     markNotificationsAsReadForEntry: vi.fn(),
     guidelines: null,
-    publishSettings: {},
     authStatus: 'ready',
     ...overrides,
   };
@@ -122,9 +150,32 @@ function mockDeps(overrides: Partial<Parameters<typeof useEntries>[0]> = {}) {
 describe('useEntries', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetSession.mockResolvedValue({ access_token: 'test-jwt-token' });
+    mockHasPublicationRelevantChanges.mockReturnValue(false);
+    mockCanRetryFailedPlatform.mockReturnValue(false);
     mockGetWorkflowBlockers.mockReturnValue([]);
     mockFetchEntries.mockResolvedValue([]);
+    mockFetchLatestPublicationJob.mockResolvedValue(null);
     mockSaveEntry.mockResolvedValue({ id: 'saved-entry' });
+    mockLoadEntries.mockReturnValue([]);
+  });
+
+  it('keeps local entry publication unavailable until server hydration', () => {
+    mockLoadEntries.mockReturnValue([
+      {
+        id: 'local-entry',
+        workflowStatus: 'Approved',
+        publicationStateAvailable: true,
+      },
+    ]);
+    const { result } = renderHook(() => useEntries(mockDeps()));
+
+    act(() => result.current.hydrateFromLocal());
+
+    expect(result.current.entries[0]).toMatchObject({
+      id: 'local-entry',
+      publicationStateAvailable: false,
+    });
   });
 
   describe('addEntry', () => {
@@ -210,6 +261,93 @@ describe('useEntries', () => {
     });
   });
 
+  describe('upsert', () => {
+    it('revokes and persists approval when publishing content changes', async () => {
+      mockHasPublicationRelevantChanges.mockReturnValue(true);
+      const deps = mockDeps();
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.addEntry({
+          date: '2026-07-17',
+          assetType: 'Design',
+          platforms: ['BlueSky'],
+          caption: 'Approved caption',
+          workflowStatus: 'Approved',
+          status: 'Approved',
+          approvedAt: '2026-07-17T09:00:00.000Z',
+          contentRevision: 4,
+          approvedRevision: 4,
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      act(() => {
+        result.current.upsert({ id, caption: 'Edited caption' });
+      });
+
+      expect(result.current.entries[0]).toMatchObject({
+        id,
+        caption: 'Edited caption',
+        workflowStatus: 'Ready for Review',
+        status: 'Pending',
+        approvedAt: null,
+        contentRevision: 5,
+        approvedRevision: null,
+      });
+      expect(deps.pushSyncToast).toHaveBeenCalledWith(
+        'Approval cleared because publishing content changed.',
+        'warning',
+      );
+
+      const updateCall = (deps.runSyncTask as Mock).mock.calls.find(([label]) =>
+        String(label).includes('Update entry'),
+      );
+      const action = updateCall?.[1] as (() => Promise<unknown>) | undefined;
+      expect(action).toBeTypeOf('function');
+
+      await act(async () => {
+        await action?.();
+      });
+
+      expect(mockSaveEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id,
+          caption: 'Edited caption',
+          workflowStatus: 'Ready for Review',
+          status: 'Pending',
+          approvedAt: null,
+        }),
+        'dan@example.com',
+      );
+    });
+
+    it('keeps rapid successive partial edits in local state', () => {
+      const deps = mockDeps();
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.addEntry({
+          date: '2026-07-17',
+          assetType: 'Design',
+          caption: 'Original caption',
+          firstComment: 'Original first comment',
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      act(() => {
+        result.current.upsert({ id, caption: 'Edited caption' });
+        result.current.upsert({ id, firstComment: 'Edited first comment' });
+      });
+
+      expect(result.current.entries[0]).toMatchObject({
+        caption: 'Edited caption',
+        firstComment: 'Edited first comment',
+      });
+    });
+  });
+
   describe('softDelete', () => {
     it('sets deletedAt on the entry', () => {
       const deps = mockDeps();
@@ -278,7 +416,10 @@ describe('useEntries', () => {
 
       act(() => {
         result.current.addEntry({ date: '2026-03-15', assetType: 'Blog' });
-        result.current.addEntry({ date: '2026-03-16', assetType: 'Social Post' });
+        result.current.addEntry({
+          date: '2026-03-16',
+          assetType: 'Social Post',
+        });
       });
 
       const firstId = result.current.entries[0].id as string;
@@ -299,7 +440,10 @@ describe('useEntries', () => {
 
       act(() => {
         result.current.addEntry({ date: '2026-03-15', assetType: 'Blog' });
-        result.current.addEntry({ date: '2026-03-16', assetType: 'Social Post' });
+        result.current.addEntry({
+          date: '2026-03-16',
+          assetType: 'Social Post',
+        });
       });
 
       const [first, second] = result.current.entries;
@@ -330,6 +474,8 @@ describe('useEntries', () => {
           date: '2026-03-15',
           assetType: 'Blog',
           approvers: ['Jane Doe'],
+          contentRevision: 3,
+          approvedRevision: null,
         });
       });
       const id = result.current.entries[0].id as string;
@@ -341,6 +487,7 @@ describe('useEntries', () => {
       const entry = result.current.entries.find((e) => e.id === id);
       expect(entry?.status).toBe('Approved');
       expect(entry?.approvedAt).toBeTruthy();
+      expect(entry?.approvedRevision).toBe(3);
     });
 
     it('toggles entry status from Approved back to Pending', () => {
@@ -370,6 +517,7 @@ describe('useEntries', () => {
       const entry = result.current.entries.find((e) => e.id === id);
       expect(entry?.status).toBe('Pending');
       expect(entry?.approvedAt).toBeFalsy();
+      expect(entry?.approvedRevision).toBeNull();
     });
 
     it('passes new workflowStatus to sanitizeEntry so status derives correctly', () => {
@@ -531,7 +679,10 @@ describe('useEntries', () => {
 
       act(() => {
         result.current.addEntry({ date: '2026-03-15', assetType: 'Blog' });
-        result.current.addEntry({ date: '2026-03-16', assetType: 'Social Post' });
+        result.current.addEntry({
+          date: '2026-03-16',
+          assetType: 'Social Post',
+        });
       });
       expect(result.current.entries).toHaveLength(2);
 
@@ -583,6 +734,7 @@ describe('useEntries', () => {
           platforms: ['Bluesky'],
           caption: 'Test post',
           workflowStatus: 'Approved',
+          contentRevision: 1,
         });
       });
       const id = result.current.entries[0].id as string;
@@ -593,7 +745,99 @@ describe('useEntries', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('functions/v1/publish-entry'),
-        expect.objectContaining({ method: 'POST' }),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            Authorization: 'Bearer test-jwt-token',
+            apikey: 'test-anon-key',
+          }),
+          body: expect.stringContaining(`"entryId":"${id}"`),
+        }),
+      );
+
+      const lastFetchCall = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
+      const requestBody = JSON.parse((lastFetchCall[1] as RequestInit).body as string) as Record<
+        string,
+        unknown
+      >;
+      expect(requestBody.requestKey).toEqual(expect.stringMatching(UUID_PATTERN));
+    });
+
+    it('reuses the same publication intent key for a repeated browser request', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: false,
+          results: {
+            BlueSky: {
+              status: 'failed',
+              url: null,
+              error: 'BlueSky did not confirm publication.',
+              timestamp: new Date().toISOString(),
+            },
+          },
+        }),
+      });
+
+      const { result } = renderHook(() => useEntries(mockDeps()));
+      act(() => {
+        result.current.addEntry({
+          date: '2026-03-24',
+          assetType: 'Social Post',
+          platforms: ['BlueSky'],
+          caption: 'Test post',
+          workflowStatus: 'Approved',
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      await act(async () => {
+        await result.current.handlePublishEntry(id);
+        await result.current.handlePublishEntry(id);
+      });
+
+      const requestKeys = mockFetch.mock.calls.map((call) => {
+        const body = JSON.parse((call[1] as RequestInit).body as string) as {
+          requestKey: string;
+        };
+        return body.requestKey;
+      });
+      expect(requestKeys).toHaveLength(2);
+      expect(requestKeys[0]).toBe(requestKeys[1]);
+    });
+
+    it('does not call the publishing function without an authenticated session', async () => {
+      mockGetSession.mockResolvedValueOnce(null);
+
+      const deps = mockDeps();
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.addEntry({
+          date: '2026-03-24',
+          assetType: 'Social Post',
+          platforms: ['Bluesky'],
+          caption: 'Test post',
+          workflowStatus: 'Approved',
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      await act(async () => {
+        await result.current.handlePublishEntry(id);
+      });
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockSaveEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          publishStatus: expect.objectContaining({
+            Bluesky: expect.objectContaining({
+              status: 'failed',
+              error: 'Sign in again before publishing.',
+            }),
+          }),
+        }),
+        expect.any(String),
       );
     });
 
@@ -636,7 +880,10 @@ describe('useEntries', () => {
       expect(mockSaveEntry).toHaveBeenCalledWith(
         expect.objectContaining({
           publishStatus: expect.objectContaining({
-            Bluesky: expect.objectContaining({ status: 'published', url: publishedUrl }),
+            Bluesky: expect.objectContaining({
+              status: 'published',
+              url: publishedUrl,
+            }),
           }),
         }),
         expect.any(String),
@@ -682,6 +929,472 @@ describe('useEntries', () => {
       ).find(([entry]) => entry.id === id);
       expect(saveCall).toBeDefined();
       expect(saveCall![0].workflowStatus).not.toBe('Published');
+    });
+
+    it('does not persist raw Edge response bodies when publication fails', async () => {
+      const readResponseBody = vi
+        .fn()
+        .mockResolvedValue(
+          'access_token=secret-token&code=secret-code&signed_url=https://private.example',
+        );
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: readResponseBody,
+      });
+
+      const deps = mockDeps();
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.addEntry({
+          date: '2026-03-24',
+          assetType: 'Social Post',
+          platforms: ['BlueSky'],
+          caption: 'Test post',
+          workflowStatus: 'Approved',
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      await act(async () => {
+        await result.current.handlePublishEntry(id);
+      });
+
+      expect(readResponseBody).not.toHaveBeenCalled();
+      expect(mockSaveEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          publishStatus: expect.objectContaining({
+            BlueSky: expect.objectContaining({
+              error: 'Publishing failed. No confirmed result was recorded.',
+            }),
+          }),
+        }),
+        expect.any(String),
+      );
+    });
+
+    it('fails closed to Unknown when the dispatched request loses its response', async () => {
+      mockFetch.mockRejectedValueOnce(new TypeError('network response lost'));
+      mockFetchLatestPublicationJob.mockResolvedValueOnce(null);
+
+      const { result } = renderHook(() => useEntries(mockDeps()));
+      act(() => {
+        result.current.addEntry({
+          date: '2026-07-17',
+          assetType: 'Social Post',
+          platforms: ['BlueSky'],
+          caption: 'Possibly dispatched post',
+          workflowStatus: 'Approved',
+          contentRevision: 1,
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      await act(async () => {
+        await result.current.handlePublishEntry(id);
+      });
+
+      expect(mockFetchLatestPublicationJob).toHaveBeenCalledWith(id);
+      expect(mockSaveEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          publishStatus: expect.objectContaining({
+            BlueSky: expect.objectContaining({ status: 'unknown' }),
+          }),
+        }),
+        expect.any(String),
+      );
+    });
+
+    it('fails closed to Unknown when a successful response is malformed', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => {
+          throw new SyntaxError('malformed JSON');
+        },
+      });
+      mockFetchLatestPublicationJob.mockResolvedValueOnce(null);
+
+      const { result } = renderHook(() => useEntries(mockDeps()));
+      act(() => {
+        result.current.addEntry({
+          date: '2026-07-17',
+          assetType: 'Social Post',
+          platforms: ['BlueSky'],
+          caption: 'Possibly published post',
+          workflowStatus: 'Approved',
+          contentRevision: 1,
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      await act(async () => {
+        await result.current.handlePublishEntry(id);
+      });
+
+      expect(mockFetchLatestPublicationJob).toHaveBeenCalledWith(id);
+      expect(mockSaveEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          publishStatus: expect.objectContaining({
+            BlueSky: expect.objectContaining({ status: 'unknown' }),
+          }),
+        }),
+        expect.any(String),
+      );
+    });
+
+    it('loads durable unknown state after a non-success Edge response', async () => {
+      const completedAt = '2026-07-17T20:31:00.000Z';
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 503 });
+      mockFetchLatestPublicationJob.mockResolvedValueOnce({
+        id: '40000000-0000-4000-8000-000000000001',
+        entryId: 'placeholder',
+        entryRevision: 1,
+        triggerType: 'manual',
+        requestKey: '30000000-0000-4000-8000-000000000001',
+        status: 'unknown',
+        claimedAt: completedAt,
+        completedAt,
+        createdAt: completedAt,
+        updatedAt: completedAt,
+        results: [
+          {
+            id: '50000000-0000-4000-8000-000000000001',
+            platform: 'BlueSky',
+            status: 'unknown',
+            url: null,
+            error: 'BlueSky may have received the post. Check the platform before retrying.',
+            attemptCount: 1,
+            claimedAt: completedAt,
+            completedAt,
+            createdAt: completedAt,
+            updatedAt: completedAt,
+          },
+        ],
+      });
+
+      const { result } = renderHook(() => useEntries(mockDeps()));
+      act(() => {
+        result.current.addEntry({
+          date: '2026-03-24',
+          assetType: 'Social Post',
+          platforms: ['BlueSky'],
+          caption: 'Test post',
+          workflowStatus: 'Approved',
+          contentRevision: 1,
+        });
+      });
+      const id = result.current.entries[0].id as string;
+      const durableJob = await mockFetchLatestPublicationJob();
+      if (!durableJob) throw new Error('Expected durable test job');
+      mockFetchLatestPublicationJob.mockResolvedValueOnce({
+        ...durableJob,
+        entryId: id,
+      });
+
+      await act(async () => {
+        await result.current.handlePublishEntry(id);
+      });
+
+      expect(mockSaveEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          publishStatus: expect.objectContaining({
+            BlueSky: expect.objectContaining({ status: 'unknown' }),
+          }),
+          publicationJob: expect.objectContaining({ status: 'unknown' }),
+        }),
+        expect.any(String),
+      );
+    });
+
+    it('keeps the workflow approved when only some platforms publish', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          results: {
+            Facebook: {
+              status: 'published',
+              url: 'https://www.facebook.com/123',
+              error: null,
+              timestamp: new Date().toISOString(),
+            },
+            LinkedIn: {
+              status: 'failed',
+              url: null,
+              error: 'LinkedIn did not confirm publication.',
+              timestamp: new Date().toISOString(),
+            },
+          },
+        }),
+      });
+
+      const deps = mockDeps();
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.addEntry({
+          date: '2026-03-24',
+          assetType: 'Social Post',
+          platforms: ['Facebook', 'LinkedIn'],
+          caption: 'Test post',
+          workflowStatus: 'Approved',
+        });
+      });
+      const id = result.current.entries[0].id as string;
+
+      await act(async () => {
+        await result.current.handlePublishEntry(id);
+      });
+
+      const saveCall = (
+        mockSaveEntry.mock.calls as unknown as Array<[Record<string, unknown>, string]>
+      ).find(([entry]) => entry.id === id);
+      expect(saveCall).toBeDefined();
+      expect(saveCall![0].workflowStatus).not.toBe('Published');
+      expect(saveCall![0].publishedAt).toBeUndefined();
+      expect(saveCall![0].publishStatus).toEqual(
+        expect.objectContaining({
+          Facebook: expect.objectContaining({ status: 'published' }),
+          LinkedIn: expect.objectContaining({ status: 'failed' }),
+        }),
+      );
+    });
+  });
+
+  describe('handleRetryPublicationPlatform', () => {
+    const mockFetch = vi.fn();
+    const completedAt = '2026-07-17T20:31:00.000Z';
+    const entryId = '10000000-0000-4000-8000-000000000001';
+    const jobId = '40000000-0000-4000-8000-000000000001';
+    const partialJob: DurablePublicationJob = {
+      id: jobId,
+      entryId,
+      entryRevision: 3,
+      triggerType: 'manual',
+      requestKey: '30000000-0000-4000-8000-000000000001',
+      status: 'partial',
+      claimedAt: completedAt,
+      completedAt,
+      createdAt: completedAt,
+      updatedAt: completedAt,
+      results: [
+        {
+          id: '50000000-0000-4000-8000-000000000001',
+          platform: 'Facebook',
+          status: 'published',
+          url: 'https://www.facebook.com/123',
+          error: null,
+          attemptCount: 1,
+          claimedAt: completedAt,
+          completedAt,
+          createdAt: completedAt,
+          updatedAt: completedAt,
+        },
+        {
+          id: '50000000-0000-4000-8000-000000000002',
+          platform: 'LinkedIn',
+          status: 'failed',
+          url: null,
+          error: 'LinkedIn did not confirm publication.',
+          attemptCount: 1,
+          claimedAt: completedAt,
+          completedAt,
+          createdAt: completedAt,
+          updatedAt: completedAt,
+        },
+      ],
+    };
+    const partialEntry = {
+      id: entryId,
+      workflowStatus: 'Approved',
+      platforms: ['Facebook', 'LinkedIn'],
+      contentRevision: 3,
+      approvedRevision: 3,
+      publicationStateAvailable: true,
+      publicationJob: partialJob,
+      publishStatus: {
+        Facebook: {
+          status: 'published',
+          url: 'https://www.facebook.com/123',
+          error: null,
+          timestamp: completedAt,
+        },
+        LinkedIn: {
+          status: 'failed',
+          url: null,
+          error: 'LinkedIn did not confirm publication.',
+          timestamp: completedAt,
+        },
+      },
+    };
+
+    beforeEach(() => {
+      vi.stubGlobal('fetch', mockFetch);
+      mockCanRetryFailedPlatform.mockReturnValue(true);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      mockCanRetryFailedPlatform.mockReturnValue(false);
+    });
+
+    it('requests only the failed platform and preserves the confirmed sibling', async () => {
+      const publishedJob: DurablePublicationJob = {
+        ...partialJob,
+        status: 'published',
+        results: partialJob.results.map((publicationResult) =>
+          publicationResult.platform === 'LinkedIn'
+            ? {
+                ...publicationResult,
+                status: 'published',
+                url: 'https://www.linkedin.com/feed/update/456',
+                error: null,
+                attemptCount: 2,
+              }
+            : publicationResult,
+        ),
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, job: publishedJob }),
+      });
+      const { result } = renderHook(() => useEntries(mockDeps()));
+      act(() => result.current.setEntries([partialEntry]));
+
+      await act(async () => {
+        await result.current.handleRetryPublicationPlatform(entryId, 'LinkedIn');
+      });
+
+      const body = JSON.parse((mockFetch.mock.calls[0][1] as RequestInit).body as string) as Record<
+        string,
+        unknown
+      >;
+      expect(body).toEqual({
+        action: 'retry_failed',
+        entryId,
+        jobId,
+        retryRequestKey: expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+        ),
+        platform: 'LinkedIn',
+      });
+      expect(result.current.entries[0]).toMatchObject({
+        workflowStatus: 'Published',
+        publishStatus: {
+          Facebook: { status: 'published', url: 'https://www.facebook.com/123' },
+          LinkedIn: {
+            status: 'published',
+            url: 'https://www.linkedin.com/feed/update/456',
+          },
+        },
+      });
+    });
+
+    it('marks only the retried platform Unknown when dispatched state cannot be reloaded', async () => {
+      mockFetch.mockRejectedValueOnce(new TypeError('response lost'));
+      mockFetchLatestPublicationJob.mockResolvedValueOnce(null);
+      const { result } = renderHook(() => useEntries(mockDeps()));
+      act(() => result.current.setEntries([partialEntry]));
+
+      await act(async () => {
+        await expect(
+          result.current.handleRetryPublicationPlatform(entryId, 'LinkedIn'),
+        ).rejects.toThrow('Publishing state could not be verified');
+      });
+
+      expect(result.current.entries[0]).toMatchObject({
+        publicationStateAvailable: false,
+        publishStatus: {
+          Facebook: { status: 'published', url: 'https://www.facebook.com/123' },
+          LinkedIn: { status: 'unknown', url: null },
+        },
+      });
+    });
+
+    it('does not overwrite a concurrent local content edit when retry state returns', async () => {
+      const publishedJob: DurablePublicationJob = {
+        ...partialJob,
+        status: 'published',
+        results: partialJob.results.map((publicationResult) =>
+          publicationResult.platform === 'LinkedIn'
+            ? {
+                ...publicationResult,
+                status: 'published',
+                url: 'https://www.linkedin.com/feed/update/456',
+                error: null,
+                attemptCount: 2,
+              }
+            : publicationResult,
+        ),
+      };
+      let resolveFetch!: (response: { ok: boolean; json: () => Promise<unknown> }) => void;
+      mockFetch.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        }),
+      );
+      const { result } = renderHook(() => useEntries(mockDeps()));
+      act(() => result.current.setEntries([partialEntry]));
+
+      let retryPromise!: Promise<void>;
+      await act(async () => {
+        retryPromise = result.current.handleRetryPublicationPlatform(entryId, 'LinkedIn');
+        await Promise.resolve();
+      });
+      act(() =>
+        result.current.setEntries([
+          {
+            ...partialEntry,
+            caption: 'Edited while the retry was in flight',
+            contentRevision: 4,
+            approvedRevision: null,
+            workflowStatus: 'Ready for Review',
+          },
+        ]),
+      );
+      resolveFetch({
+        ok: true,
+        json: async () => ({ success: true, job: publishedJob }),
+      });
+      await act(async () => {
+        await retryPromise;
+      });
+
+      expect(result.current.entries[0]).toMatchObject({
+        caption: 'Edited while the retry was in flight',
+        contentRevision: 4,
+        approvedRevision: null,
+        workflowStatus: 'Ready for Review',
+      });
+    });
+
+    it('does not read a failed retry response body before durable reconciliation', async () => {
+      const readResponseBody = vi.fn().mockResolvedValue({
+        error: 'access_token=secret-token',
+      });
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: readResponseBody,
+      });
+      mockFetchLatestPublicationJob.mockResolvedValueOnce(partialJob);
+      const { result } = renderHook(() => useEntries(mockDeps()));
+      act(() => result.current.setEntries([partialEntry]));
+
+      await act(async () => {
+        await expect(
+          result.current.handleRetryPublicationPlatform(entryId, 'LinkedIn'),
+        ).rejects.toThrow('not available for a safe retry');
+      });
+
+      expect(readResponseBody).not.toHaveBeenCalled();
+      expect(result.current.entries[0]).toMatchObject({
+        publishStatus: {
+          Facebook: { status: 'published', url: 'https://www.facebook.com/123' },
+          LinkedIn: { status: 'failed' },
+        },
+      });
     });
   });
 

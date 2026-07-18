@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { UpcomingPeaksWidget } from '../UpcomingPeaksWidget';
 import type { ContentPeak, Entry } from '../../../../types/models';
 
@@ -33,6 +33,15 @@ const entries: Entry[] = [
 ];
 
 describe('UpcomingPeaksWidget', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-10T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('renders upcoming peak readiness', () => {
     render(<UpcomingPeaksWidget contentPeaks={peaks} entries={entries} onOpenPeaks={vi.fn()} />);
 

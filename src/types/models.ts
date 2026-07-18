@@ -10,6 +10,7 @@ import type {
   ResponseMode,
   SignOffRoute,
 } from '../constants';
+import type { DurablePublicationJob } from '../../supabase/functions/_shared/types';
 export type { PriorityTier };
 export type {
   ContentCategory,
@@ -19,6 +20,13 @@ export type {
   ResponseMode,
   SignOffRoute,
 };
+export type {
+  DurablePublicationJob,
+  DurablePublicationResult,
+  PublicationJobStatus,
+  PublicationResultStatus,
+  PublicationTriggerType,
+} from '../../supabase/functions/_shared/types';
 
 /**
  * Attachment model - file attachments with metadata
@@ -67,23 +75,19 @@ export type WorkflowStatus = 'Draft' | 'Ready for Review' | 'Approved' | 'Publis
 /**
  * Platform publish status - tracks publishing state per platform
  */
-export type PublishStatusState = 'pending' | 'publishing' | 'published' | 'failed' | 'skipped';
+export type PublishStatusState =
+  | 'pending'
+  | 'publishing'
+  | 'published'
+  | 'failed'
+  | 'skipped'
+  | 'unknown';
 
 export interface PlatformPublishStatus {
   status: PublishStatusState;
   url: string | null;
   error: string | null;
   timestamp: string | null;
-}
-
-/**
- * Publish settings - Zapier webhook configuration
- */
-export interface PublishSettings {
-  webhookUrl: string;
-  webhookSecret: string;
-  perPlatformWebhooks?: Record<string, string>;
-  autoPublishOnApproval: boolean;
 }
 
 /**
@@ -123,10 +127,14 @@ export interface Entry {
   createdAt: string;
   updatedAt: string;
   approvedAt: string | null;
+  contentRevision: number;
+  approvedRevision: number | null;
   deletedAt: string | null;
   // Publishing fields
   evergreen?: boolean;
   publishStatus?: Record<string, PlatformPublishStatus>;
+  publicationJob?: DurablePublicationJob;
+  publicationStateAvailable?: boolean;
   publishedAt?: string | null;
   variantOfId?: string;
   variantIds?: string[];

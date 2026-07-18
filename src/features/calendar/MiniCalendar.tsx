@@ -109,7 +109,7 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
                         onClick={() => onPreviewEntry?.(entry)}
                         className="h-3 w-3 rounded-full bg-[#00F5FF] text-transparent transition hover:scale-125 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5FF]"
                         title={`${entry.assetType} • ${entry.platforms?.join(', ') || ''}`}
-                        aria-label={`Open ${entry.assetType} scheduled on ${new Date(entry.date).toLocaleDateString()}`}
+                        aria-label={`Open ${entry.assetType} planned for ${new Date(entry.date).toLocaleDateString()}`}
                       >
                         •
                       </button>

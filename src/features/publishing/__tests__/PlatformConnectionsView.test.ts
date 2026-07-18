@@ -1,61 +1,74 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { buildOAuthUrl } from '../PlatformConnectionsView';
+import { describe, it, expect } from 'vitest';
+import {
+  getSafeOAuthAuthorizationUrl,
+  isTrustedOAuthSuccessMessage,
+} from '../PlatformConnectionsView';
 
-describe('buildOAuthUrl', () => {
-  beforeEach(() => {
-    vi.stubEnv('SUPABASE_URL', 'https://test.supabase.co');
-    vi.stubEnv('META_FLOB_CONFIG_ID', 'test-config-123');
-    vi.stubEnv('META_APP_ID', '');
+describe('OAuth navigation guard', () => {
+  it('accepts only the expected HTTPS provider origin for each platform', () => {
+    expect(
+      getSafeOAuthAuthorizationUrl(
+        'https://www.facebook.com/dialog/oauth?state=opaque',
+        'Instagram',
+      ),
+    ).toBe('https://www.facebook.com/dialog/oauth?state=opaque');
+    expect(
+      getSafeOAuthAuthorizationUrl(
+        'https://www.linkedin.com/oauth/v2/authorization?state=opaque',
+        'LinkedIn',
+      ),
+    ).toBe('https://www.linkedin.com/oauth/v2/authorization?state=opaque');
   });
 
-  it('uses FLoB config_id URL for Instagram when META_FLOB_CONFIG_ID is set', () => {
-    const url = buildOAuthUrl('Instagram', 'user@example.com');
-    expect(url).toContain('facebook.com/dialog/oauth');
-    expect(url).toContain('config_id=test-config-123');
-    expect(url).not.toContain('scope=');
+  it('rejects HTTP, lookalike hosts and the wrong provider', () => {
+    expect(
+      getSafeOAuthAuthorizationUrl('http://www.facebook.com/dialog/oauth', 'Facebook'),
+    ).toBeNull();
+    expect(
+      getSafeOAuthAuthorizationUrl('https://www.facebook.com.evil.test/oauth', 'Facebook'),
+    ).toBeNull();
+    expect(
+      getSafeOAuthAuthorizationUrl('https://www.facebook.com/dialog/oauth', 'LinkedIn'),
+    ).toBeNull();
+    expect(
+      getSafeOAuthAuthorizationUrl(
+        'https://www.facebook.com/l.php?u=https://evil.test',
+        'Facebook',
+      ),
+    ).toBeNull();
   });
+});
 
-  it('uses FLoB config_id URL for Facebook when META_FLOB_CONFIG_ID is set', () => {
-    const url = buildOAuthUrl('Facebook', 'user@example.com');
-    expect(url).toContain('facebook.com/dialog/oauth');
-    expect(url).toContain('config_id=test-config-123');
-    expect(url).not.toContain('scope=');
-  });
+describe('OAuth success message guard', () => {
+  const popup = {} as Window;
+  const validEvent = {
+    origin: 'https://app.example',
+    source: popup,
+    data: { type: 'oauth_success', platform: 'Instagram' },
+  };
 
-  it('uses hardcoded config_id fallback when META_FLOB_CONFIG_ID env var is not set', () => {
-    vi.stubEnv('META_FLOB_CONFIG_ID', '');
-    vi.stubEnv('META_APP_ID', '');
-    const url = buildOAuthUrl('Instagram', 'user@example.com');
-    expect(url).toContain('config_id=1823163038321738');
-    expect(url).not.toContain('scope=');
-  });
-
-  it('includes client_id (app ID) in FLoB URL', () => {
-    vi.stubEnv('META_APP_ID', '3341090329381439');
-    const url = buildOAuthUrl('Instagram', 'user@example.com');
-    expect(url).toContain('client_id=3341090329381439');
-    expect(url).toContain('config_id=test-config-123');
-  });
-
-  it('state redirectTo includes full pathname, not just origin', () => {
-    // Simulate being served from a subpath e.g. /content-hub/
-    Object.defineProperty(window, 'location', {
-      value: {
-        origin: 'https://ddpopmatters.github.io',
-        pathname: '/content-hub/',
-        href: 'https://ddpopmatters.github.io/content-hub/#admin',
-      },
-      writable: true,
-    });
-    const url = buildOAuthUrl('Instagram', 'user@example.com');
-    const stateParam = new URL(url).searchParams.get('state')!;
-    const state = JSON.parse(atob(stateParam));
-    expect(state.createdByEmail).toBe('user@example.com');
-    expect(state.redirectTo).toBe('https://ddpopmatters.github.io/content-hub/oauth-success.html');
-  });
-
-  it('does not build an OAuth URL for YouTube', () => {
-    const url = buildOAuthUrl('YouTube', 'user@example.com');
-    expect(url).toBe('');
+  it('accepts only the expected same-origin popup and message shape', () => {
+    expect(isTrustedOAuthSuccessMessage(validEvent, popup, 'https://app.example')).toBe(true);
+    expect(
+      isTrustedOAuthSuccessMessage(
+        { ...validEvent, origin: 'https://evil.example' },
+        popup,
+        'https://app.example',
+      ),
+    ).toBe(false);
+    expect(
+      isTrustedOAuthSuccessMessage(
+        { ...validEvent, source: {} as Window },
+        popup,
+        'https://app.example',
+      ),
+    ).toBe(false);
+    expect(
+      isTrustedOAuthSuccessMessage(
+        { ...validEvent, data: { type: 'oauth_success', platform: 'YouTube' } },
+        popup,
+        'https://app.example',
+      ),
+    ).toBe(false);
   });
 });

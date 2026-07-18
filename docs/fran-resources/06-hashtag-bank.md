@@ -1,12 +1,22 @@
-# Hashtag & Keyword Bank
+# Keyword & Hashtag Bank
 
-Grouped by content pillar and platform. Pick 3-5 per post. Niche > popular.
+**Keywords first.** Discovery now runs on keyword-rich captions and search indexing, not hashtags (Platform Reality Brief, June 2026). Build each caption around a key phrase, front-loaded in the first line. Hashtags are categorisation only — max 5 per post, niche > popular. And hashtags never substitute for a rights-first caption: the first line does the framing work.
 
-Review and update quarterly (last updated: March 2026).
+Grouped by content pillar and platform.
+
+Review and update quarterly (last updated: June 2026).
 
 ---
 
 ## Pillar 1: Reproductive Rights & Bodily Autonomy
+
+### Caption keyword phrases (front-load one in the first line)
+
+- "reproductive rights"
+- "access to contraception"
+- "bodily autonomy"
+- "girls' education"
+- "voluntary family planning"
 
 ### Core hashtags (all platforms)
 
@@ -40,11 +50,18 @@ Review and update quarterly (last updated: March 2026).
 
 ## Pillar 2: Population & Demographics
 
+### Caption keyword phrases (front-load one in the first line)
+
+- "population dynamics"
+- "demographic transition"
+- "wellbeing economy"
+- "evidence-based policy"
+
 ### Core hashtags (all platforms)
 
 - #PopulationMatters
 - #Demographics
-- #PopulationGrowth
+- #PopulationDynamics
 - #WellbeingEconomics
 - #BeyondGDP
 
@@ -71,6 +88,13 @@ Review and update quarterly (last updated: March 2026).
 ---
 
 ## Pillar 3: Environmental Sustainability
+
+### Caption keyword phrases (front-load one in the first line)
+
+- "climate justice"
+- "biodiversity loss"
+- "environmental sustainability"
+- "planetary boundaries"
 
 ### Core hashtags (all platforms)
 
@@ -103,6 +127,13 @@ Review and update quarterly (last updated: March 2026).
 ---
 
 ## Pillar 4: Social Justice
+
+### Caption keyword phrases (front-load one in the first line)
+
+- "gender equality"
+- "healthcare access"
+- "education for all"
+- "structural inequality"
 
 ### Core hashtags (all platforms)
 

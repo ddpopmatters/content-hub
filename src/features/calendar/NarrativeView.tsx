@@ -434,7 +434,7 @@ export function NarrativeView({
               {isExpanded && week.entries.length === 0 && (
                 <div className="border-t border-graystone-100 px-5 py-4">
                   <p className="text-sm text-graystone-400 italic">
-                    No entries scheduled for this week.
+                    No entries planned for this week.
                   </p>
                 </div>
               )}

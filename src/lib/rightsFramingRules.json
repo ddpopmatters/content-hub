@@ -1,0 +1,233 @@
+{
+  "version": "2026-06-09",
+  "terminology": [
+    {
+      "phrase": "overpopulation",
+      "severity": "blocker",
+      "category": "never_use_terminology",
+      "suggestion": "rapid population growth driven by restricted access to healthcare, education, and reproductive rights",
+      "why": "This locates the problem in the number of people rather than the systems restricting rights."
+    },
+    {
+      "phrase": "population control",
+      "severity": "blocker",
+      "category": "never_use_terminology",
+      "suggestion": "voluntary family planning access or reproductive rights",
+      "why": "This is the coercive frame PM explicitly rejects, except when describing historical or external language."
+    },
+    {
+      "phrase": "family size management",
+      "severity": "blocker",
+      "category": "never_use_terminology",
+      "suggestion": "the right to decide if and when to have children",
+      "why": "This treats reproductive decisions as something to manage rather than a matter of autonomy."
+    },
+    {
+      "phrase": "overpopulated countries",
+      "severity": "blocker",
+      "category": "never_use_terminology",
+      "suggestion": "countries where rapid population growth compounds existing pressures",
+      "why": "This frames countries and people as the problem."
+    },
+    {
+      "phrase": "too many people",
+      "severity": "blocker",
+      "category": "never_use_terminology",
+      "suggestion": "systems that deny people access to rights, healthcare, and education",
+      "why": "This is people-as-problem framing."
+    },
+    {
+      "phrase": "population stabilisation",
+      "severity": "high",
+      "category": "contextual_terminology",
+      "suggestion": "sustainable population as a consequence of rights being secured",
+      "why": "In public copy this sounds managerial and target-led. It can be acceptable in defined technical internal contexts."
+    },
+    {
+      "phrase": "family size targets",
+      "severity": "blocker",
+      "category": "never_use_terminology",
+      "suggestion": "freedom from targets, pressure, or coercion",
+      "why": "Targets are incompatible with PM's rights-based position."
+    },
+    {
+      "phrase": "fertility management",
+      "severity": "blocker",
+      "category": "never_use_terminology",
+      "suggestion": "reproductive rights or reproductive autonomy",
+      "why": "This frames fertility as something institutions manage."
+    },
+    {
+      "phrase": "population reduction",
+      "severity": "blocker",
+      "category": "never_use_terminology",
+      "suggestion": "sustainable population as a consequence of rights being secured",
+      "why": "This implies PM is seeking fewer people rather than secured rights."
+    },
+    {
+      "phrase": "smaller families",
+      "severity": "high",
+      "category": "retired_framing",
+      "suggestion": "her choice or voluntary decisions made with full access to services",
+      "why": "Smaller families must not be framed as PM's goal."
+    },
+    {
+      "phrase": "population bomb",
+      "severity": "blocker",
+      "category": "never_use_terminology",
+      "suggestion": "Name the coercive history explicitly if referencing it: the discredited population bomb narrative.",
+      "why": "Catastrophist people-as-problem framing PM rejects; usable only when named as the framing being refuted."
+    },
+    {
+      "phrase": "population explosion",
+      "severity": "blocker",
+      "category": "never_use_terminology",
+      "suggestion": "rapid population growth driven by restricted access to healthcare, education, and reproductive rights",
+      "why": "Catastrophist people-as-problem framing."
+    },
+    {
+      "phrase": "population management",
+      "severity": "blocker",
+      "category": "never_use_terminology",
+      "suggestion": "voluntary family planning access and reproductive rights",
+      "why": "Frames people as a quantity for institutions to manage."
+    },
+    {
+      "phrase": "population crisis",
+      "severity": "high",
+      "category": "false_urgency",
+      "suggestion": "Name the actual crisis: a rights crisis, a healthcare-funding crisis, an access crisis.",
+      "why": "Urgency attached to population itself is the gateway back to coercion logic."
+    },
+    {
+      "phrase": "demographic dividend",
+      "severity": "medium",
+      "category": "contextual_terminology",
+      "suggestion": "In public copy, frame outcomes through rights and wellbeing, not economic yield from demography.",
+      "why": "Legitimate in technical policy contexts when defined; in public copy it values people by economic output."
+    },
+    {
+      "phrase": "unsustainable population growth",
+      "severity": "medium",
+      "category": "contextual_terminology",
+      "suggestion": "Permitted only after a rights anchor has been established in the same piece; never as a headline or hook.",
+      "why": "Used as a lead, this reproduces population-first framing under a compliant phrase."
+    }
+  ],
+  "patternChecks": [
+    {
+      "id": "coercion_reduce_birth_rates",
+      "category": "coercion_risk",
+      "severity": "blocker",
+      "pattern": "\\b(need|needs|should|must|have to)\\s+(?:to\\s+)?(?:reduce|lower|cut|curb)\\s+(?:their|the|its)?\\s*(birth|fertility)\\s*rates?\\b",
+      "suggestion": "Frame the issue around reproductive autonomy and access, not demographic targets.",
+      "why": "This suggests people or countries should change fertility outcomes."
+    },
+    {
+      "id": "coercion_fewer_children",
+      "category": "coercion_risk",
+      "severity": "blocker",
+      "pattern": "\\b(women|people|families|countries|communities)\\s+(need|needs|should|must|have to)\\s+(have|choose)\\s+fewer\\s+children\\b|\\bfewer\\s+children\\b",
+      "suggestion": "Women must be able to make reproductive decisions freely, with access to the services they are owed.",
+      "why": "PM must never tell anyone to have more or fewer children."
+    },
+    {
+      "id": "instrumental_climate_solution",
+      "category": "instrumentalisation_risk",
+      "severity": "blocker",
+      "pattern": "\\b(family planning|contraception|reproductive rights|girls'? education)\\b[\\s\\S]{0,60}\\b(climate solution|save the planet|solve climate|reduce emissions|cut emissions)\\b",
+      "suggestion": "State that rights, healthcare, and education are ends in themselves; environmental benefits are consequences, not the justification.",
+      "why": "This risks treating women and girls as instruments for environmental outcomes."
+    },
+    {
+      "id": "blame_poor_countries",
+      "category": "blame_risk",
+      "severity": "blocker",
+      "pattern": "\\b(poor countries|developing countries|africa|the global south)\\b[\\s\\S]{0,70}\\b(too many children|too many people|threat|burden|problem)\\b",
+      "suggestion": "Name the structural barriers: underinvestment in healthcare, education, reproductive rights, and economic security.",
+      "why": "This can blame countries or communities rather than systems."
+    },
+    {
+      "id": "generic_charity_voice",
+      "category": "generic_charity_voice",
+      "severity": "medium",
+      "pattern": "\\b(we are committed to|population matters believes|population matters is pleased to|empowering women and girls|sustainable future for all|working in partnership with communities)\\b",
+      "suggestion": "Lead with the person, evidence, claim, or recommendation instead of generic institutional language.",
+      "why": "This sounds like generic charity copy rather than PM's specific voice."
+    },
+    {
+      "id": "weak_evidence",
+      "category": "evidence_confidence",
+      "severity": "medium",
+      "pattern": "\\b(research shows|studies suggest|experts say|data proves)\\b",
+      "suggestion": "Name the source, date, geography, and what the source actually supports.",
+      "why": "PM copy needs source fidelity, especially on contested evidence."
+    },
+    {
+      "id": "sequence_population_before_rights",
+      "category": "sequencing",
+      "severity": "high",
+      "pattern": "^(?:(?!reproductive rights|her choice|bodily autonomy|voluntary family planning|access to (?:contraception|healthcare|education)|right to decide)[\\s\\S]){0,240}\\b(?:population (?:growth|pressure|numbers|size)|birth\\s*rates?|fertility\\s*rates?|demographic (?:change|pressure|trends)|climate (?:change|crisis|breakdown)|emissions)\\b",
+      "suggestion": "Open with the rights anchor - a person, her choice, or the system restricting access - before any population or environmental framing.",
+      "why": "Rights framing must lead every piece. Population or environmental framing in the first 240 characters without a preceding rights anchor inverts PM's sequence.",
+      "note": "Suppress if the match is clearly inside quotation marks or within rejection context such as reject, refute, myth, wrong, or narrative."
+    },
+    {
+      "id": "instrumental_reversed_direction",
+      "category": "instrumentalisation_risk",
+      "severity": "high",
+      "pattern": "\\b(climate (?:solution|action|lever|tool|fix)|solution to climate|fight(?:ing)? climate change|reduce (?:carbon |global )?emissions|save the planet|protect biodiversity)\\b[\\s\\S]{0,80}\\b(contraception|family planning|reproductive rights|girls'? education|educating (?:girls|women)|empower(?:ing)? women)\\b",
+      "suggestion": "Rights, healthcare, and education are ends in themselves; environmental benefits are consequences, not the justification.",
+      "why": "Catches reversed instrumentalisation such as the best climate solution is girls' education."
+    },
+    {
+      "id": "instrumental_empower_to_reduce",
+      "category": "instrumentalisation_risk",
+      "severity": "blocker",
+      "pattern": "\\bempower(?:ing|ment of)?\\s+(?:women|girls|women and girls)\\b[\\s\\S]{0,50}\\b(?:to|in order to|so that|as a way to)\\b[\\s\\S]{0,60}\\b(?:reduce|lower|cut|curb|slow|stabilise|stabilize|population growth slows?)\\b",
+      "suggestion": "Women's autonomy is not a means to anything. State the right; describe demographic outcomes only as consequences, separately.",
+      "why": "Empowering women to reduce X makes women instruments of a demographic or environmental goal."
+    },
+    {
+      "id": "false_urgency_population",
+      "category": "false_urgency",
+      "severity": "high",
+      "pattern": "\\b(ticking (?:time ?)?bomb|time bomb|before it'?s too late|running out of time|spiralling out of control|point of no return|crisis point)\\b[\\s\\S]{0,80}\\b(population|birth\\s*rates?|fertility)\\b|\\b(population|birth\\s*rates?|fertility)\\b[\\s\\S]{0,80}\\b(ticking (?:time ?)?bomb|time bomb|before it'?s too late|running out of time|spiralling out of control|point of no return)\\b",
+      "suggestion": "Replace urgency idiom with the specific, evidenced harm of restricted rights - named source, named system.",
+      "why": "Catastrophist urgency attached to population is the rhetorical engine of coercive policy."
+    },
+    {
+      "id": "people_as_pressure",
+      "category": "blame_risk",
+      "severity": "blocker",
+      "pattern": "\\b(population|people|human numbers)\\b\\s+(?:is|are)\\s+(?:the|a|our)\\s+(?:problem|burden|threat|strain|enemy)\\b",
+      "suggestion": "Name the system: restricted rights, underfunded healthcare, inequality, policy failure.",
+      "why": "Direct people-as-problem framing."
+    },
+    {
+      "id": "celebrating_falling_birth_rates",
+      "category": "target_framing",
+      "severity": "high",
+      "pattern": "\\b(falling|declining|dropping|lower)\\s+birth\\s*rates?\\b[\\s\\S]{0,60}\\b(good news|a win|victory|success|progress|celebrate|encouraging)\\b|\\b(good news|a win|victory|success|progress|celebrate|encouraging)\\b[\\s\\S]{0,60}\\b(falling|declining|dropping|lower)\\s+birth\\s*rates?\\b",
+      "suggestion": "Frame the choice, not the number: where women gain genuine choice, they use it on their own terms.",
+      "why": "Celebrating the demographic outcome itself converts a consequence into a target."
+    },
+    {
+      "id": "global_south_environment_link",
+      "category": "consumption_asymmetry",
+      "severity": "medium",
+      "pattern": "\\b(africa|the global south|developing countries|low-income countries|poorest countries)\\b[\\s\\S]{0,120}\\b(emissions|climate change|environmental (?:pressure|breakdown|degradation|damage)|biodiversity loss|deforestation)\\b",
+      "suggestion": "State the consumption asymmetry in the same piece: the heaviest environmental burden comes from the wealthiest people and nations.",
+      "why": "Linking Global South demography to environmental harm without the asymmetry leaves communities implicitly carrying the blame.",
+      "note": "Suppress if consumption, wealthiest, or richest appears near the match."
+    },
+    {
+      "id": "migration_scarcity_drift",
+      "category": "blame_risk",
+      "severity": "blocker",
+      "pattern": "\\b(housing|public services|nhs|schools?|infrastructure)\\b[\\s\\S]{0,80}\\b(pressure|strain|overwhelmed|crowded)\\b[\\s\\S]{0,100}\\b(migration|immigrants?|birth\\s*rates?|population growth)\\b|\\b(housing|public services|nhs|schools?|infrastructure)\\b[\\s\\S]{0,30}\\bcrisis\\b[\\s\\S]{0,80}\\b(driven by|caused by|linked to|due to)\\b[\\s\\S]{0,80}\\b(migration|immigrants?|birth\\s*rates?|population growth)\\b",
+      "suggestion": "Domestic service pressure is a policy and investment story. Never connect it to migration or birth rates.",
+      "why": "The Anxious Citizens co-option route: scarcity framing drifting into anti-migrant, people-as-pressure territory."
+    }
+  ]
+}

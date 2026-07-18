@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 19, TypeScript, Vitest 4 + @testing-library/react (jsdom), Tailwind CSS, Supabase (migrations via `mcp__supabase__apply_migration`).
 
-**Run tests:** `npm test` (from `tools/Content Hub/`)
+**Run tests:** `npm test` (from `tools/content-hub/`)
 **Run typecheck:** `npx tsc --noEmit`
 
 ---

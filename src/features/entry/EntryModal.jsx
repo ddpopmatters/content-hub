@@ -61,15 +61,13 @@ import {
   PlatformIcon,
   MentionSuggestionList,
   CopyIcon,
-  ArrowUpIcon,
-  ArrowPathIcon,
   TrashIcon,
   CheckCircleIcon,
   XIcon,
 } from '../../components/common';
 import { SocialPreview } from '../social';
 import { ApproverMulti } from './ApproverMulti';
-import { canPublish, canPostAgain } from '../publishing';
+import { PublishActions } from '../publishing';
 import {
   QuickAssessment,
   FullAssessment,
@@ -122,6 +120,7 @@ export function EntryModal({
   onNotifyMentions,
   onCommentAdded,
   onPublish,
+  onRetryPublicationPlatform,
   onPostAgain,
   onToggleEvergreen,
   approverOptions = DEFAULT_APPROVERS,
@@ -1051,7 +1050,9 @@ export function EntryModal({
       <>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-graystone-200 bg-graystone-50 px-4 py-4">
-            <div className="text-[11px] uppercase tracking-wide text-graystone-500">Scheduled</div>
+            <div className="text-[11px] uppercase tracking-wide text-graystone-500">
+              Planned date
+            </div>
             <div className="text-lg font-semibold text-ocean-800">
               {formatFriendlyDate(draft.date)}
             </div>
@@ -1355,7 +1356,7 @@ export function EntryModal({
               renderApproverContent()
             ) : (
               <>
-                <FieldRow label="Date">
+                <FieldRow label="Planned date">
                   <Input
                     type="date"
                     value={draft.date}
@@ -2227,25 +2228,13 @@ export function EntryModal({
                   Clone entry
                 </Button>
               )}
-              {onPublish && canPublish(sanitizedEntry) && (
-                <Button
-                  variant="outline"
-                  onClick={() => onPublish(sanitizedEntry.id)}
-                  className="gap-2 text-emerald-700"
-                >
-                  <ArrowUpIcon className="h-4 w-4 text-emerald-700" />
-                  Publish now
-                </Button>
-              )}
-              {onPostAgain && canPostAgain(sanitizedEntry) && (
-                <Button
-                  variant="outline"
-                  onClick={() => onPostAgain(sanitizedEntry.id)}
-                  className="gap-2 text-ocean-700"
-                >
-                  <ArrowPathIcon className="h-4 w-4 text-ocean-700" />
-                  Post again
-                </Button>
+              {onPublish && (
+                <PublishActions
+                  entry={sanitizedEntry}
+                  onPublish={onPublish}
+                  onRetryPlatform={onRetryPublicationPlatform}
+                  onPostAgain={(publicationEntry) => onPostAgain?.(publicationEntry.id)}
+                />
               )}
               {canEdit && (
                 <Button

@@ -10,7 +10,7 @@ import { ReportingView, ReportInsightsView } from './features/reporting';
 import { ContentPeaksView } from './features/peaks';
 import { ContentSeriesView } from './features/series';
 import { RapidResponsesView } from './features/responses';
-import { PublishSettingsPanel, PlatformConnectionsView } from './features/publishing';
+import { PlatformConnectionsView } from './features/publishing';
 import { useApi } from './hooks/useApi';
 import { KANBAN_STATUSES, PLAN_TAB_FEATURES, PLAN_TAB_ORDER, DEFAULT_MANAGERS } from './constants';
 import { SUPABASE_API } from './lib/supabase';
@@ -226,14 +226,7 @@ function ContentDashboard() {
 
   const { syncQueue, syncToast, pushSyncToast, runSyncTask, retryAllSync } = sync;
   const publishing = usePublishing();
-  const {
-    publishSettings,
-    setPublishSettings,
-    dailyPostTarget,
-    handleDailyPostTargetChange,
-    assetGoals,
-    setAssetGoals,
-  } = publishing;
+  const { dailyPostTarget, handleDailyPostTargetChange, assetGoals, setAssetGoals } = publishing;
   const guidelinesHook = useGuidelines({ runSyncTask });
   const { guidelines, setGuidelines, guidelinesOpen, setGuidelinesOpen, handleGuidelinesSave } =
     guidelinesHook;
@@ -327,7 +320,6 @@ function ContentDashboard() {
     notifyViaServer,
     markNotificationsAsReadForEntry,
     guidelines,
-    publishSettings,
     authStatus,
     onEntryCreated: (entry) => entryCreatedSideEffectsRef.current(entry),
   });
@@ -353,6 +345,7 @@ function ContentDashboard() {
     upsert,
     toggleApprove,
     handlePublishEntry,
+    handleRetryPublicationPlatform,
     handlePostAgain,
     handleToggleEvergreen,
     handleEntryDateChange,
@@ -1950,11 +1943,8 @@ function ContentDashboard() {
                   </CardContent>
                 </Card>
 
-                {/* Publishing Settings */}
-                <PublishSettingsPanel settings={publishSettings} onUpdate={setPublishSettings} />
-
                 {/* Platform Connections */}
-                <PlatformConnectionsView currentUserEmail={currentUserEmail} />
+                <PlatformConnectionsView />
               </div>
             )}
             {/* Trash modal */}
@@ -2094,6 +2084,7 @@ function ContentDashboard() {
                 onNotifyMentions={handleMentionNotifications}
                 onCommentAdded={handleCommentActivity}
                 onPublish={handlePublishEntry}
+                onRetryPublicationPlatform={handleRetryPublicationPlatform}
                 onPostAgain={handlePostAgain}
                 onToggleEvergreen={handleToggleEvergreen}
                 approverOptions={approverOptions}

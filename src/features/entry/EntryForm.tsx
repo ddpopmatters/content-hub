@@ -506,7 +506,7 @@ export function EntryForm({
 
   const submitEntry = () => {
     const requestInitialValues = initialValues as EntryFormInitialValues | null;
-    const scheduledDate = date;
+    const plannedDate = date;
     const cleanedCaptions: Record<string, string> = {};
     resolvedPlatforms.forEach((platform) => {
       const value = platformCaptions[platform];
@@ -586,7 +586,7 @@ export function EntryForm({
     };
     onSubmit(payload);
     reset();
-    pushSyncToast?.(`Scheduled for ${new Date(scheduledDate).toLocaleDateString()}`, 'success');
+    pushSyncToast?.(`Planned for ${new Date(plannedDate).toLocaleDateString()}`, 'success');
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -599,7 +599,7 @@ export function EntryForm({
     }
     if (hasConflict && !overrideConflict) {
       setEntryFormErrors([
-        'Scheduling conflict on this date — use "Submit anyway" below, or pick a different date.',
+        'Another entry is already planned for this date — use “Submit anyway” below, or pick a different date.',
       ]);
       setEntryFormErrorFields([]);
       conflictWarningRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -981,7 +981,7 @@ export function EntryForm({
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="entry-date">Date</Label>
+                <Label htmlFor="entry-date">Planned date</Label>
                 <Input
                   id="entry-date"
                   type="date"
@@ -992,7 +992,7 @@ export function EntryForm({
                 />
                 {hasDateError ? (
                   <p id="entry-date-error" className="text-xs text-rose-600">
-                    {'Date is required.'}
+                    {'Planned date is required.'}
                   </p>
                 ) : null}
               </div>
@@ -1645,8 +1645,8 @@ export function EntryForm({
               className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
             >
               <div className="font-semibold">
-                Heads up: {conflicts.length} post{conflicts.length === 1 ? '' : 's'} already
-                scheduled on this date.
+                Heads up: {conflicts.length} entr{conflicts.length === 1 ? 'y is' : 'ies are'}
+                already planned for this date.
               </div>
               <p className="mt-1 text-xs text-amber-700">
                 Change the date above, or use the conflict override to keep this slot.

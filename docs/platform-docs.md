@@ -1,6 +1,6 @@
 # Platform Documentation — Content Hub
 
-_Generated: 2026-03-11. Re-run `/update-platform-docs` after major feature changes._
+_Generated: 2026-07-18. Re-run `/update-platform-docs` after major feature changes._
 
 # Content Hub Platform Documentation
 
@@ -28,7 +28,7 @@ The **Content Hub** is a centralized web application designed to streamline the 
 The Content Hub is used by various roles within Population Matters involved in digital communications and strategy:
 
 - **Content Creators/Authors**: Draft new content, manage asset details, and track their entries through the production pipeline.
-- **Social Media Managers**: Oversee the content calendar, schedule posts, monitor performance, and manage community engagement.
+- **Social Media Managers**: Oversee the content calendar, plan posts, publish approved supported content manually, monitor performance, and manage community engagement.
 - **Approvers (Comms Lead, Policy Lead, etc.)**: Review content entries, provide feedback, and give final approval based on designated sign-off routes.
 - **Administrators**: Manage user accounts, permissions, audit logs, and global content standards.
 - **Strategists**: Utilize analytics and reporting features to evaluate content performance, identify trends, and refine content strategy.
@@ -304,8 +304,8 @@ This section highlights specific areas in the codebase that indicate limitations
 5.  **Manager Hierarchy (`managers.test.ts`, `app.jsx`)**:
     - The `_managers` state in `app.jsx` is explicitly commented as "consumed when ManagerHub is extracted," with `buildManagersFromProfiles` used. The `DEFAULT_MANAGERS` constant is marked `@deprecated`. This clearly indicates a planned "ManagerHub" feature or module that is not yet fully implemented or separated, with the current manager logic scattered.
 
-6.  **AI Copy Checker Implementation (`features/copy-check/CopyCheckSection.tsx`)**:
-    - The AI Copy Checker relies on either a global `window.copyChecker` object or a `/api/copy-check` endpoint. The code does not provide the implementation details for `window.copyChecker` or the backend endpoint, creating a dependency on an external or unmanaged service. Its availability and reliability are external concerns.
+6.  **Copy Checker Implementation (`features/copy-check/CopyCheckSection.tsx`)**:
+    - The copy checker now runs the local PM rule-registry evaluator by default. A global `window.copyChecker` object may still override the local evaluator for attended/manual development, but the previous remote copy-check endpoint path has been retired.
 
 7.  **Inconsistent Toast Implementation**:
     - While a `Toast` and `ToastContainer` component (`components/ui/Toast.tsx`) exist, the `syncToast` state variable in `app.jsx` is rendered as a single, fixed `div` directly, not leveraging the `ToastContainer` for managing multiple toasts or consistent display. This suggests partial adoption of the Toast pattern.
@@ -377,3 +377,66 @@ This section highlights specific areas in the codebase that indicate limitations
 - **`manager_email`** on `user_profiles` — models reporting hierarchy for approval routing.
 - **Rich JSONB usage**: `platforms`, `platform_captions`, `approvers`, `analytics`, `assessment_scores`, `carousel_slides`, `metrics`, `qualitative` — flexible schema for evolving attributes without migrations.
 - **Loose FK on `activity_log.target_id`** — references multiple tables without formal constraint; immutable append-only audit.
+
+### Organic social reporting contract
+
+- Per-post organic analytics live under `entries.analytics`, keyed separately by `Facebook`, `Instagram`, `LinkedIn`, `YouTube`, and `BlueSky`.
+- The manual wizard stores canonical metric keys. CSV imports now normalise recognised platform export headings such as `Post impressions`, `Likes / Reactions`, `Reposts / Shares`, and `Watch time (mins)` to those same keys.
+- `Comments` is a metric and is no longer discarded during CSV import.
+- X/Twitter is not a BlueSky alias. Imports must name BlueSky explicitly so reporting cannot mix the two networks.
+- PM Hermes reads these post-level values for organic reporting. They are not equivalent to complete native account-level exports, so answers must state date range and analytics coverage.
+
+### Direct publishing connection security
+
+- Platform connection management is owner-only. The browser sends its current Supabase bearer token to `platform-connections`; the Edge boundary validates the canonical owner before constructing a service-role client.
+- Meta and LinkedIn connections begin through an authenticated server action. The browser receives only a provider authorisation URL containing an opaque 256-bit state nonce; it does not choose or encode the owner, platform, callback or return destination.
+- OAuth state is hash-keyed in the existing service-only `app_secrets` table, expires after ten minutes and is atomically deleted when the public provider callback consumes it. Missing, malformed, expired, replayed or wrong-owner state fails before token exchange or connection writes.
+- Callback redirects are fixed beneath the configured Content Hub `APP_URL`. The success page messages only its exact same-origin opener, and the application validates both message origin and popup source before refreshing connections.
+- YouTube direct connection and callback handling are unavailable because Content Hub does not provide a supported YouTube publisher.
+
+### Direct publishing result security
+
+- Provider response bodies and exception details are internal only. Before storage or return, failures are reduced to fixed, actionable messages which contain no credential, OAuth code, signed media URL or upstream payload.
+- Published links are accepted only for the exact selected platform origin and expected post path. Query strings and fragments are removed, and provider post identifiers are not returned to the browser.
+- The browser maps failed HTTP requests to fixed status-based copy without reading the response body, then queries owner-visible durable state. If that query fails, every requested platform becomes Unknown and publishing fails closed.
+- Entries loaded from local storage are explicitly marked as lacking verified publication state, so Publish remains unavailable during the authenticated server-hydration window as well as after a failed durable read.
+- An entry moves to Published only when every selected platform confirms publication. Partial and Unknown results remain Approved and show per-platform details. A Partial job exposes a retry only beside a definitive Failed child; confirmed Published siblings are never reset, while Unknown and Skipped children remain non-retryable.
+- Entry `publishStatus` is a projection of the latest matching durable job. It is restored after reload or on another owner browser and is not the outcome authority. Reading any queued or publishing job replays its original request key so the Edge boundary can use the server clock for recovery and return that same job without issuing another provider call.
+
+### Direct publishing approval revisions
+
+- `entries.content_revision` is a positive, monotonic revision for the exact fields sent to social providers: platforms, asset type, main and platform captions, first comment, carousel media and preview media.
+- `entries.approved_revision` records which content revision was explicitly approved. Direct publication requires a valid approval timestamp and exact equality between the approved and current content revisions.
+- Both revision columns are database-owned. The browser reads them but does not write them. A trigger ignores attempted client revision values, increments once for a provider-facing content edit, clears approval and returns Approved, Scheduled or Published content to In Review.
+- An approval transition or new approval timestamp binds the current revision. Moving an unchanged approved entry to Published preserves that binding for audit.
+- Approvals created before the revision migration remain unbound and cannot be published again until explicitly re-approved. Unrelated metadata edits cannot legitimise them.
+- Deployment is fail-closed: deploy the revision-requiring `publish-entry` boundary first, apply the reviewed migration after hosted schema reconciliation, then deploy the frontend. Never roll back to timestamp-only publication checks.
+
+### Durable publication schema
+
+- Phase 2 introduces additive `publication_jobs` and `publication_results` tables. A job is one deliberate manual or scheduled intent bound to an exact approved entry revision; a result is the state of one selected platform within that intent.
+- Manual request keys are unique per authenticated owner. The Edge boundary resolves an existing owner/key before revalidating mutable entry or media state, so a lost-response replay can always recover its original durable result.
+- A partial unique index permits only one guarded intent per owner, entry and revision, preventing simultaneous tabs with different fresh keys from reaching providers. A completely failed job releases that guard for a corrected retry; Partial, Published and Unknown remain protected.
+- The database creates the job and all platform results atomically. A conditional result claim allows only one caller to move each platform from Pending to Publishing before a provider side effect.
+- Result completion stores a sanitised provider ID/URL or fixed error classification and derives the aggregate job state. Parent-row locks serialise concurrent platform completions. Failed plus skipped with no success is Failed, mixed success is Partial, and any uncertain provider outcome makes the job Unknown.
+- Authenticated browser sessions may read only their own job and sanitised result columns. Payload snapshots, requester email and provider post IDs remain server-only; browser roles cannot mutate the tables or call orchestration functions.
+- Targeted retry reuses the same Partial manual job and its immutable approved payload snapshot. A service-only transition locks the current entry, re-checks the owner and exact approval revision, and atomically claims only the selected Failed child. Every retry request key remains durable across later attempts and completion, so an HTTP replay after an in-flight, Failed or Published outcome returns the same job without another provider call; a deliberate later retry of a definitive failure receives a new key. Published, Skipped and Unknown results cannot be reset.
+- The entry panel presents the durable per-platform matrix and a retry control only for an eligible Failed child. If a dispatched retry cannot be reconciled to the same job and revision, the browser preserves confirmed siblings, marks only the selected child Unknown and disables further retry.
+- The hosted `publish-entry` runtime now uses the service-only repository and durable orchestration kernel. Version 2 is active on the intended shared Intel Hub Supabase project with gateway JWT verification enabled.
+- The production build resolves to that shared project. The additive approval-revision and durable-publication migrations were applied in order without changing provider connection records. Existing approvals remain deliberately unbound until re-approved, while new publication job and result tables start empty. The separate standalone Content Hub project was not targeted.
+- The local schema exposes a service-only `durable-manual-v1` contract marker. `GET /functions/v1/publish-entry` reports ready only when the secured Edge bundle and marker agree; otherwise it returns 503. The production Pages workflow runs `npm run check:publication-backend` against the exact backend resolved by the build, pins the canonical shared-project origin and blocks frontend deployment on target or contract drift.
+- The detailed attended restore, reconciliation, deployment and rollback sequence lives in `docs/runbooks/publication-rollout.md`. The configured platform-docs analyser was unavailable for this refresh, so this publishing section was reconciled manually against runtime configuration, hosted Edge metadata, migrations and the deployment workflow. The exact production readiness check now returns `durable-manual-v1`.
+
+### Direct publishing media safety
+
+- New preview uploads no longer fall back to persisted base64 when Storage is unavailable. Create and edit flows use the same `content-media` uploader with MIME-derived object extensions and explicit size limits.
+- Planning previews may store allowlisted images, MP4, WebM, MOV or PDF files. Direct social publishing remains image-only and accepts JPEG, PNG, WebP or GIF according to the capability matrix.
+- Before platform credentials are queried, `publish-entry` requires every publication image to use the exact configured Supabase origin and public `content-media` path. External hosts, credentials, empty/traversing paths, query strings, fragments and expiring signed URLs fail closed.
+- Preflight requests use a bounded byte range, reject redirects, require a verifiable size of 10 MB or less, allowlist the declared MIME type and verify matching magic bytes. Network failures and timeouts return fixed re-upload guidance without accessing a provider.
+- The runtime orchestration kernel preflights before job creation, claims database work before provider execution, rejects provider redirects, sends an abort signal with an independent hard timeout and conservatively persists post-claim exceptions, missing provider success evidence or transient mutation responses as Unknown. Definite provider 4xx rejections remain Failed.
+- The shared browser/server capability guard validates each platform-specific caption against its adapter limit before job creation. Provider adapters send the approved caption unchanged; they never silently truncate it.
+- Any non-empty approved first comment blocks direct publishing with guidance to add it on the platform. No first comment is silently omitted or treated as a successful part of a durable publication.
+- Meta token, account and publication calls are pinned to supported Graph API `v24.0`; the version is held in one shared provider constant so callback and publishing paths cannot drift independently.
+- LinkedIn uses the versioned Images and Posts APIs, pinned to `202607`, rather than the replaced Assets/`ugcPosts` path. The required bearer token is sent only to documented exact LinkedIn upload hosts and path families; credentials, fragments, custom ports and lookalike hosts are rejected before the upload.
+- A persistence failure after provider execution remains visibly Publishing. Service-only recovery closes abandoned pending work as Failed and moves claims older than five minutes to Unknown under one parent-before-child lock order shared by claim and completion.
+- SQL verification includes actual overlapping PostgreSQL sessions for guarded-intent creation, duplicate claims, sibling completion and completion-versus-recovery. These tests exercise the database lock order rather than simulating concurrency in one transaction, and the deliberately losing creation session must identify the guarded-intent constraint by name.

@@ -1,5 +1,6 @@
 import { resolve } from 'path';
 import { writeFileSync } from 'fs';
+import { format } from 'prettier';
 
 const LEGACY_SUPABASE_URL = 'https://dvhjvtxtkmtsqlnurhfg.supabase.co';
 const LEGACY_SUPABASE_ANON_KEY =
@@ -33,10 +34,16 @@ export const resolvePublicSupabaseConfig = (getEnv) => {
   };
 };
 
-export const writePublicConfig = (root, getEnv) => {
+export const writePublicConfig = async (root, getEnv) => {
   const publicConfigPath = resolve(root, 'public/content-hub-config.js');
   const publicConfig = resolvePublicSupabaseConfig(getEnv);
-  const configSource = `window.CONTENT_HUB_PUBLIC_CONFIG = ${JSON.stringify(publicConfig, null, 2)};\n`;
+  const configSource = await format(
+    `window.CONTENT_HUB_PUBLIC_CONFIG = ${JSON.stringify(publicConfig, null, 2)};\n`,
+    {
+      parser: 'babel',
+      singleQuote: true,
+    },
+  );
 
   writeFileSync(publicConfigPath, configSource);
 };

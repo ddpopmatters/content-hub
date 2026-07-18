@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card,
   CardHeader,
@@ -38,53 +38,55 @@ const DIRECT_PUBLISH_PLATFORMS = ALL_PLATFORMS.filter(
   (platform) => platform !== 'YouTube',
 ) as Array<Exclude<Platform, 'YouTube'>>;
 
-// ─── OAuth URL builders ───────────────────────────────────────────────────────
+// ─── OAuth navigation guard ──────────────────────────────────────────────────
 
-const FUNCTION_BASE = `${import.meta.env.SUPABASE_URL ?? ''}/functions/v1`;
+type OAuthPlatform = Exclude<Platform, 'BlueSky' | 'YouTube'> | 'LinkedIn Org';
 
-export function buildOAuthUrl(
-  platform: Platform | 'LinkedIn Org',
-  currentUserEmail: string,
-): string {
-  const appBase = window.location.href.split('#')[0].replace(/[^/]*$/, '');
-  const state = btoa(
-    JSON.stringify({
-      platform,
-      createdByEmail: currentUserEmail,
-      redirectTo: `${appBase}oauth-success.html`,
-    }),
-  );
-  const redirectUri = `${FUNCTION_BASE}/oauth-callback`;
+const OAUTH_PROVIDER_ENDPOINTS: Record<OAuthPlatform, { origin: string; pathname: string }> = {
+  Instagram: { origin: 'https://www.facebook.com', pathname: '/dialog/oauth' },
+  Facebook: { origin: 'https://www.facebook.com', pathname: '/dialog/oauth' },
+  LinkedIn: { origin: 'https://www.linkedin.com', pathname: '/oauth/v2/authorization' },
+  'LinkedIn Org': {
+    origin: 'https://www.linkedin.com',
+    pathname: '/oauth/v2/authorization',
+  },
+};
 
-  switch (platform) {
-    case 'Instagram':
-    case 'Facebook': {
-      const configId = import.meta.env.META_FLOB_CONFIG_ID || '1823163038321738';
-      const appId = import.meta.env.META_APP_ID ?? '';
-      if (configId) {
-        return (
-          `https://www.facebook.com/dialog/oauth?client_id=${appId}&config_id=${configId}` +
-          `&response_type=code&override_default_response_type=true` +
-          `&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`
-        );
-      }
-      const scopes =
-        platform === 'Instagram'
-          ? 'instagram_basic,instagram_content_publish'
-          : 'pages_manage_posts,pages_read_engagement';
-      return `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}&response_type=code`;
-    }
-    case 'LinkedIn': {
-      const clientId = import.meta.env.LINKEDIN_CLIENT_ID ?? '';
-      return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent('openid profile email w_member_social')}&state=${state}`;
-    }
-    case 'LinkedIn Org': {
-      const clientId = import.meta.env.LINKEDIN_ORG_CLIENT_ID ?? '';
-      return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent('w_organization_social r_organization_social')}&state=${state}`;
-    }
-    default:
-      return '';
+const isOAuthPlatform = (value: unknown): value is OAuthPlatform =>
+  typeof value === 'string' &&
+  Object.prototype.hasOwnProperty.call(OAUTH_PROVIDER_ENDPOINTS, value);
+
+export function getSafeOAuthAuthorizationUrl(
+  value: unknown,
+  platform: OAuthPlatform,
+): string | null {
+  if (typeof value !== 'string') return null;
+  try {
+    const url = new URL(value);
+    const expected = OAUTH_PROVIDER_ENDPOINTS[platform];
+    return url.origin === expected.origin &&
+      url.pathname === expected.pathname &&
+      !url.username &&
+      !url.password
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
   }
+}
+
+export function isTrustedOAuthSuccessMessage(
+  event: Pick<MessageEvent, 'data' | 'origin' | 'source'>,
+  expectedSource: Window | null,
+  expectedOrigin: string,
+): boolean {
+  if (!expectedSource || event.origin !== expectedOrigin || event.source !== expectedSource) {
+    return false;
+  }
+  const data: unknown = event.data;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+  const message = data as Record<string, unknown>;
+  return message.type === 'oauth_success' && isOAuthPlatform(message.platform);
 }
 
 // ─── Connection status helpers ────────────────────────────────────────────────
@@ -104,13 +106,7 @@ function expiresLabel(conn: PlatformConnection): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-interface PlatformConnectionsViewProps {
-  currentUserEmail: string;
-}
-
-export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = ({
-  currentUserEmail,
-}) => {
+export const PlatformConnectionsView: React.FC = () => {
   const [connections, setConnections] = useState<PlatformConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -120,6 +116,7 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
   const [bskySaving, setBskySaving] = useState(false);
   const [bskyError, setBskyError] = useState('');
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  const oauthPopupRef = useRef<Window | null>(null);
 
   const callPlatformConnectionsApi = useCallback(async (payload: Record<string, unknown>) => {
     await initSupabase();
@@ -135,6 +132,7 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`,
+        apikey: APP_CONFIG.SUPABASE_ANON_KEY,
       },
       body: JSON.stringify(payload),
     });
@@ -171,22 +169,13 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
   // Listen for OAuth popup success via postMessage
   useEffect(() => {
     const handler = (e: MessageEvent) => {
-      if (e.data?.type === 'oauth_success') {
-        fetchConnections();
-      }
+      if (!isTrustedOAuthSuccessMessage(e, oauthPopupRef.current, window.location.origin)) return;
+
+      oauthPopupRef.current = null;
+      fetchConnections();
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [fetchConnections]);
-
-  // Also check URL params (in case redirect came back to this page)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('oauth_success')) {
-      fetchConnections();
-      // Clean URL
-      window.history.replaceState({}, '', window.location.pathname);
-    }
   }, [fetchConnections]);
 
   const connFor = (platform: string) => connections.find((c) => c.platform === platform) ?? null;
@@ -222,16 +211,28 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
   };
 
   // ── OAuth connect (popup) ────────────────────────────────────────────────
-  const handleOAuthConnect = (platform: Platform | 'LinkedIn Org') => {
-    const oauthUrl = buildOAuthUrl(platform, currentUserEmail);
-    if (!oauthUrl) return;
+  const handleOAuthConnect = async (platform: OAuthPlatform) => {
+    setError('');
     const popup = window.open(
-      oauthUrl,
+      'about:blank',
       `connect-${platform}`,
       'width=600,height=700,left=200,top=100',
     );
     if (!popup) {
       alert('Popup blocked — please allow popups for this site and try again.');
+      return;
+    }
+
+    oauthPopupRef.current = popup;
+    try {
+      const payload = await callPlatformConnectionsApi({ action: 'begin-oauth', platform });
+      const authorizationUrl = getSafeOAuthAuthorizationUrl(payload.authorizationUrl, platform);
+      if (!authorizationUrl) throw new Error('The OAuth provider URL was invalid.');
+      popup.location.href = authorizationUrl;
+    } catch (err) {
+      popup.close();
+      oauthPopupRef.current = null;
+      setError(err instanceof Error ? err.message : 'Unable to start the OAuth connection.');
     }
   };
 
@@ -335,7 +336,7 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleOAuthConnect(platform as Platform)}
+                          onClick={() => handleOAuthConnect(platform as OAuthPlatform)}
                         >
                           Connect
                         </Button>
@@ -345,7 +346,7 @@ export const PlatformConnectionsView: React.FC<PlatformConnectionsViewProps> = (
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleOAuthConnect(platform as Platform)}
+                          onClick={() => handleOAuthConnect(platform as OAuthPlatform)}
                         >
                           Reconnect
                         </Button>
