@@ -22,6 +22,12 @@ This focused reference covers the direct-publication data boundary. The configur
 
 **Rules:** Browser policies are removed. Only owner-authenticated Edge Functions may use the service role to read or update connections. Credential fields must never enter publication jobs, results or public responses.
 
+### Storage bucket `content-media`
+
+**Purpose:** Canonical public origin for entry previews and provider-fetchable publication media.
+
+**Rules:** The bucket is public-read with a 500 MB bucket ceiling and accepts `image/*`, `video/*` and `application/pdf`. Storage RLS grants authenticated users insert and delete access only when `bucket_id = 'content-media'`. Direct publication applies stricter image-only MIME, magic-byte and 10 MB checks before querying provider credentials.
+
 ### `publication_jobs`
 
 **Purpose:** One durable publication intent for one approved entry revision.
@@ -100,3 +106,4 @@ This focused reference covers the direct-publication data boundary. The configur
 - New uploads no longer persist inline base64 fallbacks. Existing base64-only entry media still requires a separate inventory and controlled re-upload decision.
 - Hosted TypeScript type generation succeeds and includes both durable publication tables. The application continues to use its narrower explicit boundary types rather than committing an unused full-schema generated file.
 - Production reconciliation completed against the intended shared runtime project on 18 July 2026. The secured `publish-entry` version 2 requires a gateway JWT, the hosted schema marker is `durable-manual-v1`, and the exact frontend readiness check passes.
+- The production `content-media` bucket and authenticated write/delete policies are recorded by migration. Pages enables the upload UI only after that Storage contract and the backend readiness gate are active.

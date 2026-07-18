@@ -508,3 +508,17 @@
   - Deno checks passed for all five deployed Content Hub Edge Functions after correcting the platform-summary query type.
   - Full frontend suite passed (40 files, 307 tests), followed by typecheck, lint, build, Prettier and `git diff --check`.
 - Status: Production backend initialisation complete; frontend merge and GitHub Pages smoke verification remain
+
+## 2026-07-18 - Enable production content-media storage
+
+- Tool: Codex
+- Branch: `main`
+- Changes:
+  - Added and applied the recorded `initialise_content_media_storage` migration to the intended shared Supabase project.
+  - Created the public `content-media` bucket with the reviewed 500 MB ceiling and image, video and PDF MIME families.
+  - Added authenticated insert and delete policies scoped to that bucket.
+  - Enabled Content Hub file uploads in the GitHub Pages production build after the existing durable-backend gate.
+- Verification:
+  - Confirmed the hosted bucket settings and both exact Storage RLS policies through read-only metadata queries.
+  - `npm run test:content-media` confirmed the public bucket contract; authenticated upload/delete probing remains intentionally skipped until approved test credentials are supplied.
+- Status: Storage initialisation complete; production Pages redeployment and live config smoke verification remain

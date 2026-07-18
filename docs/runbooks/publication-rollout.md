@@ -13,6 +13,7 @@ The attended Supabase rollout on 18 July 2026 established:
 - The approval-revision and durable-publication migrations are recorded in hosted migration history. Both publication tables have RLS, browser writes are revoked and orchestration functions are executable only by `service_role`.
 - `platform-connections` version 5 requires a gateway JWT; `oauth-callback` version 2 remains intentionally public and fails closed without a valid one-time state.
 - The signed `approve-entry` endpoint and read-only aggregate `platform-summary` endpoint are active. Summary action links resolve beneath the canonical GitHub Pages path.
+- The public `content-media` bucket is active with its reviewed MIME/size limits and authenticated insert/delete policies; the Pages production build enables its upload UI.
 - The older standalone `Content Hub` project remains outside the runtime path and was not targeted.
 
 The backend gate now passes exactly as specified below. Frontend deployment and test-account provider smoke tests remain the final rollout stage.
@@ -33,6 +34,8 @@ The backend gate now passes exactly as specified below. Frontend deployment and 
 
 8. Run `npm run check:publication-backend`. It resolves the backend through the same configuration function as the production build, requires the canonical shared-project origin and accepts only the exact two-field readiness response. The GitHub Pages workflow runs the same check and blocks the frontend when the target, endpoint, Edge code or schema is missing or mismatched.
 9. Deploy the frontend, require re-approval of legacy approved entries, then perform test-account success, definitive rejection, partial retry and ambiguous-failure smoke tests. Never use live campaign content for failure testing.
+
+Steps 1–8 and the frontend deployment are complete. Authenticated upload/delete and provider-outcome smoke tests still require an approved test account.
 
 The old `tools/test-publish-api.mjs` direct-post script has been removed. It used the legacy browser-authored payload, defaulted to a different PM Supabase project and could contact real providers outside the durable test-account workflow.
 

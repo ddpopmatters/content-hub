@@ -429,6 +429,7 @@ This section highlights specific areas in the codebase that indicate limitations
 
 ### Direct publishing media safety
 
+- The shared production project now has the reviewed public `content-media` bucket and authenticated insert/delete policies. The Pages production build enables file uploads only after the durable backend readiness check passes.
 - New preview uploads no longer fall back to persisted base64 when Storage is unavailable. Create and edit flows use the same `content-media` uploader with MIME-derived object extensions and explicit size limits.
 - Planning previews may store allowlisted images, MP4, WebM, MOV or PDF files. Direct social publishing remains image-only and accepts JPEG, PNG, WebP or GIF according to the capability matrix.
 - Before platform credentials are queried, `publish-entry` requires every publication image to use the exact configured Supabase origin and public `content-media` path. External hosts, credentials, empty/traversing paths, query strings, fragments and expiring signed URLs fail closed.
