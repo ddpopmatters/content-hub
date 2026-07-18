@@ -239,7 +239,7 @@ export function MonthlyGlance({
       {/* Summary count */}
       <p className="text-sm text-graystone-500">
         {isEmpty
-          ? 'No entries scheduled this month.'
+          ? 'No entries planned this month.'
           : `${sortedEntries.length} ${sortedEntries.length === 1 ? 'entry' : 'entries'} planned`}
       </p>
 

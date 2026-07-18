@@ -10,13 +10,16 @@
   "roleVisibilityRules": ["content team", "reviewers", "admins"],
   "capabilityTags": ["calendar", "approvals", "reporting", "publishing"],
   "currentStatus": "canonical",
+  "nativeSummaryFunction": "platform-summary",
   "primaryActions": [
     { "label": "Open dashboard", "href": "#dashboard", "kind": "open" },
-    { "label": "Open content plan", "href": "#content", "kind": "review" }
+    { "label": "Open content plan", "href": "#content", "kind": "review" },
+    { "label": "Create content", "href": "#create", "kind": "create" }
   ],
   "headlineCounts": [{ "label": "Live summary counts", "value": null, "tone": "neutral" }],
   "notes": [
     "Content Hub remains an independent specialist product.",
+    "A native Supabase Edge Function summary contract now exists for live shell aggregation.",
     "Platform alignment should happen through access and registry contracts, not a backend rewrite."
   ]
 }

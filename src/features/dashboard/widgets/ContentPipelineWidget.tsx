@@ -10,7 +10,7 @@ interface ContentPipelineWidgetProps {
 const PIPELINE_STAGES = [
   { status: 'Draft', label: 'Draft', color: 'bg-graystone-400' },
   { status: 'Pending', label: 'Pending Approval', color: 'bg-amber-400' },
-  { status: 'Scheduled', label: 'Scheduled', color: 'bg-ocean-400' },
+  { status: 'Scheduled', label: 'Planned', color: 'bg-ocean-400' },
   { status: 'Approved', label: 'Approved/Posted', color: 'bg-green-400' },
 ] as const;
 

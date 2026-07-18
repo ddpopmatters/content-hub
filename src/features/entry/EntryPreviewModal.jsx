@@ -55,7 +55,7 @@ export function EntryPreviewModal({
         month: 'short',
         day: 'numeric',
       })
-    : 'Not scheduled';
+    : 'No planned date';
   const normalizedCurrent = (currentUser || currentUserEmail || '').trim().toLowerCase();
   const normalizedAuthor = (sanitized.author || '').trim().toLowerCase();
   const canEdit = normalizedAuthor && normalizedCurrent && normalizedAuthor === normalizedCurrent;
@@ -152,7 +152,7 @@ export function EntryPreviewModal({
       <div className="flex h-full max-h-[80vh] flex-col bg-white">
         <div className="flex items-center justify-between border-b border-graystone-200 px-6 py-4">
           <div className="heading-font text-lg font-semibold text-ocean-900">
-            Scheduled post by {sanitized.author || 'Unknown'} for {friendlyDate}
+            Content planned by {sanitized.author || 'Unknown'} for {friendlyDate}
           </div>
           <Badge variant={sanitized.status === 'Approved' ? 'solid' : 'outline'}>
             {sanitized.status}

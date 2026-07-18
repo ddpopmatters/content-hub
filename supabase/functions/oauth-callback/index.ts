@@ -7,10 +7,14 @@
  * 3. Stores tokens in platform_connections
  * 4. Redirects browser to success page in the app
  *
- * State param format: base64(JSON({ platform, createdByEmail, redirectTo }))
+ * State is an opaque, one-time server-issued nonce. The browser cannot choose
+ * the owner, platform or return destination.
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { handleCors } from '../_shared/cors.ts';
+import { buildOAuthSuccessUrl } from '../_shared/oauthAuthorization.ts';
+import { consumeOAuthState } from '../_shared/oauthState.ts';
+import { META_GRAPH_API_BASE_URL } from '../_shared/providerVersions.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -27,13 +31,19 @@ const LINKEDIN_CLIENT_SECRET = Deno.env.get('LINKEDIN_CLIENT_SECRET') ?? '';
 const LINKEDIN_ORG_CLIENT_ID = Deno.env.get('LINKEDIN_ORG_CLIENT_ID') ?? '';
 const LINKEDIN_ORG_CLIENT_SECRET = Deno.env.get('LINKEDIN_ORG_CLIENT_SECRET') ?? '';
 
-// Google (YouTube)
-const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
-const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '';
-
 const _supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const FUNCTION_URL = _supabaseUrl ? `${_supabaseUrl}/functions/v1/oauth-callback` : '';
-const APP_URL = Deno.env.get('APP_URL') ?? '';
+const FUNCTION_URL = _supabaseUrl
+  ? `${_supabaseUrl.replace(/\/$/, '')}/functions/v1/oauth-callback`
+  : '';
+const APP_URL = Deno.env.get('APP_URL') ?? 'https://ddpopmatters.github.io/content-hub/';
+const CALLBACK_HEADERS = {
+  'Cache-Control': 'no-store',
+  'Referrer-Policy': 'no-referrer',
+  'X-Content-Type-Options': 'nosniff',
+};
+
+const callbackError = (message: string, status: number): Response =>
+  new Response(message, { status, headers: CALLBACK_HEADERS });
 
 // ─── Token exchangers ────────────────────────────────────────────────────────
 
@@ -54,7 +64,7 @@ async function exchangeMetaCode(
 ): Promise<TokenResult> {
   // Exchange code for short-lived token
   const tokenRes = await fetch(
-    `https://graph.facebook.com/v19.0/oauth/access_token?` +
+    `${META_GRAPH_API_BASE_URL}/oauth/access_token?` +
       new URLSearchParams({
         client_id: META_APP_ID,
         client_secret: META_APP_SECRET,
@@ -62,12 +72,12 @@ async function exchangeMetaCode(
         code,
       }),
   );
-  if (!tokenRes.ok) throw new Error(`Meta token exchange failed: ${await tokenRes.text()}`);
+  if (!tokenRes.ok) throw new Error('Meta token exchange failed.');
   const { access_token: shortToken } = (await tokenRes.json()) as { access_token: string };
 
   // Exchange for long-lived token (60 days)
   const longRes = await fetch(
-    `https://graph.facebook.com/v19.0/oauth/access_token?` +
+    `${META_GRAPH_API_BASE_URL}/oauth/access_token?` +
       new URLSearchParams({
         grant_type: 'fb_exchange_token',
         client_id: META_APP_ID,
@@ -75,21 +85,20 @@ async function exchangeMetaCode(
         fb_exchange_token: shortToken,
       }),
   );
-  if (!longRes.ok)
-    throw new Error(`Meta long-lived token exchange failed: ${await longRes.text()}`);
+  if (!longRes.ok) throw new Error('Meta long-lived token exchange failed.');
   const { access_token: longToken, expires_in } = (await longRes.json()) as {
     access_token: string;
     expires_in: number;
   };
 
   const pagesRes = await fetch(
-    `https://graph.facebook.com/v19.0/me/accounts?${new URLSearchParams({
+    `${META_GRAPH_API_BASE_URL}/me/accounts?${new URLSearchParams({
       access_token: longToken,
       fields: 'id,name,instagram_business_account{id,username}',
     })}`,
   );
   if (!pagesRes.ok) {
-    throw new Error(`Meta page lookup failed: ${await pagesRes.text()}`);
+    throw new Error('Meta page lookup failed.');
   }
 
   const pagesData = (await pagesRes.json()) as {
@@ -158,7 +167,7 @@ async function exchangeLinkedInCode(code: string, redirectUri: string): Promise<
       client_secret: LINKEDIN_CLIENT_SECRET,
     }),
   });
-  if (!tokenRes.ok) throw new Error(`LinkedIn token exchange failed: ${await tokenRes.text()}`);
+  if (!tokenRes.ok) throw new Error('LinkedIn token exchange failed.');
   const tokens = (await tokenRes.json()) as {
     access_token: string;
     refresh_token?: string;
@@ -170,6 +179,7 @@ async function exchangeLinkedInCode(code: string, redirectUri: string): Promise<
   const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   });
+  if (!profileRes.ok) throw new Error('LinkedIn profile lookup failed.');
   const profile = (await profileRes.json()) as { sub: string; name: string };
 
   return {
@@ -195,7 +205,7 @@ async function exchangeLinkedInOrgCode(code: string, redirectUri: string): Promi
       client_secret: LINKEDIN_ORG_CLIENT_SECRET,
     }),
   });
-  if (!tokenRes.ok) throw new Error(`LinkedIn org token exchange failed: ${await tokenRes.text()}`);
+  if (!tokenRes.ok) throw new Error('LinkedIn organisation token exchange failed.');
   const tokens = (await tokenRes.json()) as {
     access_token: string;
     refresh_token?: string;
@@ -207,6 +217,7 @@ async function exchangeLinkedInOrgCode(code: string, redirectUri: string): Promi
     'https://api.linkedin.com/v2/organizationalEntityAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED',
     { headers: { Authorization: `Bearer ${tokens.access_token}` } },
   );
+  if (!aclRes.ok) throw new Error('LinkedIn organisation lookup failed.');
   const aclData = (await aclRes.json()) as {
     elements?: Array<{ organizationalTarget: string }>;
   };
@@ -239,97 +250,62 @@ async function exchangeLinkedInOrgCode(code: string, redirectUri: string): Promi
   };
 }
 
-async function exchangeGoogleCode(code: string, redirectUri: string): Promise<TokenResult> {
-  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: redirectUri,
-      client_id: GOOGLE_CLIENT_ID,
-      client_secret: GOOGLE_CLIENT_SECRET,
-    }),
-  });
-  if (!tokenRes.ok) throw new Error(`Google token exchange failed: ${await tokenRes.text()}`);
-  const tokens = (await tokenRes.json()) as {
-    access_token: string;
-    refresh_token?: string;
-    expires_in: number;
-    scope: string;
-  };
-
-  // Get channel info
-  const channelRes = await fetch(
-    `https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true`,
-    { headers: { Authorization: `Bearer ${tokens.access_token}` } },
-  );
-  const channelData = (await channelRes.json()) as {
-    items?: Array<{ id: string; snippet: { title: string } }>;
-  };
-  const channel = channelData.items?.[0];
-
-  return {
-    platform: 'YouTube',
-    accountId: channel?.id ?? 'unknown',
-    accountName: channel?.snippet?.title ?? 'YouTube Channel',
-    accessToken: tokens.access_token,
-    refreshToken: tokens.refresh_token ?? null,
-    expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-    scope: tokens.scope,
-  };
-}
-
 // ─── Handler ─────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
   const cors = handleCors(req);
   if (cors) return cors;
+  if (req.method !== 'GET') return callbackError('Method not allowed.', 405);
 
   const url = new URL(req.url);
   const code = url.searchParams.get('code');
   const stateRaw = url.searchParams.get('state');
   const error = url.searchParams.get('error');
 
-  if (error) {
-    return new Response(`OAuth error: ${error}`, { status: 400 });
-  }
+  if (!stateRaw) return callbackError('OAuth state is invalid or expired.', 400);
 
-  if (!code || !stateRaw) {
-    return new Response('Missing code or state', { status: 400 });
-  }
-
-  let state: { platform: string; createdByEmail: string; redirectTo?: string };
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  let state: Awaited<ReturnType<typeof consumeOAuthState>>;
   try {
-    state = JSON.parse(atob(stateRaw));
+    state = await consumeOAuthState(stateRaw, {
+      take: async (key) => {
+        const { data, error: stateError } = await supabase
+          .from('app_secrets')
+          .delete()
+          .eq('key', key)
+          .select('value')
+          .maybeSingle();
+        if (stateError) throw new Error('OAuth state lookup failed.');
+        return typeof data?.value === 'string' ? data.value : null;
+      },
+    });
   } catch {
-    return new Response('Invalid state param', { status: 400 });
+    return callbackError('OAuth state is invalid or expired.', 400);
   }
 
-  const redirectUri = `${FUNCTION_URL}`;
+  if (error) {
+    return callbackError('OAuth authorisation was not completed.', 400);
+  }
+  if (!code) return callbackError('OAuth authorisation code is missing.', 400);
 
   try {
     let result: TokenResult;
     switch (state.platform) {
       case 'Instagram':
       case 'Facebook':
-        result = await exchangeMetaCode(code, redirectUri, state.platform);
+        result = await exchangeMetaCode(code, FUNCTION_URL, state.platform);
         break;
       case 'LinkedIn':
-        result = await exchangeLinkedInCode(code, redirectUri);
+        result = await exchangeLinkedInCode(code, FUNCTION_URL);
         break;
       case 'LinkedIn Org':
-        result = await exchangeLinkedInOrgCode(code, redirectUri);
-        break;
-      case 'YouTube':
-        result = await exchangeGoogleCode(code, redirectUri);
+        result = await exchangeLinkedInOrgCode(code, FUNCTION_URL);
         break;
       default:
-        return new Response(`Unknown platform: ${state.platform}`, { status: 400 });
+        return callbackError('OAuth platform is not supported.', 400);
     }
 
     // Upsert into platform_connections
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { error: upsertError } = await supabase.from('platform_connections').upsert(
       {
         platform: result.platform,
@@ -339,7 +315,7 @@ Deno.serve(async (req: Request) => {
         refresh_token: result.refreshToken,
         expires_at: result.expiresAt?.toISOString() ?? null,
         scope: result.scope,
-        created_by: state.createdByEmail,
+        created_by: state.ownerEmail,
         is_active: true,
         last_error: null,
       },
@@ -347,7 +323,7 @@ Deno.serve(async (req: Request) => {
     );
 
     if (upsertError) {
-      return new Response(`Failed to save connection: ${upsertError.message}`, { status: 500 });
+      return callbackError('Failed to save the platform connection.', 500);
     }
 
     await supabase
@@ -357,17 +333,13 @@ Deno.serve(async (req: Request) => {
       .neq('account_id', result.accountId)
       .eq('is_active', true);
 
-    // Redirect back to the app with success signal
-    const successUrl = new URL(state.redirectTo ?? APP_URL);
-    successUrl.searchParams.set('oauth_success', result.platform);
-    successUrl.searchParams.set('account_name', result.accountName);
+    const successUrl = buildOAuthSuccessUrl(APP_URL, result.platform);
 
     return new Response(null, {
       status: 302,
-      headers: { Location: successUrl.toString() },
+      headers: { ...CALLBACK_HEADERS, Location: successUrl },
     });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    return new Response(`OAuth callback error: ${msg}`, { status: 500 });
+  } catch {
+    return callbackError('OAuth connection failed. Start the connection again.', 500);
   }
 });

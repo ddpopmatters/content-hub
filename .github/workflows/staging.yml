@@ -26,6 +26,9 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Use npm with release-age gate
+        run: npm install --global npm@11.11.0
+
       - name: Install dependencies
         run: npm ci
 
@@ -51,7 +54,7 @@ jobs:
         run: npm run build
 
       - name: Install Wrangler
-        run: npm install --global wrangler@4
+        run: npm install --global wrangler@4.90.1
 
       - name: Prepare branch alias
         run: echo "DEPLOY_BRANCH=${GITHUB_HEAD_REF//\//-}" >> "$GITHUB_ENV"
@@ -80,6 +83,9 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Use npm with release-age gate
+        run: npm install --global npm@11.11.0
+
       - name: Install dependencies
         run: npm ci
 
@@ -105,7 +111,7 @@ jobs:
         run: npm run build
 
       - name: Install Wrangler
-        run: npm install --global wrangler@4
+        run: npm install --global wrangler@4.90.1
 
       - name: Deploy staging to Cloudflare Pages
         env:

@@ -160,7 +160,7 @@ async function resolveAccessToken(
 - [ ] **Step 4: Run typecheck**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm run typecheck
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm run typecheck
 ```
 
 Expected: no errors.
@@ -249,7 +249,7 @@ Replace it with:
 - [ ] **Step 2: Run typecheck**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm run typecheck
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm run typecheck
 ```
 
 Expected: no errors.
@@ -257,7 +257,7 @@ Expected: no errors.
 - [ ] **Step 3: Run all tests**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm test
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm test
 ```
 
 Expected: all tests pass.

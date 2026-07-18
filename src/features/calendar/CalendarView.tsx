@@ -158,7 +158,7 @@ function AssetRatioCard({
           <p className="text-xs text-graystone-500">{monthLabel}</p>
         </div>
         {adjustedTotal === 0 ? (
-          <p className="text-sm text-graystone-500">No assets scheduled for this month yet.</p>
+          <p className="text-sm text-graystone-500">No assets planned for this month yet.</p>
         ) : (
           <>
             <div className="mb-4 flex justify-center">

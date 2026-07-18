@@ -1,127 +1,17 @@
-import type { Entry, PublishSettings, PlatformPublishStatus } from '../../types/models';
-
-function collectLegacyAttachmentUrls(entry: Entry): string[] {
-  if (!Array.isArray(entry.attachments)) return [];
-
-  return entry.attachments
-    .map((attachment) => {
-      if (attachment.url && attachment.url.trim()) return attachment.url.trim();
-      if (attachment.dataUrl && !attachment.dataUrl.startsWith('data:')) {
-        return attachment.dataUrl.trim();
-      }
-      return '';
-    })
-    .filter(Boolean);
-}
-
-function collectMediaUrls(entry: Entry): string[] {
-  const primaryUrls = Array.isArray(entry.assetPreviews)
-    ? entry.assetPreviews.filter((url) => url && !url.startsWith('data:'))
-    : [];
-
-  const fallbackUrls = collectLegacyAttachmentUrls(entry);
-
-  return Array.from(new Set([...primaryUrls, ...fallbackUrls]));
-}
-
-/**
- * Build the webhook payload for publishing an entry
- * Note: webhookSecret is included in body (not header) due to browser no-cors limitations
- */
-export function buildPublishPayload(entry: Entry, callbackUrl?: string, webhookSecret?: string) {
-  return {
-    entryId: entry.id,
-    platforms: entry.platforms,
-    caption: entry.caption,
-    platformCaptions: entry.platformCaptions || {},
-    assetType: entry.assetType,
-    mediaUrls: collectMediaUrls(entry),
-    previewUrl: entry.previewUrl || null,
-    scheduledDate: entry.date,
-    firstComment: entry.firstComment || '',
-    campaign: entry.campaign || '',
-    contentPillar: entry.contentPillar || '',
-    links: entry.links || [],
-    callbackUrl: callbackUrl || null,
-    ...(webhookSecret && { webhookSecret }),
-  };
-}
-
-/**
- * Validate webhook URL - warn if using HTTP with a secret
- */
-export function validateWebhookUrl(
-  url: string,
-  hasSecret: boolean,
-): { valid: boolean; warning?: string } {
-  if (!url) return { valid: false };
-
-  try {
-    const parsed = new URL(url);
-    if (hasSecret && parsed.protocol === 'http:') {
-      return {
-        valid: true,
-        warning: 'Using HTTP with a webhook secret is insecure. Use HTTPS.',
-      };
-    }
-    return { valid: true };
-  } catch {
-    return { valid: false };
-  }
-}
-
-/**
- * Send entry to Zapier webhook for publishing
- *
- * IMPORTANT: Uses no-cors mode since Zapier doesn't support CORS from browsers.
- * This means:
- * - We cannot read the response status or body
- * - Request will be sent but success is assumed if no network error
- * - Use the callback URL with a Supabase Edge Function to get actual confirmation
- *
- * The webhook secret is sent in the payload body (not header) due to CORS.
- */
-export async function triggerPublish(
-  entry: Entry,
-  settings: PublishSettings,
-  callbackUrl?: string,
-): Promise<{ success: boolean; error?: string; warning?: string }> {
-  if (!settings.webhookUrl) {
-    return { success: false, error: 'No webhook URL configured' };
-  }
-
-  // Validate URL and check for security issues
-  const validation = validateWebhookUrl(settings.webhookUrl, !!settings.webhookSecret);
-  if (!validation.valid) {
-    return { success: false, error: 'Invalid webhook URL' };
-  }
-
-  try {
-    // Secret is included in payload body since no-cors strips custom headers
-    const payload = buildPublishPayload(entry, callbackUrl, settings.webhookSecret);
-
-    await fetch(settings.webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-      mode: 'no-cors', // Zapier doesn't support CORS - response will be opaque
-    });
-
-    // With no-cors we can't check response status
-    // The request was sent - actual success depends on callback confirmation
-    return {
-      success: true,
-      warning: validation.warning,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to trigger publish',
-    };
-  }
-}
+import type { Entry, PlatformPublishStatus } from '../../types/models';
+import { APP_CONFIG } from '../../lib/config';
+import {
+  getPublishCapabilityIssue,
+  type PublishCapabilityIssue,
+} from '../../../supabase/functions/_shared/publishCapabilities';
+import {
+  type ApprovalFreshnessIssue,
+  getApprovalFreshnessIssue,
+} from '../../../supabase/functions/_shared/approvalFreshness';
+import {
+  getPublicationMediaLocationIssue,
+  type PublicationMediaIssue,
+} from '../../../supabase/functions/_shared/publicationMedia';
 
 /**
  * Initialise publish status for all platforms on an entry
@@ -146,7 +36,7 @@ export function initializePublishStatus(
  */
 export function getAggregatePublishStatus(
   publishStatus: Record<string, PlatformPublishStatus> | undefined,
-): 'none' | 'pending' | 'publishing' | 'published' | 'partial' | 'failed' {
+): 'none' | 'pending' | 'publishing' | 'published' | 'partial' | 'failed' | 'unknown' {
   if (!publishStatus || Object.keys(publishStatus).length === 0) {
     return 'none';
   }
@@ -156,30 +46,135 @@ export function getAggregatePublishStatus(
   const allFailed = statuses.every((s) => s.status === 'failed' || s.status === 'skipped');
   const anyPending = statuses.some((s) => s.status === 'pending');
   const anyPublishing = statuses.some((s) => s.status === 'publishing');
+  const anyUnknown = statuses.some((s) => s.status === 'unknown');
   const anyPublished = statuses.some((s) => s.status === 'published');
-  const anyFailed = statuses.some((s) => s.status === 'failed');
+  const anyNotPublished = statuses.some((s) => s.status !== 'published');
 
   if (allPublished) return 'published';
+  if (anyUnknown) return 'unknown';
   if (allFailed) return 'failed';
   // Treat pending and publishing as in-flight states
   if (anyPublishing) return 'publishing';
   if (anyPending) return 'pending';
-  if (anyPublished && anyFailed) return 'partial';
+  if (anyPublished && anyNotPublished) return 'partial';
   return 'none';
+}
+
+/**
+ * Convert transport status to fixed, actionable copy. Response bodies are not
+ * displayed or persisted because they may originate outside the application.
+ */
+export function getPublishRequestError(status: number): string {
+  switch (status) {
+    case 400:
+      return 'The publishing request was invalid.';
+    case 401:
+      return 'Sign in again before publishing.';
+    case 403:
+      return 'This account is not allowed to publish.';
+    case 404:
+      return 'This entry could not be found.';
+    case 409:
+      return 'This entry must be approved again before publishing.';
+    case 422:
+      return 'This entry is not ready for direct publishing.';
+    case 503:
+      return 'Publishing is temporarily unavailable.';
+    default:
+      return 'Publishing failed. No confirmed result was recorded.';
+  }
+}
+
+/**
+ * Resolve the shared server/UI capability guard for an entry.
+ */
+export function getEntryPublishCapabilityIssue(
+  entry: Entry,
+): PublishCapabilityIssue | PublicationMediaIssue | null {
+  const payload = {
+    assetType: entry.assetType,
+    platforms: entry.platforms,
+    mediaUrls: entry.assetPreviews ?? [],
+    previewUrl: entry.previewUrl || null,
+    caption: entry.caption,
+    platformCaptions: entry.platformCaptions,
+    firstComment: entry.firstComment,
+  };
+  return (
+    getPublishCapabilityIssue(payload) ??
+    getPublicationMediaLocationIssue(
+      {
+        ...payload,
+        entryId: entry.id,
+        caption: entry.caption,
+        platformCaptions: entry.platformCaptions,
+        firstComment: entry.firstComment,
+      },
+      APP_CONFIG.SUPABASE_URL,
+    )
+  );
+}
+
+/**
+ * Resolve the shared server/UI approval freshness guard for an entry.
+ */
+export function getEntryApprovalFreshnessIssue(entry: Entry): ApprovalFreshnessIssue | null {
+  return getApprovalFreshnessIssue({
+    approvedAt: entry.approvedAt,
+    contentRevision: entry.contentRevision,
+    approvedRevision: entry.approvedRevision,
+  });
 }
 
 /**
  * Check if an entry can be published
  */
 export function canPublish(entry: Entry): boolean {
+  // If durable reads fail, publishing is unsafe because an earlier Unknown or
+  // successful intent may exist even when the entry projection is empty.
+  if (entry.publicationStateAvailable === false) return false;
   // Must be approved
   if (entry.workflowStatus !== 'Approved') return false;
+  // The current database revision must be the exact revision approved.
+  if (getEntryApprovalFreshnessIssue(entry)) return false;
   // Must have platforms selected
   if (!entry.platforms || entry.platforms.length === 0) return false;
+  // Server owns enforcement; this shared guard keeps the UI truthful.
+  if (getEntryPublishCapabilityIssue(entry)) return false;
   // Must not be in any active publish state
   const status = getAggregatePublishStatus(entry.publishStatus);
-  if (status === 'pending' || status === 'publishing' || status === 'published') return false;
+  if (
+    status === 'pending' ||
+    status === 'publishing' ||
+    status === 'unknown' ||
+    status === 'published' ||
+    status === 'partial'
+  ) {
+    return false;
+  }
   return true;
+}
+
+/**
+ * A targeted retry is safe only for one definitive failed child on the exact
+ * approved revision of a durable Partial job.
+ */
+export function canRetryFailedPlatform(entry: Entry, platform: string): boolean {
+  const job = entry.publicationJob;
+  if (
+    entry.publicationStateAvailable === false ||
+    entry.workflowStatus !== 'Approved' ||
+    getEntryApprovalFreshnessIssue(entry) ||
+    !job ||
+    job.status !== 'partial' ||
+    job.entryId !== entry.id ||
+    job.entryRevision !== entry.contentRevision ||
+    entry.publishStatus?.[platform]?.status !== 'failed'
+  ) {
+    return false;
+  }
+
+  return job.results.some((result) => result.platform === platform && result.status === 'failed');
 }
 
 /**

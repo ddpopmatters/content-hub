@@ -1,0 +1,102 @@
+# Data Reference — Content Hub
+
+_Generated: 2026-07-18. Re-run `/update-data-reference` after schema changes._
+
+This focused reference covers the direct-publication data boundary. The configured automated analyser was unavailable, so the relationships below were cross-referenced manually against migrations, Edge Function contracts and application types.
+
+## Entity Catalogue
+
+### `entries`
+
+**Purpose:** Canonical content and approval record.
+
+**Publication keys:** `id`, `platforms`, `asset_type`, `caption`, `platform_captions`, `first_comment`, `asset_previews`, `preview_url`, `workflow_status`, `approved_at`, `content_revision`, `approved_revision`, `deleted_at`.
+
+**Rules:** Provider-facing edits increment `content_revision`, clear approval and return approved or published work to review. Direct publication requires `workflow_status = 'Approved'`, a valid approval timestamp and `approved_revision = content_revision`.
+
+### `platform_connections`
+
+**Purpose:** Service-only provider credentials and account metadata used by direct publishing.
+
+**Publication keys:** `id`, `platform`, `account_id`, `account_name`, token fields, expiry, scope, active state and last-use/error metadata.
+
+**Rules:** Browser policies are removed. Only owner-authenticated Edge Functions may use the service role to read or update connections. Credential fields must never enter publication jobs, results or public responses.
+
+### `publication_jobs`
+
+**Purpose:** One durable publication intent for one approved entry revision.
+
+**Key columns:** `id`, `entry_id`, `entry_revision`, `trigger_type`, `request_key`, `requested_by`, `requested_by_email`, `status`, `payload_snapshot`, lifecycle timestamps.
+
+**Rules:** `(requested_by, request_key)` is unique. A partial unique index also permits only one guarded (`queued`, `publishing`, `partial`, `published` or `unknown`) intent for an owner, entry and revision, so two tabs with different freshly generated keys cannot publish concurrently. The service-only create function verifies the exact approved entry revision, creates the job and its platform results atomically, and returns the existing job for an identical replay. The approved payload is server-authored and is not readable by browser roles.
+
+### `publication_results`
+
+**Purpose:** Durable outcome and attempt state for one platform within a publication job.
+
+**Key columns:** `id`, `job_id`, `platform`, `status`, `provider_post_id`, `provider_url`, sanitised error code/message, `attempt_count`, `retry_request_keys`, lifecycle timestamps.
+
+**Rules:** `(job_id, platform)` is unique. A result moves from `pending` to `publishing` only through an atomic claim. Completion is allowed only for a claimed result. One service-only targeted-retry transition may atomically claim a definitive `failed` child on a `partial` manual job and retain every request key used for that child; it never resets published, skipped or unknown siblings. Published provider IDs and retry keys remain server-readable; browser roles may read the sanitised URL and outcome only.
+
+## Relationships
+
+### `entries` → `publication_jobs`
+
+- Foreign key: `publication_jobs.entry_id → entries.id` with restricted hard deletion.
+- Logical binding: `publication_jobs.entry_revision` must equal both `entries.content_revision` and `entries.approved_revision` when the job is created.
+- A fully failed intent releases the guarded-intent index for a corrected retry. Partial, published and unknown intents remain guarded. A Partial job is retried in place one failed platform at a time, while the current “Post again” flow creates a new entry and therefore a new approved revision identity.
+
+### `publication_jobs` → `publication_results`
+
+- Foreign key: `publication_results.job_id → publication_jobs.id` with cascading deletion.
+- One result exists per requested platform.
+- Job state is derived from its result matrix: active work is `publishing`; any terminal uncertainty is `unknown`; all successes are `published`; mixed success is `partial`; zero successes is `failed`.
+
+### `publication_results` → `platform_connections`
+
+- Logical relationship only: `publication_results.platform` selects one active connection during execution.
+- No foreign key is used because credentials can be reconnected or replaced without rewriting historical results.
+
+## Business Rules
+
+### State machines
+
+- Job: `queued → publishing → published | partial | failed | unknown`. `cancelled` is reserved for future pre-claim cancellation. Result completions take a parent-job row lock before changing a child, so concurrent platforms cannot leave a terminal job stranded as Publishing.
+- Result: `pending → publishing → published | failed | skipped | unknown`. A selected definitive `failed` result may use the explicit targeted transition `failed → publishing`; approval validation, request-key replay detection and the increment of `attempt_count` happen in that one atomic claim.
+- Published and unknown results cannot be reclaimed by the initial claim function.
+- `unknown` takes aggregate precedence because a provider may have accepted the post even when the application did not receive confirmation.
+- A Publishing result older than five minutes is recovered to Unknown with a fixed `persistence_failed` message. Recovery uses the same ordered parent locks as normal completion.
+
+### RLS and privileges
+
+- Authenticated users may select only jobs where `requested_by = auth.uid()` and the corresponding result rows.
+- Column grants omit `payload_snapshot`, `requested_by_email` and `provider_post_id` from browser access.
+- Anonymous roles have no access.
+- Browser roles have no insert, update, delete or orchestration-function privileges.
+- The owner-authenticated Edge boundary is the only intended caller of service-role create, targeted-retry claim, normal claim and complete functions.
+- `get_publication_contract_version()` is executable only by `service_role` and returns `durable-manual-v1`. The Edge readiness endpoint requires that exact marker before a matching frontend can deploy.
+
+## Common Query Patterns
+
+- Create or replay an intent through `create_manual_publication_job(...)`.
+- Atomically claim a pending platform through `claim_publication_result(job_id, platform)` before any provider call.
+- Store a sanitised terminal outcome and recompute aggregate job state through `complete_publication_result(...)`.
+- Recover abandoned queued work and claims through the service-only `recover_stale_publication_results()` function before resolving or creating a manual intent.
+- Atomically validate and claim one failed child on an existing Partial manual job through `claim_failed_publication_retry(...)`, supplying a fresh retry request key, then use the normal completion function.
+- Load browser-visible jobs by `entry_id`, newest first, then load their result rows by `job_id`.
+- Preflight the authoritative payload against the exact public `content-media` origin, object path, size, image MIME and magic bytes before querying connection credentials.
+
+## Gotchas
+
+- `publish-entry` now resolves an existing owner/request key before revalidating mutable entry or media state, then uses the RPC repository and tested orchestration kernel for new work.
+- The browser stores a per-entry-revision request key, rehydrates its latest owner-visible job on entry loads and fails closed when durable reads fail. Loading any queued or publishing job replays that same key through the Edge boundary; the server clock decides whether recovery is due and the original job is returned without another provider call. The legacy `publishStatus` field is now a UI projection, not the outcome authority.
+- Local-storage entry projections are marked `publicationStateAvailable: false` until authenticated server hydration completes; legacy cached entries therefore cannot expose direct publishing during the hydration window.
+- A new request key means a new publication intent. A completely failed job clears its browser key for a corrected retry. Partial jobs retain their key and expose a targeted control only for a failed child; published and unknown children remain non-claimable.
+- A failed provider call is not automatically safe to retry. Timeouts after a possible provider side effect must be stored as `unknown`.
+- `payload_snapshot` models the approved provider payload and excludes query-string-based signed media. Provider mutation requests are abort-aware, reject redirects, retain definite provider 4xx rejections as Failed and classify timeouts, missing success evidence and transient mutation responses as Unknown.
+- Platform-specific captions are checked against the shared adapter limits before a job is created and are sent unchanged. Direct publishing rejects any non-empty first comment until that separate provider side effect can be represented and verified durably.
+- `supabase/tests/publication_concurrency.sql` uses separate database sessions to race creation, claim, sibling completion and stale recovery, covering the lock behaviour that single-session invariant tests cannot exercise.
+- Targeted retry is limited to one definitive failed child on the same Partial job and exact approved revision. It uses the immutable payload snapshot and atomically re-checks the authenticated owner and current approval when it claims the selected result. Every retry request key remains on that result so an in-flight, failed or published HTTP replay — including a delayed replay after a later failed attempt — returns durable state without another provider call; a later deliberate retry of a definitive failure uses a new key. Browser projections are not written back through the entry update path. If the browser cannot reconcile a dispatched retry to that same job, only the selected platform becomes Unknown and all further browser retry controls fail closed.
+- New uploads no longer persist inline base64 fallbacks. Existing base64-only entry media still requires a separate inventory and controlled re-upload decision.
+- Generated Supabase database types remain pending because repository-wide local migration replay is blocked by the earlier invalid `CREATE POLICY IF NOT EXISTS` migration.
+- Hosted schema reconciliation also remains pending because the configured shared runtime project is inactive. Its Edge metadata still exposes unauthenticated legacy `publish-entry` version 1, so the production deployment check must continue to fail closed until the attended rollout is complete.

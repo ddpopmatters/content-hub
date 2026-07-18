@@ -1,8 +1,12 @@
 // Supabase client and API wrapper - matching PM-Productivity-Tool pattern
-import type { SupabaseClient, Session, User, AuthChangeEvent } from '@supabase/supabase-js';
+import type { AuthChangeEvent, Session, SupabaseClient, User } from '@supabase/supabase-js';
 import { APP_CONFIG, Logger } from './config';
 import { isSuperAdminEmail } from './adminAccess';
 import type { User as AppUser } from '../types/models';
+import {
+  applyDurablePublicationJob,
+  shouldReconcilePublicationJob,
+} from '../features/publishing/durablePublication';
 import { PRIORITY_TIERS } from '../constants';
 import {
   dateOrNull,
@@ -83,7 +87,9 @@ const mapTestingFrameworkToDb = (framework: {
   if (framework.audience !== undefined) row.audience = framework.audience;
   if (framework.metric !== undefined) row.metric = framework.metric;
   if (framework.duration !== undefined) row.duration = framework.duration;
-  if (framework.status !== undefined) row.status = mapTestingStatusToDb(framework.status);
+  if (framework.status !== undefined) {
+    row.status = mapTestingStatusToDb(framework.status);
+  }
   if (framework.notes !== undefined) row.notes = framework.notes;
   if (framework.createdAt !== undefined) row.created_at = framework.createdAt;
   return row;
@@ -94,19 +100,21 @@ import type {
   ContentPeak,
   ContentRequest,
   ContentSeries,
-  Entry,
-  Idea,
-  Opportunity,
-  PlanningCampaign,
-  RapidResponse,
-  Guidelines,
-  Influencer,
-  PlatformProfile,
-  ReportingPeriod,
-  MonthlyReport,
-  QualitativeInsights,
-  OrgEvent,
   DraftPost,
+  DurablePublicationJob,
+  DurablePublicationResult,
+  Entry,
+  Guidelines,
+  Idea,
+  Influencer,
+  MonthlyReport,
+  Opportunity,
+  OrgEvent,
+  PlanningCampaign,
+  PlatformProfile,
+  QualitativeInsights,
+  RapidResponse,
+  ReportingPeriod,
 } from '../types/models';
 
 // Local type aliases for types used only in this file
@@ -199,8 +207,37 @@ interface EntryRow {
   created_at: string;
   updated_at: string;
   approved_at: string | null;
+  content_revision: number;
+  approved_revision: number | null;
   deleted_at: string | null;
   comments: string | null;
+}
+
+interface PublicationJobReadRow {
+  id: string;
+  entry_id: string;
+  entry_revision: number;
+  trigger_type: DurablePublicationJob['triggerType'];
+  request_key: string;
+  status: DurablePublicationJob['status'];
+  claimed_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface PublicationResultReadRow {
+  id: string;
+  job_id: string;
+  platform: string;
+  status: DurablePublicationResult['status'];
+  provider_url: string | null;
+  error_message: string | null;
+  attempt_count: number;
+  claimed_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface MonthlyReportRow {
@@ -793,7 +830,10 @@ const upsertEntryWithSchemaFallback = async (
     dbRow = stripUnsupportedEntryColumns(dbRow);
   }
 
-  return { data: null, error: new Error('Entries schema is missing too many expected columns') };
+  return {
+    data: null,
+    error: new Error('Entries schema is missing too many expected columns'),
+  };
 };
 
 const updateEntryWithSchemaFallback = async (
@@ -828,7 +868,215 @@ const updateEntryWithSchemaFallback = async (
     delete dbRow.id;
   }
 
-  return { data: null, error: new Error('Entries schema is missing too many expected columns') };
+  return {
+    data: null,
+    error: new Error('Entries schema is missing too many expected columns'),
+  };
+};
+
+const chunked = <Value>(values: Value[], size: number): Value[][] => {
+  const chunks: Value[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
+};
+
+const PUBLICATION_JOB_STATUSES = new Set<DurablePublicationJob['status']>([
+  'queued',
+  'publishing',
+  'partial',
+  'published',
+  'failed',
+  'unknown',
+  'cancelled',
+]);
+
+const PUBLICATION_RESULT_STATUSES = new Set<DurablePublicationResult['status']>([
+  'pending',
+  'publishing',
+  'published',
+  'failed',
+  'skipped',
+  'unknown',
+]);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const isNullableString = (value: unknown): value is string | null =>
+  typeof value === 'string' || value === null;
+
+const isDurablePublicationResult = (value: unknown): value is DurablePublicationResult => {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === 'string' &&
+    typeof value.platform === 'string' &&
+    typeof value.status === 'string' &&
+    PUBLICATION_RESULT_STATUSES.has(value.status as DurablePublicationResult['status']) &&
+    isNullableString(value.url) &&
+    isNullableString(value.error) &&
+    typeof value.attemptCount === 'number' &&
+    isNullableString(value.claimedAt) &&
+    isNullableString(value.completedAt) &&
+    typeof value.createdAt === 'string' &&
+    typeof value.updatedAt === 'string'
+  );
+};
+
+export const isDurablePublicationJob = (value: unknown): value is DurablePublicationJob => {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === 'string' &&
+    typeof value.entryId === 'string' &&
+    typeof value.entryRevision === 'number' &&
+    (value.triggerType === 'manual' || value.triggerType === 'scheduled') &&
+    typeof value.requestKey === 'string' &&
+    typeof value.status === 'string' &&
+    PUBLICATION_JOB_STATUSES.has(value.status as DurablePublicationJob['status']) &&
+    isNullableString(value.claimedAt) &&
+    isNullableString(value.completedAt) &&
+    typeof value.createdAt === 'string' &&
+    typeof value.updatedAt === 'string' &&
+    Array.isArray(value.results) &&
+    value.results.every(isDurablePublicationResult)
+  );
+};
+
+const recoverStalePublicationJob = async (
+  staleJob: DurablePublicationJob,
+): Promise<DurablePublicationJob | null> => {
+  const session = await getAuthenticatedSession();
+  if (!session?.access_token) return null;
+
+  const response = await fetch(`${APP_CONFIG.SUPABASE_URL}/functions/v1/publish-entry`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: APP_CONFIG.SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({
+      entryId: staleJob.entryId,
+      requestKey: staleJob.requestKey,
+    }),
+  });
+  if (!response.ok) return null;
+
+  const payload: unknown = await response.json();
+  if (!isRecord(payload) || !isDurablePublicationJob(payload.job)) return null;
+  const recoveredJob = payload.job;
+  if (
+    recoveredJob.id !== staleJob.id ||
+    recoveredJob.entryId !== staleJob.entryId ||
+    recoveredJob.entryRevision !== staleJob.entryRevision ||
+    recoveredJob.requestKey !== staleJob.requestKey
+  ) {
+    return null;
+  }
+
+  return recoveredJob;
+};
+
+const fetchLatestPublicationJobs = async (
+  entryIds: string[],
+): Promise<{ jobs: Map<string, DurablePublicationJob>; complete: boolean }> => {
+  const jobsByEntryId = new Map<string, PublicationJobReadRow>();
+  if (!supabase) return { jobs: new Map(), complete: false };
+  if (entryIds.length === 0) return { jobs: new Map(), complete: true };
+  let complete = true;
+
+  for (const entryIdBatch of chunked(Array.from(new Set(entryIds)), 100)) {
+    const { data, error } = await supabase
+      .from('publication_jobs')
+      .select(
+        'id, entry_id, entry_revision, trigger_type, request_key, status, claimed_at, completed_at, created_at, updated_at',
+      )
+      .in('entry_id', entryIdBatch)
+      .order('created_at', { ascending: false });
+    if (error) {
+      Logger.error(error, 'fetchLatestPublicationJobs');
+      complete = false;
+      continue;
+    }
+    for (const row of (data ?? []) as PublicationJobReadRow[]) {
+      if (!jobsByEntryId.has(row.entry_id)) {
+        jobsByEntryId.set(row.entry_id, row);
+      }
+    }
+  }
+
+  const jobRows = Array.from(jobsByEntryId.values());
+  const resultsByJobId = new Map<string, PublicationResultReadRow[]>();
+  for (const jobIdBatch of chunked(
+    jobRows.map((row) => row.id),
+    100,
+  )) {
+    const { data, error } = await supabase
+      .from('publication_results')
+      .select(
+        'id, job_id, platform, status, provider_url, error_message, attempt_count, claimed_at, completed_at, created_at, updated_at',
+      )
+      .in('job_id', jobIdBatch)
+      .order('created_at', { ascending: true });
+    if (error) {
+      Logger.error(error, 'fetchLatestPublicationResults');
+      complete = false;
+      continue;
+    }
+    for (const row of (data ?? []) as PublicationResultReadRow[]) {
+      const rows = resultsByJobId.get(row.job_id) ?? [];
+      rows.push(row);
+      resultsByJobId.set(row.job_id, rows);
+    }
+  }
+
+  const durableJobs = new Map(
+    jobRows.map(
+      (row) =>
+        [
+          row.entry_id,
+          {
+            id: row.id,
+            entryId: row.entry_id,
+            entryRevision: row.entry_revision,
+            triggerType: row.trigger_type,
+            requestKey: row.request_key,
+            status: row.status,
+            claimedAt: row.claimed_at,
+            completedAt: row.completed_at,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            results: (resultsByJobId.get(row.id) ?? []).map((result) => ({
+              id: result.id,
+              platform: result.platform,
+              status: result.status,
+              url: result.provider_url,
+              error: result.error_message,
+              attemptCount: result.attempt_count,
+              claimedAt: result.claimed_at,
+              completedAt: result.completed_at,
+              createdAt: result.created_at,
+              updatedAt: result.updated_at,
+            })),
+          },
+        ] as const,
+    ),
+  );
+
+  await Promise.all(
+    Array.from(durableJobs.entries()).map(async ([entryId, job]) => {
+      if (!shouldReconcilePublicationJob(job)) return;
+      try {
+        const recoveredJob = await recoverStalePublicationJob(job);
+        if (recoveredJob) durableJobs.set(entryId, recoveredJob);
+      } catch (error) {
+        Logger.error(error, 'recoverStalePublicationJob');
+      }
+    }),
+  );
+
+  return { complete, jobs: durableJobs };
 };
 
 // Initialise Supabase client
@@ -889,6 +1137,8 @@ export const getSupabase = (): SupabaseClient | null => supabase;
 // ============================================
 
 export const SUPABASE_API = {
+  getSession: getAuthenticatedSession,
+
   // ==========================================
   // ENTRIES (Content Calendar)
   // ==========================================
@@ -946,7 +1196,16 @@ export const SUPABASE_API = {
         return [];
       }
 
-      return ((data as EntryRow[]) || []).map(SUPABASE_API.mapEntryToApp);
+      const entries = ((data as EntryRow[]) || []).map(SUPABASE_API.mapEntryToApp);
+      const publicationLookup = await fetchLatestPublicationJobs(entries.map((entry) => entry.id));
+      return entries.map((entry) =>
+        publicationLookup.complete
+          ? {
+              ...applyDurablePublicationJob(entry, publicationLookup.jobs.get(entry.id)),
+              publicationStateAvailable: true,
+            }
+          : { ...entry, publicationStateAvailable: false },
+      );
     } catch (error) {
       Logger.error(error, 'fetchEntries');
       return [];
@@ -965,11 +1224,29 @@ export const SUPABASE_API = {
         return null;
       }
 
-      return data ? SUPABASE_API.mapEntryToApp(data as EntryRow) : null;
+      if (!data) return null;
+      const entry = SUPABASE_API.mapEntryToApp(data as EntryRow);
+      const publicationLookup = await fetchLatestPublicationJobs([entry.id]);
+      return publicationLookup.complete
+        ? {
+            ...applyDurablePublicationJob(entry, publicationLookup.jobs.get(entry.id)),
+            publicationStateAvailable: true,
+          }
+        : { ...entry, publicationStateAvailable: false };
     } catch (error) {
       Logger.error(error, 'fetchEntryById');
       return null;
     }
+  },
+
+  fetchLatestPublicationJob: async (entryId: string): Promise<DurablePublicationJob | null> => {
+    await initSupabase();
+    if (!supabase) throw new Error('Supabase not initialized');
+    const publicationLookup = await fetchLatestPublicationJobs([entryId]);
+    if (!publicationLookup.complete) {
+      throw new Error('Durable publication state is unavailable');
+    }
+    return publicationLookup.jobs.get(entryId) ?? null;
   },
 
   saveEntry: async (entry: Partial<Entry>, userEmail: string): Promise<Entry | null> => {
@@ -1060,7 +1337,12 @@ export const SUPABASE_API = {
     await initSupabase();
     if (!supabase) return false;
     try {
-      const { error } = await supabase.from('entries').update({ deleted_at: null }).eq('id', id);
+      const { error } = await supabase
+        .from('entries')
+        .update({
+          deleted_at: null,
+        })
+        .eq('id', id);
       if (error) {
         Logger.error(error, 'restoreEntry');
         return false;
@@ -1195,7 +1477,9 @@ export const SUPABASE_API = {
     }
     if (response.ok === false || (response.failed ?? 0) > 0) {
       throw new Error(
-        `Notification delivery incomplete (${response.sent ?? 0} sent, ${response.failed ?? 0} failed).`,
+        `Notification delivery incomplete (${response.sent ?? 0} sent, ${
+          response.failed ?? 0
+        } failed).`,
       );
     }
   },
@@ -1209,7 +1493,9 @@ export const SUPABASE_API = {
     if (!supabase) return [];
 
     try {
-      let query = supabase.from('ideas').select('*').order('created_at', { ascending: false });
+      let query = supabase.from('ideas').select('*').order('created_at', {
+        ascending: false,
+      });
 
       if (options.month) {
         query = query.eq('target_month', options.month);
@@ -2485,7 +2771,12 @@ export const SUPABASE_API = {
     if (!supabase) return false;
 
     try {
-      const { error } = await supabase.from('notifications').update({ read: true }).eq('id', id);
+      const { error } = await supabase
+        .from('notifications')
+        .update({
+          read: true,
+        })
+        .eq('id', id);
 
       if (error) {
         Logger.error(error, 'markNotificationRead');
@@ -2558,7 +2849,15 @@ export const SUPABASE_API = {
     // Supabase realtime postgres_changes requires runtime event type
     // that TypeScript SDK doesn't fully type.
     return (supabase.channel('entries-changes') as any)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'entries' }, callback)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'entries',
+        },
+        callback,
+      )
       .subscribe();
   },
 
@@ -2627,6 +2926,8 @@ export const SUPABASE_API = {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     approvedAt: row.approved_at,
+    contentRevision: row.content_revision,
+    approvedRevision: row.approved_revision,
     deletedAt: row.deleted_at,
     comments: (() => {
       if (!row.comments) return [];
@@ -2868,14 +3169,26 @@ export const SUPABASE_API = {
   mapContentRequestPatchToDb: (request: Partial<ContentRequest>) => {
     const patch: Record<string, unknown> = {};
     if (request.title !== undefined) patch.title = request.title;
-    if (request.keyMessages !== undefined) patch.key_messages = request.keyMessages;
-    if (request.assetsNeeded !== undefined) patch.assets_needed = request.assetsNeeded;
-    if (request.audienceSegments !== undefined) patch.audience_segments = request.audienceSegments;
+    if (request.keyMessages !== undefined) {
+      patch.key_messages = request.keyMessages;
+    }
+    if (request.assetsNeeded !== undefined) {
+      patch.assets_needed = request.assetsNeeded;
+    }
+    if (request.audienceSegments !== undefined) {
+      patch.audience_segments = request.audienceSegments;
+    }
     if (request.approvers !== undefined) patch.approvers = request.approvers;
-    if (request.deadline !== undefined) patch.deadline = dateOrNull(request.deadline);
+    if (request.deadline !== undefined) {
+      patch.deadline = dateOrNull(request.deadline);
+    }
     if (request.notes !== undefined) patch.notes = request.notes;
-    if (request.generatedBrief !== undefined) patch.generated_brief = request.generatedBrief;
-    if (request.status !== undefined) patch.status = mapContentRequestStatusToDb(request.status);
+    if (request.generatedBrief !== undefined) {
+      patch.generated_brief = request.generatedBrief;
+    }
+    if (request.status !== undefined) {
+      patch.status = mapContentRequestStatusToDb(request.status);
+    }
     if (request.createdBy !== undefined) patch.created_by = request.createdBy;
     if (request.convertedEntryId !== undefined) {
       patch.converted_entry_id = request.convertedEntryId || null;
@@ -2908,17 +3221,33 @@ export const SUPABASE_API = {
     const row: Record<string, unknown> = {};
     if (peak.id !== undefined) row.id = peak.id;
     if (peak.title !== undefined) row.title = peak.title;
-    if (peak.startDate !== undefined) row.start_date = dateOrNull(peak.startDate);
+    if (peak.startDate !== undefined) {
+      row.start_date = dateOrNull(peak.startDate);
+    }
     if (peak.endDate !== undefined) row.end_date = dateOrNull(peak.endDate);
-    if (peak.priorityTier !== undefined) row.priority_tier = mapPriorityTierToDb(peak.priorityTier);
+    if (peak.priorityTier !== undefined) {
+      row.priority_tier = mapPriorityTierToDb(peak.priorityTier);
+    }
     if (peak.owner !== undefined) row.owner = peak.owner || null;
     if (peak.campaign !== undefined) row.campaign = peak.campaign || null;
-    if (peak.contentPillar !== undefined) row.content_pillar = peak.contentPillar || null;
-    if (peak.responseMode !== undefined) row.response_mode = peak.responseMode || null;
-    if (peak.requiredPlatforms !== undefined) row.required_platforms = peak.requiredPlatforms;
-    if (peak.requiredAssetTypes !== undefined) row.required_asset_types = peak.requiredAssetTypes;
-    if (peak.linkedEntryIds !== undefined) row.linked_entry_ids = peak.linkedEntryIds;
-    if (peak.description !== undefined) row.description = peak.description || null;
+    if (peak.contentPillar !== undefined) {
+      row.content_pillar = peak.contentPillar || null;
+    }
+    if (peak.responseMode !== undefined) {
+      row.response_mode = peak.responseMode || null;
+    }
+    if (peak.requiredPlatforms !== undefined) {
+      row.required_platforms = peak.requiredPlatforms;
+    }
+    if (peak.requiredAssetTypes !== undefined) {
+      row.required_asset_types = peak.requiredAssetTypes;
+    }
+    if (peak.linkedEntryIds !== undefined) {
+      row.linked_entry_ids = peak.linkedEntryIds;
+    }
+    if (peak.description !== undefined) {
+      row.description = peak.description || null;
+    }
     if (peak.notes !== undefined) row.notes = peak.notes || null;
     if (peak.createdAt !== undefined) row.created_at = peak.createdAt;
     if (peak.updatedAt !== undefined) row.updated_at = peak.updatedAt;
@@ -2949,16 +3278,28 @@ export const SUPABASE_API = {
     if (series.title !== undefined) row.title = series.title;
     if (series.owner !== undefined) row.owner = series.owner || null;
     if (series.status !== undefined) row.status = series.status;
-    if (series.targetPlatforms !== undefined) row.target_platforms = series.targetPlatforms;
+    if (series.targetPlatforms !== undefined) {
+      row.target_platforms = series.targetPlatforms;
+    }
     if (series.targetEpisodeCount !== undefined) {
       row.target_episode_count = series.targetEpisodeCount ?? null;
     }
-    if (series.reviewCheckpoint !== undefined) row.review_checkpoint = series.reviewCheckpoint;
+    if (series.reviewCheckpoint !== undefined) {
+      row.review_checkpoint = series.reviewCheckpoint;
+    }
     if (series.campaign !== undefined) row.campaign = series.campaign || null;
-    if (series.contentPillar !== undefined) row.content_pillar = series.contentPillar || null;
-    if (series.responseMode !== undefined) row.response_mode = series.responseMode || null;
-    if (series.linkedEntryIds !== undefined) row.linked_entry_ids = series.linkedEntryIds;
-    if (series.description !== undefined) row.description = series.description || null;
+    if (series.contentPillar !== undefined) {
+      row.content_pillar = series.contentPillar || null;
+    }
+    if (series.responseMode !== undefined) {
+      row.response_mode = series.responseMode || null;
+    }
+    if (series.linkedEntryIds !== undefined) {
+      row.linked_entry_ids = series.linkedEntryIds;
+    }
+    if (series.description !== undefined) {
+      row.description = series.description || null;
+    }
     if (series.notes !== undefined) row.notes = series.notes || null;
     if (series.createdAt !== undefined) row.created_at = series.createdAt;
     if (series.updatedAt !== undefined) row.updated_at = series.updatedAt;
@@ -2992,17 +3333,31 @@ export const SUPABASE_API = {
     if (response.title !== undefined) row.title = response.title;
     if (response.owner !== undefined) row.owner = response.owner || null;
     if (response.status !== undefined) row.status = response.status;
-    if (response.responseMode !== undefined) row.response_mode = response.responseMode;
-    if (response.triggerDate !== undefined) row.trigger_date = dateOrNull(response.triggerDate);
+    if (response.responseMode !== undefined) {
+      row.response_mode = response.responseMode;
+    }
+    if (response.triggerDate !== undefined) {
+      row.trigger_date = dateOrNull(response.triggerDate);
+    }
     if (response.dueAt !== undefined) row.due_at = response.dueAt || null;
-    if (response.signOffRoute !== undefined) row.sign_off_route = response.signOffRoute || null;
+    if (response.signOffRoute !== undefined) {
+      row.sign_off_route = response.signOffRoute || null;
+    }
     if (response.sourceOpportunityId !== undefined) {
       row.source_opportunity_id = response.sourceOpportunityId || null;
     }
-    if (response.linkedEntryId !== undefined) row.linked_entry_id = response.linkedEntryId || null;
-    if (response.campaign !== undefined) row.campaign = response.campaign || null;
-    if (response.contentPillar !== undefined) row.content_pillar = response.contentPillar || null;
-    if (response.targetPlatforms !== undefined) row.target_platforms = response.targetPlatforms;
+    if (response.linkedEntryId !== undefined) {
+      row.linked_entry_id = response.linkedEntryId || null;
+    }
+    if (response.campaign !== undefined) {
+      row.campaign = response.campaign || null;
+    }
+    if (response.contentPillar !== undefined) {
+      row.content_pillar = response.contentPillar || null;
+    }
+    if (response.targetPlatforms !== undefined) {
+      row.target_platforms = response.targetPlatforms;
+    }
     if (response.notes !== undefined) row.notes = response.notes || null;
     if (response.createdAt !== undefined) row.created_at = response.createdAt;
     if (response.updatedAt !== undefined) row.updated_at = response.updatedAt;
@@ -3080,15 +3435,25 @@ export const SUPABASE_API = {
     const patch: Record<string, unknown> = {};
     if (report.cadence !== undefined) patch.cadence = report.cadence;
     if (report.label !== undefined) patch.label = report.label;
-    if (report.startDate !== undefined) patch.start_date = dateOrNull(report.startDate);
-    if (report.endDate !== undefined) patch.end_date = dateOrNull(report.endDate);
+    if (report.startDate !== undefined) {
+      patch.start_date = dateOrNull(report.startDate);
+    }
+    if (report.endDate !== undefined) {
+      patch.end_date = dateOrNull(report.endDate);
+    }
     if (report.status !== undefined) patch.status = report.status;
     if (report.owner !== undefined) patch.owner = report.owner;
     if (report.metrics !== undefined) patch.metrics = report.metrics;
     if (report.narrative !== undefined) patch.narrative = report.narrative;
-    if (report.qualitative !== undefined) patch.qualitative = report.qualitative;
-    if (report.completeness !== undefined) patch.completeness = report.completeness;
-    if (report.publishedAt !== undefined) patch.published_at = report.publishedAt || null;
+    if (report.qualitative !== undefined) {
+      patch.qualitative = report.qualitative;
+    }
+    if (report.completeness !== undefined) {
+      patch.completeness = report.completeness;
+    }
+    if (report.publishedAt !== undefined) {
+      patch.published_at = report.publishedAt || null;
+    }
     return patch;
   },
 
@@ -3231,12 +3596,15 @@ export const SUPABASE_API = {
     if (!supabase) return false;
 
     try {
-      const { error } = await supabase
-        .from('planning_notes')
-        .upsert(
-          { date, content, updated_by: updatedBy, updated_at: new Date().toISOString() },
-          { onConflict: 'date' },
-        );
+      const { error } = await supabase.from('planning_notes').upsert(
+        {
+          date,
+          content,
+          updated_by: updatedBy,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'date' },
+      );
 
       if (error) {
         Logger.error(error, 'savePlanningNote');
@@ -3524,7 +3892,9 @@ export const AUTH = {
       return { data };
     } catch (error) {
       Logger.error(error, 'signIn');
-      return { error: error instanceof Error ? error.message : 'Unknown error' };
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
   },
 
@@ -3549,7 +3919,9 @@ export const AUTH = {
       return { data };
     } catch (error) {
       Logger.error(error, 'signUp');
-      return { error: error instanceof Error ? error.message : 'Unknown error' };
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
   },
 
@@ -3608,7 +3980,9 @@ export const AUTH = {
       if (error) return { error: error.message };
       return {};
     } catch (error) {
-      return { error: error instanceof Error ? error.message : 'Unknown error' };
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
   },
 
@@ -3627,13 +4001,13 @@ export const AUTH = {
 
 // Export types for use in other modules
 export type {
-  EntryRow,
-  IdeaRow,
-  OpportunityRow,
-  ContentRequestRow,
-  ReportingPeriodRow,
-  LinkedInRow,
-  GuidelinesRow,
-  UserProfileRow,
   ActivityLogRow,
+  ContentRequestRow,
+  EntryRow,
+  GuidelinesRow,
+  IdeaRow,
+  LinkedInRow,
+  OpportunityRow,
+  ReportingPeriodRow,
+  UserProfileRow,
 };

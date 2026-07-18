@@ -755,7 +755,7 @@ export const WORKFLOW_STAGES = [
   'Production',
   'Ready for review',
   'Internals approved',
-  'Scheduled',
+  'Planned',
   'Published',
 ] as const;
 export type WorkflowStage = (typeof WORKFLOW_STAGES)[number];

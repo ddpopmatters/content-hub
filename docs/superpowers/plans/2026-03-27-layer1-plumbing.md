@@ -101,7 +101,7 @@ export interface PublishPayload {
 - [ ] **Step 2: Run typecheck**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm run typecheck
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm run typecheck
 ```
 
 Expected: no errors.
@@ -191,7 +191,7 @@ describe('getAggregatePublishStatus', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm test -- publishUtils
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm test -- publishUtils
 ```
 
 Expected: FAIL — `buildPublishPayload` tests fail because `assetType` is missing and `mediaUrls` uses `attachments`.
@@ -224,7 +224,7 @@ export function buildPublishPayload(entry: Entry, callbackUrl?: string, webhookS
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm test -- publishUtils
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm test -- publishUtils
 ```
 
 Expected: all 4 tests pass.
@@ -316,7 +316,7 @@ The full input element becomes:
 - [ ] **Step 4: Run typecheck**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm run typecheck
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm run typecheck
 ```
 
 Expected: no errors.
@@ -324,7 +324,7 @@ Expected: no errors.
 - [ ] **Step 5: Run tests**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm test
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm test
 ```
 
 Expected: all tests pass.
@@ -349,7 +349,7 @@ The Edge Function receives `payload.assetType` from the client now. The `platfor
 - [ ] **Step 1: Run typecheck on the Edge Function (local check)**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm run typecheck
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm run typecheck
 ```
 
 Expected: no errors. The `assetType` field is now in `PublishPayload` so the spread at `index.ts:629` (`{ ...payload, caption: ... }`) forwards it automatically.

@@ -1,920 +1,467 @@
 # Content Hub — Dev Log
 
-## 2026-04-15 — Fix admin invites for shared auth accounts
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - `supabase/functions/admin-users/index.ts`: when an invited email already exists in Intel Hub auth, the admin invite flow now links that existing auth account into `user_profiles` instead of failing with `email_exists`
-  - `src/lib/supabase.ts`, `src/hooks/domain/useAdmin.ts`, and `src/hooks/domain/__tests__/useAdmin.test.ts`: surfaced whether an invite email was actually sent so the admin UI can show the right success message for existing-account access grants
-  - Reproduced the live `email_exists` failure against project `oepehanwmfelowfumkes`, deployed the updated `admin-users` function, and verified the frontend contract with targeted tests and type checks
-- Status: Complete
-
-## 2026-04-16 - Publish platform summary metadata
+## 2026-07-01 - Add Excel backup workflow to standalone Gantt planner
 
 - Tool: Codex
 - Branch: main
 - Changes:
-  - Enriched `public/healthz.json` with runtime, auth-model, and canonical-role fields so shell-level health checks can classify Content Hub without inferring from repo docs
-  - Added `public/platform-summary.json` as the static summary contract for Unity Hub's app registry
-  - Kept Content Hub positioned as an independent specialist product rather than a Unity Hub module
+  - Added Excel backup controls to `public/gantt-planner.html`, including an Excel-readable `.xls` export, matching import path, and a downloadable workbook template link.
+  - Added `public/gantt-planner-storage.xlsx` as a usable Excel planning workbook with editable `Campaigns` and `Organisation` source sheets, type dropdowns, human-readable dates, a formula-driven `Timeline` sheet, and concise instructions.
+  - Kept JSON/CSV import and export unchanged while making the Excel backup round trip restore campaign and organisation rows from the standalone tool.
 - Verification:
-  - Static JSON contract review
+  - Expected-failing static contract check before implementation
+  - `npx prettier --check public/gantt-planner.html`
+  - Static Node contract check for Excel controls and workbook template
+  - Artifact-tool workbook import, rendered previews for all sheets, compact timeline formula check, and date-format visual check
+  - Playwright browser check for Excel export, clear, import, template link, and mobile no-overflow layout
+  - `npm run build`
 - Status: Complete
 
----
-
-## 2026-04-11 — Clean remaining docs and tracked metadata
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - `docs/user-guides/index.md` and `docs/user-guides/tasks/*.md`: finalized and committed the remaining planning workflow guides for content peaks, content series, and rapid responses
-  - `.DS_Store`: removed the tracked Finder metadata file from version control so the existing ignore rule can keep the worktree clean going forward
-  - Verified the remaining worktree changes were fully resolved after the cleanup commits
-- Status: Complete
-
----
-
-## 2026-04-11 — Provision content-media storage in Intel Hub
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - Created the `content-media` bucket in Supabase project `oepehanwmfelowfumkes` and updated it to be public with the intended 500 MB size limit and allowed MIME types `image/*`, `video/*`, and `application/pdf`
-  - Applied the authenticated insert and delete policies for `storage.objects` on `content-media` using a one-off remote SQL session through the Supabase CLI login role
-  - Verified the end-to-end path with `npm run test:content-media`, including a short-lived authenticated upload/delete probe against the live bucket
-- Status: Complete
-
----
-
-## 2026-04-11 — Add content-media readiness probe
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - `tools/test-content-media.mjs` and `package.json`: added a storage-readiness smoke script that probes the public `content-media` bucket and can optionally verify authenticated upload/delete policies with explicit test credentials
-  - `docs/content-media-storage.md`: replaced the manual-only verification notes with a command-driven probe plus the remaining UI smoke steps
-  - Verified the current target project responds `Bucket not found` for `content-media`, confirming the remaining blocker is remote Supabase provisioning rather than frontend behavior
-- Status: Complete
-
----
-
-## 2026-04-11 — Finalise policy and review-workflow cleanup
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - `CLAUDE.md`: added the repository security-policy note prohibiting `Co-Authored-By:` commit trailers and AI attribution footers in PR descriptions
-  - `.github/workflows/claude-review.yml`: removed the Claude Code PR review workflow as a separate, intentional repo-operations change
-  - `.claude/tdd-guard/data/modifications.json`: restored the generated tool-state artifact instead of bundling it into source-history cleanup
-- Status: Complete
-
----
-
-## 2026-04-09 — Split staging rollout docs from legacy static cleanup
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - `.github/workflows/deploy.yml`, `.github/workflows/staging.yml`, `docs/staging-contract.md`, `docs/user-guides/**`, `public/healthz.json`, and `README.md`: isolated the staging deployment contract, manual production promotion flow, health check endpoint, and user-guide package into a dedicated release/docs commit
-  - `public/js/components/*`, `public/js/copyCheckerClient.js`, and `public/js/supabaseClient.js`: removed obsolete static bridge artifacts that are no longer loaded by `public/index.html` or produced by the current build
-  - `supabase/functions/_shared/types.ts`: kept the shared publish payload contract aligned with the browser publish payload by including `assetType`
-- Status: Complete
-
----
-
-## 2026-03-31 — Remove remaining old Supabase project callers
+## 2026-07-01 - Extract standalone Gantt planner HTML
 
 - Tool: Codex
 - Branch: main
 - Changes:
-  - `public/request.html`, `public/review.html`, and `public/approve.html`: moved standalone pages off hardcoded Supabase URLs onto a shared `public/content-hub-config.js` so they follow the active project instead of the retired Content Hub project
-  - `tools/public-config.mjs`, `tools/build.mjs`, and `tools/dev-server.mjs`: added generated public Supabase config output and a legacy-project guard so stale local env values cannot reintroduce the retired project URL/key into built assets
-  - `.github/workflows/supabase-keepalive.yml` and `tools/test-publish-api.mjs`: switched remaining workflow/script callers to use the current project via secrets or `SUPABASE_URL` instead of the old hardcoded project ref
-  - Rebuilt the app and verified `rg -n "dvhjvtxtkmtsqlnurhfg" public src tools .github supabase` only matches the intentional legacy guard constant
-- Status: Complete
-
----
-
-## 2026-03-31 — Restore admin user invites via Edge Function
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - `supabase/functions/admin-users/index.ts`: added a service-role-backed admin user management function that verifies the caller is an admin, sends real Supabase auth invites, and handles list/update/delete operations against `user_profiles`
-  - `src/lib/supabase.ts` and `src/hooks/domain/useAdmin.ts`: moved admin roster actions off the deleted `window.api` browser bridge onto direct Supabase + Edge Function calls, with proper app-user mapping and surfaced backend error messages
-  - `src/app.jsx`, `src/types/models.ts`, and `public/index.html`: switched static bootstrap to the mapped admin-user fetch, added `managerEmail` to the app user model, and removed stale `supabaseClient.js` / `copyCheckerClient.js` script tags that the current build no longer outputs
-  - `src/hooks/domain/__tests__/useAdmin.test.ts`: added regression coverage for static-mode roster refresh, successful invites, backend invite failures, and non-admin access blocking
-  - Verified with `npm test -- src/hooks/domain/__tests__/useAdmin.test.ts src/lib/supabase.test.ts` and `npm run typecheck`
-- Status: Complete
-
----
-
-## 2026-03-31 — Recover migrated auth profiles on login
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - `src/lib/supabase.ts`: added current-user profile resolution that falls back from `auth_user_id` to the authenticated email, then re-links stale `user_profiles.auth_user_id` values to the current Intel Hub auth UUID during login and session hydration
-  - `src/lib/supabase.ts`: updated profile writes to target the resolved row by profile `id`/`email`, so profile edits still work while a migrated account is being repaired
-  - `src/lib/supabase.test.ts`: added regression coverage for direct auth matches, migrated-user email recovery, missing-profile null handling, and post-relink profile updates
-  - Verified with `npm test -- src/lib/supabase.test.ts` and `npm run typecheck`
-- Status: Complete
-
----
-
-## 2026-03-30 — Add staged deployment lane
-
-**Tool:** Codex | **Branch:** main
-
-**Changes:**
-
-- Switched GitHub Pages production deployment to manual promotion only and added a new Cloudflare Pages staging workflow for pull requests and `main`
-- Added `public/healthz.json` for smoke checks and `docs/staging-contract.md` documenting environment separation, rollout gates, rollback, and required secrets
-- Kept production hosting untouched while codifying staging-only Supabase, storage, OAuth, and notification expectations in-repo
-
-**Status:** Complete
-
----
-
-## 2026-03-28 — Migrate to Intel Hub (consolidated Supabase project)
-
-- Tool: Claude Code (claude-sonnet-4-6) | Browser automation
-- Branch: main
-- Changes:
-  - Switched Supabase project from Content Hub (`dvhjvtxtkmtsqlnurhfg`) to Intel Hub (`oepehanwmfelowfumkes`)
-  - Updated hardcoded fallback credentials in `src/lib/config.ts`
-  - Updated GitHub repo secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) via `gh secret set`
-  - Pushed to main → GitHub Actions deploy completed (build 16s, deploy 8s)
-  - All 184 rows of Content Hub data previously imported to Intel Hub (184 rows across 12 tables)
-  - All 3 user_profiles auth UUIDs remapped to Intel Hub auth.users (daniel, francesca, jameen)
-  - Fixed email typo: `jameen.kaur@populationmatters` → `jameen.kaur@populationmatters.org`
-- Status: Complete — Content Hub app now live on Intel Hub. Old Supabase project pending decommission (~2 weeks).
-
-## 2026-03-24 — Implement Instagram, Facebook, and LinkedIn publishers
-
-- Tool: Claude Code (claude-sonnet-4-6) + Codex
-- Branch: main
-- Changes:
-  - `supabase/functions/publish-entry/index.ts`: implemented full publish flows for Instagram (user token → page token → IG business account → media container → publish), Facebook (page token + photo or feed post), and LinkedIn (UGC Posts API with optional image upload via registerUpload; post URN from x-restli-id response header)
-  - YouTube: improved stub message explaining video file requirement
-  - All publishers follow existing try/catch/error pattern from Bluesky
-- Status: Complete
-
-## 2026-03-24 — Refine entry category, approach, UTM, and asset inputs
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - `src/lib/supabase.ts` and new `src/hooks/domain/useCategories.ts`: added distinct category lookup from the `entries.campaign` column so both entry forms can autocomplete existing categories while still accepting free text
-  - `src/features/entry/EntryForm.tsx` and new `src/features/entry/formUtils.ts`: replaced Campaign with a Category datalist input, moved response mode to a Proactive/Reactive pill toggle in the main form, added the collapsible UTM builder, and extended preview uploads to support PDF badges alongside image thumbnails
-  - `src/features/entry/EntryModal.jsx`: mirrored the Category autocomplete, main-form content-approach toggle, UTM builder, and image-or-PDF asset preview handling; legacy response modes now normalise to `Planned` or `Reactive` on save/update paths
-  - Verified with `npm run typecheck` and `npm test`
-- Status: Complete
-
-## 2026-03-24 — Fix publishing API: rewire Publish button to Supabase Edge Function
-
-- Tool: Claude Code (claude-sonnet-4-6)
-- Branch: main
-- Changes:
-  - `src/hooks/domain/useEntries.ts`: replaced `triggerPublish` (Zapier no-cors webhook) with direct `fetch` to `functions/v1/publish-entry` Edge Function; uses real per-platform `PlatformResult` to set publishStatus instead of blindly marking all as published
-  - `src/types/models.ts`: added `'skipped'` to `PublishStatusState` union
-  - `src/features/publishing/publishUtils.ts`: `getAggregatePublishStatus` now treats `skipped` platforms as failed; entries where all platforms were skipped don't get `workflowStatus: 'Published'`
-  - `supabase/functions/oauth-callback/index.ts`: fixed fragile string-replace for `FUNCTION_URL`; removed hardcoded Supabase project URL as `APP_URL` fallback
-  - `supabase/config.toml`: added `[functions]` section so Edge Functions are served by `supabase start`
-  - `.env.example`: documented `APP_URL`, `LINKEDIN_CLIENT_ID`, `GOOGLE_CLIENT_ID`
-  - Added `publishUtils.test.ts` + 3 `handlePublishEntry` tests in `useEntries.test.ts` (207 tests total)
-- Status: Complete
-
-## 2026-03-24 — Update entry form workflow and asset inputs
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - `src/features/entry/EntryForm.tsx`: replaced the platform checkbox grid with pill-style toggle buttons to match the modal interaction
-  - `src/features/entry/EntryForm.tsx`: removed the visible `First comment` field and replaced the single approval deadline input with a five-field `Workflow dates` section
-  - `src/features/entry/EntryForm.tsx`: added `assetPreviews` state and a multi-file preview upload flow with thumbnail removal, while keeping `previewUrl` in sync
-  - `src/features/entry/EntryForm.tsx`: disabled automatic approver prefill so new entries start empty and the recommendation is only applied through `Use template`
-  - Verified with `npm run typecheck` and `npm test`
-- Status: Complete
-
-## 2026-03-24 — Step-by-step wizard approval flow
-
-- Tool: Claude Code (Sonnet 4.6)
-- Branch: main
-- Changes:
-  - `EntryModal.jsx`: `renderApproverContent()` rewritten as a wizard — shows one content item at a time with a progress bar (`N of M`); once all items approved, transitions to a summary view showing every item for final review before Sign off becomes active
-  - Removed per-item approve buttons from `renderAssetNotes()` (script, design copy, carousel slides) — approval now lives entirely in the wizard
-- Status: Complete
-
-## 2026-03-24 — Per-item approval flow + remove footer bypass
-
-- Tool: Claude Code (Sonnet 4.6)
-- Branch: main
-- Changes:
-  - `ApprovalsView.tsx`: removed Card wrapper — content sits flush on modal; `p-6` padding on outer container; header reduced to `← Back` + waiting count badge
-  - `EntryModal.jsx`: per-item approval flow — approver ticks each caption/slide/script/design-copy before "Sign off" is enabled; `approvedItems` Set tracks state locally, resets on modal open; progress counter "N of M items reviewed"
-  - `EntryModal.jsx`: removed footer "Mark as approved" bypass — "Sign off" in the body is now the sole approval path, enforcing the per-item gate
-- Status: Complete
-
-## 2026-03-24 — Simplify approvals header and content review modal
-
-- Tool: Claude Code (Sonnet 4.6)
-- Branch: main
-- Changes:
-  - `ApprovalsView.tsx`: header stripped from 5 crowded items to `← Back` + waiting count — eliminates "SWITCH USER" clipping; removed unused `PlusIcon` import and calendar/create/switch-user props from render
-  - `EntryModal.jsx`: `renderApproverContent()` simplified — removed Strategy context grid (peak, partner, sign-off route, series) and Execution readiness section; added prominent "Mark as approved" banner at top of body with inline advisory text; campaign/pillar/category collapsed to one badge row; `CheckCircleIcon` added to icon imports
-- Status: Complete
-
-## 2026-03-23 — Fix approval persistence save path
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - `src/hooks/domain/useEntries.ts` now passes `currentUserEmail` into all entry save operations, shows an explicit approval failure toast, refreshes server state on failed approval saves, and sequences refresh requests to avoid stale realtime/refresh overwrites
-  - `src/lib/supabase.ts` now updates existing `entries` rows in place instead of full-row upserting them, preserves the original `author_email`, merges partial updates with the current DB row, and throws when an entry save returns no row
-  - `src/hooks/domain/useSyncQueue.ts` now treats resolved `null` and `false` results as sync failures instead of silent successes
-  - Added regression coverage in `src/hooks/domain/__tests__/useEntries.test.ts` and `src/hooks/domain/__tests__/useSyncQueue.test.ts` for approval email persistence, approval failure feedback, and null/false sync results
-- Status: Complete
-
-## 2026-03-23 — Fix toggleApprove state-updater antipattern + apply RLS migration
-
-- Tool: Claude Code (Sonnet 4.6)
-- Branch: main
-- Changes:
-  - `toggleApprove` in `useEntries.ts`: `nextStatus` and `nextWorkflowStatus` are now pre-computed from `entryRecord` before the `setEntries` call — eliminates the fragile pattern of setting closure variables as side effects inside a state updater
-  - `runSyncTask` now called unconditionally (no `if (nextStatusForServer)` guard) — removes possibility of skipping DB save
-  - Test added: `'calls runSyncTask to persist the approval to the database'` asserting `runSyncTask` is called with the approval label and `requiresApi: false`
-  - `supabase/migrations/20260323_ensure_entries_rls_open.sql` — idempotent migration confirming `entries_update` policy is `USING (true) WITH CHECK (true)`; applied to production via `supabase db push --include-all`
-  - Also applied `20260320_restore_missing_013_columns.sql` (previously local-only, all no-ops — columns already existed)
-- Status: Complete
-
-## 2026-03-23 — Fix approval persistence + final advisory copy
-
-- Tool: Claude Code (Sonnet 4.6)
-- Branch: main
-- Changes:
-  - `EntryModal`: "Approval is blocked until..." → "Heads up — these items are incomplete:" (last remaining hard-block copy)
-  - `mapEntryToDb`: add `approved_at` field so approval timestamp persists to DB on save
-- Status: Complete
-
-## 2026-03-23 — Soft-block approval flow — missing fields are advisory only
-
-- Tool: Claude Code (Sonnet 4.6)
-- Branch: main
-- Changes:
-  - `determineWorkflowStatus` no longer returns 'Draft' when execution fields (sourceVerified, ctaType, alt text, UTM, etc.) are incomplete — only requires approvers to be set
-  - `ApprovalsView` 'Mark approved' button always enabled; blockers displayed as 'Heads up' advisory panel instead of hard gate
-  - `toggleApprove` in useEntries: removed early return on blockers — approval now proceeds to DB save
-  - Tests updated across sanitizers, useEntries
-- Status: Complete
-
-<!-- Current month. Older entries rotate to devlog/YYYY-MM.md -->
-
-## 2026-03-20 — Quiet Supabase startup failures on static deploys
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - Removed the bundled app's hardcoded Supabase fallback so direct client mode only activates when build-time credentials are actually provided
-  - Added a one-shot Supabase reachability probe plus session circuit breaker in both `src/lib/supabase.ts` and `public/js/supabaseClient.js` to stop repeated auth refresh and table fetch storms after DNS/CORS failures
-  - Switched guideline, current-user-profile, and custom-niche lookups to `maybeSingle()` so missing default rows no longer surface as noisy 406-style errors
-  - Updated `LoginScreen.tsx` to surface backend-unavailable state instead of waiting forever for `window.api.enabled`
-- Status: Complete
-
-## 2026-03-20 — Restore bundled Supabase credentials
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - Reinserted the provided Supabase URL and anon key as the fallback bundled config in `src/lib/config.ts`
-  - Kept the session-level startup guard in place so unreachable/CORS-blocked Supabase does not trigger repeated request storms
-- Status: Complete
-
-## 2026-03-20 — Avoid `/api` fallback on static host boot
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - Updated `useAuth.ts` to wait for the static `window.api` bridge before attempting auth hydration instead of calling `/api/user` on GitHub Pages
-  - Updated `useApprovals.ts` to wait for `pm-api-ready` and avoid `/api/approvers` fallback when the static Supabase bridge script is present
-- Status: Complete
-
-## 2026-03-20 — Clear deploy audit gate and DraftPost lint error
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - Removed the invalid `react-hooks/exhaustive-deps` suppression in `DraftPostModal.tsx` by making the reset effect dependency-safe
-  - Refreshed `package-lock.json` via `npm audit fix --package-lock-only`, upgrading `jspdf` to `4.2.1`, `dompurify` to `3.3.3`, and `flatted` to `3.4.2`
-  - Verified `npm audit --audit-level=critical` now returns 0 vulnerabilities
-  - Re-ran lint, typecheck, and tests after the lockfile update
-- Status: Complete
-
-## 2026-03-20 — Align calendar files with Prettier for CI
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - Reformatted `CampaignModal.tsx`, `GanttTooltip.tsx`, `OrgEventModal.tsx`, `YearPlanView.tsx`, `useOrgEvents.ts`, and `models.ts`
-  - Verified the exact Prettier check reported by CI now passes on those six files
-- Status: Complete
-
-## 2026-03-20 — Stop static sync queue from treating Supabase writes as offline
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - Marked `useEntries.ts` sync tasks as `requiresApi: false` so GitHub Pages entry saves, updates, restores, and deletes go straight to `SUPABASE_API` instead of being queued behind `window.api.enabled`
-  - Applied the same direct-Supabase sync flag to `useIdeas.ts`, `useGuidelines.ts`, and `useYearPlan.ts` for consistency on the static host
-- Status: Complete
-
-## 2026-03-20 — Fix disappearing entries + Supabase keep-alive
-
-- Tool: Claude Code (Sonnet 4.6)
-- Branch: main
-- Changes:
-  - Fixed bug: entries disappeared immediately after creation — `saveEntry` returned `null` on DB error instead of throwing, so `runSyncTask` always called `refreshEntries()` and wiped the optimistic entry; fixed by throwing instead
-  - Added GitHub Actions keep-alive cron (daily 08:00 UTC) to prevent Supabase free-tier auto-pause
-  - Schema recovery migration for missing migration 013 columns (content_category, series_name, etc.)
-  - Fixed 3 conflicting migration version keys and `CREATE POLICY IF NOT EXISTS` syntax error
-  - Added `20260320_seed_guidelines_default.sql` — upserts default guidelines row (prevents 406 on fresh project); apply via Supabase SQL editor
-- Status: Complete (seed migration needs applying to production)
-
-## 2026-03-18 — Draft post cards on monthly planning calendar
-
-- Tool: Claude Code (Sonnet 4.6)
-- Branch: feature/planning-draft-posts
-- Changes:
-  - New `planning_draft_posts` table (date, platform, topic, asset_type, notes) + RLS
-  - `SUPABASE_API.fetchDraftPosts/saveDraftPost/deleteDraftPost` in supabase.ts
-  - `DraftPostModal.tsx` — platform select, topic, asset type, notes; edit + delete
-  - `PlanningGrid.tsx` — colour-coded draft chips per day, `+ Draft` button per cell
-- Status: Complete
-
-## 2026-03-17 — Yearly Gantt Planning View
-
-**Tool:** Claude Code (Sonnet 4.6) + Codex (quality reviewer)
-**Branch:** feature/calendar-planning-layer
-**Changes:**
-
-- New `campaigns` Supabase table with RLS, date-range constraint, start/end indexes
-- `PlanningCampaign` type + localStorage helpers + full SUPABASE_API CRUD
-- `useYearPlan` hook — optimistic CRUD, localStorage sync, auth-ready hydration, sign-out reset, 9 unit tests
-- `CampaignModal` — create/edit modal with 8-colour swatches, date validation, shared Modal primitive, full a11y
-- `YearPlanView` — Gantt chart with DST-safe date math, real month-width alignment, today line, year nav
-- "Year" tab wired into CalendarView; hook wired into app.jsx
-  **Status:** Complete (132 tests passing, 0 TS errors, build clean)
-
-## 2026-03-17 — Apply RLS fix migration
-
-**Tool:** Claude Code (Sonnet 4.6)
-**Branch:** feature/calendar-planning-layer
-**Changes:**
-
-- Applied `20260317_fix_entries_rls.sql` to production Supabase
-- `entries_select`: now `USING (true)` — trash view can see soft-deleted rows
-- `entries_update`: now open to all authenticated users — fixes 403 on non-author edits
-- `entries_delete`: open to all authenticated users
-- `ideas_update/delete`: open to all authenticated users
-- `guidelines_modify`: replaces admin-only `guidelines_admin_modify` — any team member can save
-  **Status:** Complete
-
-## 2026-03-17 — Fix all window.api routing across domain hooks
-
-**Tool:** Claude Code (Sonnet 4.6)
-**Branch:** feature/calendar-planning-layer
-**Changes:**
-
-- Root cause: `supabaseClient.js` sets `window.api.enabled = true` unconditionally, so all `windowApi?.enabled` ternaries in domain hooks routed to the legacy thin client — SUPABASE_API fallbacks were never reached
-- Fixed `useEntries.ts`: removed all `windowApi?.enabled` ternaries across 11 operations (refreshEntries, addEntry, upsert, toggleApprove, handlePublishEntry, handleToggleEvergreen, handleEntryDateChange, handleBulkDateShift, updateWorkflowStatus, softDelete, restore, hardDelete) — all now call SUPABASE_API directly
-- Fixed `useIdeas.ts`: replaced `window.api.createIdea/deleteIdea/updateIdea/listIdeas` with `SUPABASE_API.saveIdea/deleteIdea/fetchIdeas`
-- Fixed `useGuidelines.ts`: replaced `window.api.saveGuidelines` existence gate with unconditional `SUPABASE_API.saveGuidelines`
-- Added `SUPABASE_API.hardDeleteEntry(id)` — true `DELETE FROM entries` (previously hardDelete fell back to soft-delete)
-  **Status:** Complete — 123 tests passing, 0 TS errors
-
-## 2026-03-17 — Fix content saving to Supabase + planning notes
-
-**Tool:** Claude Code (Sonnet 4.6)
-**Branch:** feature/calendar-planning-layer
-**Changes:**
-
-- Fixed entries not saving: `useSyncQueue` was treating absent `window.api` as "API offline" — changed gate from `!window.api || !window.api.enabled` to `window.api && !window.api.enabled`
-- Fixed `invalid input syntax for type date: ""` — added `dateOrNull()` helper to `public/js/supabaseClient.js` (was sending literal `""` to Postgres DATE column)
-- Fixed all remaining `window.api`-only mutations in `useEntries.ts` (toggleApprove, updateWorkflowStatus, softDelete, restore, hardDelete, toggleEvergreen, handleEntryDateChange, handleBulkDateShift) to fall back to `SUPABASE_API` when running on GitHub Pages
-- Added `SUPABASE_API.restoreEntry(id)` for clearing `deleted_at` via Supabase
-- Added localStorage → Supabase migration on login (one-time, flagged to prevent repeat)
-- Added shared `planning_notes` table (migration 20260317) — planning grid notes now persist to Supabase and are visible to all team members
-  **Status:** Complete — 123 tests passing, 0 TS errors
-
-## 2026-03-13 — Project config scaffold
-
-**Tool:** Claude Code (Opus)
-**Branch:** main
-**Changes:**
-
-- Added CLAUDE.md with project-specific context
-- Added AGENTS.md with Codex-specific context
-- Created DEVLOG.md for cross-tool work record
-  **Status:** Complete
-
-## 2026-03-18 — Show confirmed calendar themes in planning view
-
-**Tool:** Claude Code (Sonnet 4.6)
-**Branch:** feature/planning-themes → PR #22
-**Changes:**
-
-- `PlanningGrid.tsx`: reads `content-hub-calendar-themes` localStorage key (shared with `MonthGrid`)
-- Month theme displayed as teal banner above the day-of-week headers
-- Week themes displayed as a subtle label above each week row
-- Both re-sync when navigating months; hidden when empty
-  **Status:** Complete
-
----
-
-## 2026-03-19: Add test suite — filters, utils, Button, terminology
-
-**Tool:** Claude Code (claude-sonnet-4-6)
-**Branch:** `feature/test-suite`
-
-**Changes:**
-
-- `src/lib/filters.test.ts` — 14 tests for `isApprovalOverdue` and `matchesSearch` (all 24 Entry fields incl. contentPillar, firstComment)
-- `src/lib/utils.test.ts` — 28 tests for cx, date helpers, uuid, ensureArray, ensurePeopleArray
-- `src/components/ui/__tests__/Button.test.tsx` — 7 smoke tests (render, type, onClick, disabled, aria, className merge, all 6 variants)
-- `src/lib/terminology.test.ts` — 16 tests locking in PM messaging compliance gate (checkTerminology, hasTerminologyIssues, all 5 banned terms, index/length accuracy)
-
-**Test count:** 81 → 197
-
-**Status:** Complete
-
-## 2026-03-21 — Add audience simulation and Claude iteration workflow
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - Added the new `src/features/audience-sim/` module with typed simulation models, PM persona config, Supabase helpers, `useAudienceSim`, `useIterate`, UI panels, and three Vitest coverage files
-  - Added `supabase/functions/simulate-audience/index.ts` and `supabase/functions/iterate-content/index.ts` to run persona simulation and Claude-guided revision flows against `audience_simulations`
-  - Wired a new `Audience Sim` tab into `src/features/entry/EntryModal.jsx` and passed the current draft entry into the panel so simulations run against in-modal copy
-  - Re-exported the audience simulation types from `src/types/models.ts` and verified the feature with lint, typecheck, and the full test suite
-- Status: Complete
-
----
-
-## 2026-03-20: Fix realtime sync + repair production schema
-
-**Tool:** Claude Code (claude-sonnet-4-6)
-**Branch:** `main`
-
-**Changes:**
-
-- `src/hooks/domain/useEntries.ts` — Added realtime subscription via `SUPABASE_API.subscribeToEntries` so all team members see each other's entries live without manual refresh
-- `src/features/calendar/CalendarView.tsx` — Added Refresh button to calendar toolbar
-- `src/app.jsx` — Wired `onRefresh={refreshEntries}` to CalendarView
-- `supabase/migrations/20260320_restore_missing_013_columns.sql` — Restored 15 missing columns from migration 013 (content_category, partner_org, alt_text_status, utm_status, cta_type, etc.) that were absent from production despite being recorded as applied — caused all entry saves to fail with 400
-- Renamed 3 migration files that shared timestamp prefixes with already-applied migrations (causing `duplicate key` errors on push); fixed `CREATE POLICY IF NOT EXISTS` syntax errors in two migration files
-
-**Status:** Complete
-
----
-
-## 2026-03-20: Tolerate legacy entries schema in production
-
-**Tool:** Codex
-**Branch:** `main`
-
-**Changes:**
-
-- `src/lib/supabase.ts` — added `entries` upsert retry logic that detects PostgREST `PGRST204` missing-column errors, caches unsupported columns, and retries the save without those fields
-- `src/lib/supabase.ts` — hardened `saveEntry` so static deployments can keep writing to older production schemas instead of leaving creates stuck in the sync queue
-- Verified the change with `npm run typecheck`
-
-**Status:** Complete
-
----
-
-## 2026-03-24 — Form improvements: influencer create, sign-off route removal, validation simplification
-
-**Tool:** Claude Code (claude-sonnet-4-6)
-**Branch:** main
-
-**Changes:**
-
-- `InfluencerPicker.tsx` — new `onCreateNew` prop; "+ New influencer" button in label row
-- `EntryForm.tsx` — quick-create modal for influencers (name + platform), saved via `SUPABASE_API.saveInfluencer`, auto-selected on creation; local influencer list merged with prop list
-- `EntryForm.tsx` — sign-off route dropdown removed from Advanced section (state preserved for submission backward compat)
-- `EntryForm.tsx` — validation simplified: only platforms + caption + asset-type copy required; date and asset type no longer block submission
-
-**Documented:** Login-free approval flow — recommended approach is HMAC-signed token in approval email URL, validated by public Edge Function, no Supabase account needed.
-
-**Status:** Complete
-
-## 2026-03-27 — Implement Layer 1 full publishing plumbing
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - `supabase/functions/_shared/types.ts` and `src/features/publishing/publishUtils.ts`: added `assetType` to the publish payload contract and switched `mediaUrls` to filtered `assetPreviews` public URLs instead of attachment/base64 data
-  - `src/features/publishing/__tests__/publishUtils.test.ts`: replaced the file with payload coverage for `assetType`, `assetPreviews` mapping, base64 filtering, and retained aggregate skipped-status coverage
-  - `src/features/entry/EntryForm.tsx`: changed the preview asset picker to accept images, video, and PDFs up to 500MB, upload selected files to the `content-media` Supabase Storage bucket via `getSupabase()`, and persist returned public URLs in `assetPreviews`
-  - Verified with `npm run typecheck` and `npm test`
-- Status: Complete
-
-## 2026-03-27 — Implement Layer 2 carousel publishing
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - `supabase/functions/publish-entry/index.ts`: extracted shared Instagram and Facebook credential helpers and added native carousel routing when `assetType === 'Carousel'` with at least two `mediaUrls`
-  - Instagram now publishes carousels through the multi-container Graph API flow, Facebook stages up to 20 photos and publishes a multi-photo feed post via `attached_media`
-  - LinkedIn now falls back to the first carousel image and returns a limitation note in `error`, while Bluesky uploads up to four blobs and publishes them through `app.bsky.embed.images`
-  - Verified with `npm run typecheck` after each task and a final `npm test` pass
-- Status: Complete
-
-## 2026-04-02 — Refresh vulnerable transitive packages
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - `package-lock.json`: refreshed transitive dependencies with `npm audit fix --package-lock-only`
-  - Cleared the current audit findings by bumping `brace-expansion` to `1.1.13` and `2.0.3`, `picomatch` to `2.3.2` and `4.0.4`, and `yaml` to `2.8.3`
-  - Verified with `npm audit --audit-level=high` and `npm run typecheck`
-- Status: Complete
-
-## 2026-04-07 - Run comprehensive health check
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - Ran `npm run lint`, `npm run lint:strict`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:copy-check`, and `npm audit --audit-level=high`
-  - Confirmed default lint, typecheck, test suite, and production build pass, with lint warnings and noisy React test warnings still present
-  - Identified the copy-check smoke test failure (`HTTP 404` against `/api/copy-check`) and a high-severity transitive Vite audit finding via Vitest
-  - Reviewed pending publishing/media-upload changes and noted risk areas for follow-up
-- Status: Complete
-
-## 2026-04-08 - Stabilise copy check and preview uploads
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - `src/lib/copyCheck.ts`, `src/hooks/useCopyCheck.ts`, `src/features/copy-check/CopyCheckSection.tsx`, and `tools/test-copy-check.mjs`: replaced the dead localhost `/api/copy-check` dependency with a resilient flow that prefers an injected checker, falls back to a configured function endpoint when available, and otherwise uses a local heuristic suggestion engine that keeps the feature working offline
-  - `src/hooks/useAssetPreviewUpload.ts` and `src/features/entry/EntryForm.tsx`: moved preview uploads out of the component into a custom hook, preserved Storage uploads when `content-media` is configured, and added a safe inline-preview fallback for small files when Storage is unavailable
-  - `src/features/publishing/publishUtils.ts` and `src/features/publishing/__tests__/publishUtils.test.ts`: restored publish payload compatibility for legacy attachment URLs while keeping `assetPreviews` as the primary media source
-  - `.gitignore` and `src/lib/copyCheck.test.ts`: hid local env/log artifacts from status noise and added regression coverage for copy-check fallback behaviour
-- Status: Complete
-
-## 2026-04-09 - Gate preview uploads behind explicit storage config
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - `src/lib/config.ts`, `tools/build.mjs`, and `tools/dev-server.mjs`: added an explicit `CONTENT_MEDIA_UPLOADS_ENABLED` capability flag so the main app does not assume the `content-media` bucket exists in every environment
-  - `tools/public-config.mjs` and `public/content-hub-config.js`: extended generated public config with `contentMediaUploadsEnabled` for consistency across static surfaces
-  - `src/hooks/useAssetPreviewUpload.ts` and `src/features/entry/EntryForm.tsx`: exposed upload capability from the hook and hid the file picker when storage uploads are disabled, showing URL-only guidance instead
-  - Verified with `npm run typecheck`, targeted `eslint`, and `npm run build`
-- Status: Complete
-
-## 2026-04-09 - Document content-media provisioning
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - `.env.example`: added `CONTENT_MEDIA_UPLOADS_ENABLED=false` with guidance that uploads must stay off until storage is provisioned
-  - `docs/content-media-storage.md`: added a tracked runbook for the `content-media` bucket, required policies, verification steps, and rollback
-  - Kept the runtime default in URL-only mode so environments without the bucket do not advertise unsupported uploads
-- Status: Complete
-
-## 2026-04-07 - Fix magic link redirect path
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - `src/lib/supabase.ts`: magic-link sign-in now sends a full app callback URL, preserving the GitHub Pages `/content-hub/` base path instead of using only `window.location.origin`
-  - Confirmed the live runtime config points at the Intel Hub Supabase project (`oepehanwmfelowfumkes`)
-  - Verified with `npm run typecheck`
-- Status: Complete
-
-## 2026-04-15 - Codex instruction migration
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - Added a native root `AGENTS.md` covering mission, stack, canonical commands, verification, dangerous actions, browser expectations, and review defaults for Codex sessions
-  - Split longer review guidance into `code_review.md` so the durable repo instructions stay short and operational
-  - Aligned the repo with the shared Codex-first workspace rebuild while preserving existing Content Hub conventions
-- Status: Complete
-
-## 2026-04-15 - Fix invite activation and notification delivery
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - `src/hooks/domain/useAuth.ts` and `src/app.jsx`: native Supabase invite and recovery links now enter the password-setup flow without relying on the legacy `?invite=` param, and first-time password updates no longer require a current password
-  - `src/lib/email.ts`: review links now preserve the GitHub Pages `/content-hub/` base path in approval and comment emails
-  - `src/lib/supabase.ts` and `supabase/functions/send-notification/index.ts`: notification sends now fail loudly enough for the sync queue to surface retries, and the live edge function now supports `RESEND_API_KEY` as well as Postmark
-  - Added regression coverage in `src/hooks/domain/__tests__/useAuth.test.ts`, `src/lib/email.test.ts`, and `src/lib/supabase.test.ts`
-  - Verified with `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, `deno check --node-modules-dir=auto supabase/functions/send-notification/index.ts`, and deployed `send-notification` to Supabase project `oepehanwmfelowfumkes`
-- Status: Complete
-
-## 2026-04-15 - Tighten notification and login guardrails
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - `supabase/functions/send-notification/index.ts`: unresolved recipient lookups now return an explicit failure payload instead of `ok: true`, so approval/comment mail drops are surfaced to the client retry path
-  - `src/components/auth/LoginScreen.tsx`: removed the public self-sign-up route and replaced it with admin-managed access guidance while keeping sign-in and magic-link flows for invited users
-  - `src/context/index.ts`: stopped re-exporting the stale context-based auth implementation so the repo has one canonical auth path
-  - Added regression coverage in `src/components/auth/LoginScreen.test.tsx` and `src/lib/supabase.test.ts`
-  - Verified with `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, and `deno check --node-modules-dir=auto supabase/functions/send-notification/index.ts`
-  - Attempted to deploy `send-notification`, but the current shell no longer has a Supabase access token and needs `supabase login` before redeploy
-- Status: Complete
-
-## 2026-04-15 - Remove dead auth context and split Supabase mappers
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - Deleted `src/context/AuthContext.tsx`, which was no longer exported or used after the auth flow moved to `src/hooks/domain/useAuth.ts`
-  - Added `src/types/window.d.ts` so the ambient `window.api` and Supabase bootstrap contract lives in a dedicated type surface instead of an implementation file
-  - Extracted the pure enum/date mapping helpers from `src/lib/supabase.ts` into `src/lib/supabaseMappers.ts` to reduce file size and separate transport mapping from API logic
-  - Cleared touched warning debt in `src/app.jsx`, `src/hooks/domain/useEntries.ts`, `src/hooks/domain/useNotifications.ts`, and `src/hooks/domain/useSyncQueue.ts` without changing behaviour
-  - Verified with `npm run typecheck`, `npm run lint`, and `npm test -- src/lib/supabase.test.ts src/components/auth/LoginScreen.test.tsx src/hooks/domain/__tests__/useAuth.test.ts src/hooks/domain/__tests__/useEntries.test.ts src/hooks/domain/__tests__/useSyncQueue.test.ts`
-- Status: Complete
-
-## 2026-04-15 - Clear remaining lint warning backlog
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - Removed the remaining lint warnings across `src/components/ui/MultiSelect.tsx`, `src/features/approvals/ApprovalsView.tsx`, `src/features/calendar/CalendarView.tsx`, `src/features/calendar/CampaignModal.tsx`, `src/features/calendar/OrgEventModal.tsx`, `src/features/calendar/YearPlanView.tsx`, `src/features/dashboard/widgets/WeeklyStatsWidget.tsx`, `src/features/entry/EntryForm.tsx`, and `src/features/entry/EntryModal.jsx`
-  - Replaced `autoFocus` usage with explicit ref-based focus management in modal flows, fixed the invalid checkbox listbox semantics in `MultiSelect`, and removed stale unused variables and props
-  - Added an explicit captions track placeholder for preview videos so the a11y media checks pass without changing the preview flow
-  - Updated `src/__tests__/setup.ts` so it no longer relies on deprecated flat-config `eslint-env` comments
-  - Verified with `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`
-- Status: Complete
-
-## 2026-04-15 - Consolidate repo metadata and agent instructions
-
-- Tool: Codex
-- Branch: codex-content-hub-remediation
-- Changes:
-  - Simplified `AGENTS.md` so it points at the canonical project contract instead of duplicating stale repo detail
-  - Reduced `CLAUDE.md` to a compatibility shim for Claude Code sessions
-  - Replaced the old freeform `PROJECT.md` brief with a structured canonical metadata block plus scope notes
-  - Trimmed `README.md` so it points at `PROJECT.md` for canonical metadata and keeps only the practical local entry points
-  - Reverted formatting-only churn in `public/content-hub-config.js` so the commit stays documentation-only
-- Status: Complete
-
-## 2026-04-15 - Correct production deployment target
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - Updated `.github/workflows/deploy.yml` so GitHub Pages production deploys automatically on push to `main` as well as manual promotion
-  - Updated `.github/workflows/staging.yml` so Cloudflare Pages staging no longer triggers on `main` pushes and is limited to the `staging` branch plus pull request previews
-  - This prevents production merges from going to Cloudflare Pages when GitHub Pages is the intended live target
-- Status: Complete
-
-## 2026-04-15 - Harden social platform connections
-
-- Tool: Codex
-- Branch: codex/platform-connection-hardening
-- Changes:
-  - Moved platform connection management behind a new admin-only `platform-connections` edge function so the browser no longer reads or writes `platform_connections` rows directly
-  - Added a Supabase migration to drop the permissive browser RLS policies on `platform_connections`, leaving token handling to service-role functions only
-  - Hardened OAuth connection storage so Meta connections bind to exactly one supported destination, record `createdByEmail`, and deactivate older active connections for the same platform
-  - Updated publishing to reject ambiguous multiple active connections, target the stored Meta page instead of the first accessible page, and refresh LinkedIn and Google tokens before publish when possible
-  - Updated the platform connections UI to stop presenting YouTube as a direct-publish integration and to route BlueSky connect and disconnect actions through the new admin API
+  - Added `public/gantt-planner.html` as a self-contained yearly Gantt planning tool that can be opened directly or served as a static file without the Content Hub React app, Supabase, or external CDNs.
+  - Mirrored the Content Hub year-planning surface with separate `Comms campaigns` and `Organisation` lanes, month headers, fixed row labels, date-spanning colour bars, year navigation, add/edit/delete modals, and hover details.
+  - Removed the mistakenly extracted `public/kanban-planner.html` artifact and kept the standalone Gantt data in its own localStorage key, with JSON/CSV import/export.
 - Verification:
-  - `npm run lint`
+  - `npx prettier --check public/gantt-planner.html`
+  - Static Node HTML contract check for heading, campaign/event controls, lanes, persistence marker, and removal of the mistaken Kanban file
+  - JSDOM workflow check for rendering both lanes, month headers, adding a campaign, and localStorage persistence
+  - Chrome browser workflow check using local Google Chrome at desktop and mobile widths, including add and edit flows
+  - `npm run build`
+- Status: Complete
+
+## 2026-07-16 - Audit scheduled-publishing integrity
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Added `COMPREHENSIVE_APP_REVIEW.md` as the first bounded checkpoint of the requested whole-application audit, covering the scheduled-publishing path and duplicate/missed-publication risk.
+  - Documented 10 evidence-backed findings: 1 Critical, 7 High, and 2 Medium, including the unauthenticated privileged publish boundary, absent scheduler, non-idempotent external side effects, misleading partial-success state, OAuth state weakness, and media/platform contract gaps.
+  - Performed read-only hosted Supabase checks. The initial standalone Content Hub project check was later superseded by the runtime shared Intel Hub project check recorded below; no hosted data or configuration was changed.
+  - Made no application code, dependency, migration, deployment configuration, secret, or production-data changes.
+- Verification:
   - `npm run typecheck`
-  - `npm test -- src/features/publishing/__tests__/PlatformConnectionsView.test.ts src/hooks/domain/__tests__/useEntries.test.ts src/hooks/domain/__tests__/useAdmin.test.ts`
-  - `deno check --node-modules-dir=auto supabase/functions/oauth-callback/index.ts`
+  - Targeted ESLint for the publishing path and `useEntries.ts`
+  - `npm test -- src/features/publishing/__tests__/publishUtils.test.ts src/hooks/domain/__tests__/useEntries.test.ts` (2 files, 28 tests passed)
+  - `npm run build`
+  - `deno check --node-modules-dir=auto` for `publish-entry`, `oauth-callback`, and `platform-connections`
+  - `npm audit --omit=dev --json` (one moderate transitive `dompurify` advisory group)
+  - `npx supabase db lint --local` (environment-blocked because local Postgres was not running)
+  - Hosted SQL schema/RLS check (environment-blocked because the initially inspected database was inactive)
+- Status: Complete
+
+## 2026-07-16 - Plan publishing-integrity remediation
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Added `plans/publishing-integrity-remediation.md`, turning the bounded publishing audit into four larger tracer-bullet implementation phases approved by Dan.
+  - Defined durable decisions for owner authorisation, server-derived approved content, publication jobs/results, idempotency, UTC scheduling, Storage-backed media, OAuth state, provider resilience and future ownership boundaries.
+  - Included pre-implementation production gates, 68 acceptance/readiness checks, validation and rollback requirements, suggested commit boundaries, indicative effort, and traceability for PUB-001 through PUB-010.
+  - Kept immediate containment of the Critical publication boundary as the first Phase 1 checkpoint and made durable idempotency a prerequisite for scheduled execution.
+- Verification:
+  - `npx prettier --write plans/publishing-integrity-remediation.md`
+  - Confirmed all four phase headings are present
+  - Confirmed PUB-001 through PUB-010 are represented in plan traceability
+- Status: Complete
+
+## 2026-07-16 - Contain unauthenticated social publishing
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Implemented the first Phase 1 containment checkpoint for PUB-001 without deploying or changing production data.
+  - Added a fail-closed Edge authorisation helper that validates the Supabase bearer token with Auth and permits only the canonical Content Hub owner before any service-role or social-platform access.
+  - Updated `publish-entry` to require that owner check, removed its optional browser-supplied webhook-secret gate, and enabled gateway JWT verification in repository configuration as defence in depth.
+  - Updated the browser publication request to send the current Supabase access token and publishable key; signed-out publication now fails before calling the Edge Function.
+  - Added five Edge authorisation tests and a browser-hook regression test for authenticated and signed-out requests.
+  - Corrected the review/plan deployment target: runtime configuration uses the shared Intel Hub Supabase project. A read-only check confirmed its deployed `publish-entry` v1 remains active with `verify_jwt=false` and no user check; deployment of this fix is still pending.
+- Verification:
+  - `npm run typecheck`
+  - `npx eslint src/hooks/domain/useEntries.ts src/hooks/domain/__tests__/useEntries.test.ts src/lib/supabase.ts`
+  - `npm test -- src/hooks/domain/__tests__/useEntries.test.ts src/features/publishing/__tests__/publishUtils.test.ts` (2 files, 29 tests passed)
+  - `deno test supabase/functions/_shared/ownerAuth.test.ts` (5 tests passed)
+  - `deno lint supabase/functions/_shared/ownerAuth.ts supabase/functions/_shared/ownerAuth.test.ts`
   - `deno check --node-modules-dir=auto supabase/functions/publish-entry/index.ts`
-  - `deno check --node-modules-dir=auto supabase/functions/platform-connections/index.ts`
-- Status: Complete
-
-## 2026-04-15 - Deploy platform connection hardening live
-
-- Tool: Codex
-- Branch: codex/platform-connection-hardening
-- Changes:
-  - Deployed the `platform-connections`, `oauth-callback`, and `publish-entry` edge functions to Supabase project `oepehanwmfelowfumkes`
-  - Verified the live `platform_connections` table still had the four permissive authenticated-user RLS policies that exposed browser token access
-  - Applied the targeted SQL from `20260415200841_harden_platform_connections.sql` through the Supabase Management API because the project migration history is divergent and `supabase migration up --linked` cannot safely replay the local migration graph
-  - Confirmed live `platform_connections` still has row-level security enabled and now has no remaining browser-facing policies
-- Verification:
-  - `supabase functions deploy platform-connections --project-ref oepehanwmfelowfumkes`
-  - `supabase functions deploy oauth-callback --project-ref oepehanwmfelowfumkes`
-  - `supabase functions deploy publish-entry --project-ref oepehanwmfelowfumkes`
-  - Supabase Management API read-only query confirming the old `platform_connections_*` policies existed before the SQL change
-  - Supabase Management API verification query confirming `relrowsecurity = true`
-  - Supabase Management API verification query confirming no remaining policies on `public.platform_connections`
-- Status: Complete
-
-## 2026-04-15 - Remove stale admin and approver console errors
-
-- Tool: Codex
-- Branch: codex/platform-connection-hardening
-- Changes:
-  - Removed the dead `/api/approvers` fallback from `useApprovals` so GitHub Pages no longer makes a guaranteed 404 request when the Cloudflare bridge is absent
-  - Changed the Supabase reachability check to use the public auth settings endpoint instead of probing `rest/v1/`, which was generating an expected-but-noisy 401 in the browser console
-  - Hardened admin/profile fetches so they return early when there is no authenticated Supabase session instead of cascading into repeated 401s from `admin-users` and `user_profiles`
-  - Added regression coverage for the unauthenticated `fetchAdminUsers` path
-- Verification:
-  - `npm run lint`
-  - `npm run typecheck`
-  - `npm test -- src/hooks/domain/__tests__/useApprovals.test.ts src/hooks/domain/__tests__/useAdmin.test.ts src/lib/supabase.test.ts`
-- Status: Complete
-
-## 2026-04-15 - Remove misleading YouTube publishing connection flow
-
-- Tool: Codex
-- Branch: codex/youtube-connection-clarity
-- Changes:
-  - Removed YouTube from the direct-publish platform connection list so the UI no longer presents it as a normal OAuth publishing integration
-  - Stopped generating a YouTube OAuth URL from the platform connections screen
-  - Added a separate manual-upload explainer card for YouTube, with optional disconnect support for any legacy stored YouTube connection row
-  - Added a regression test to ensure `buildOAuthUrl('YouTube', ...)` stays disabled
-- Verification:
-  - `npm test -- src/features/publishing/__tests__/PlatformConnectionsView.test.ts`
-  - `npm run typecheck`
-  - `npm run lint`
-- Status: Complete
-
-## 2026-04-16 - Fix admin edge auth for invites and platform connections
-
-- Tool: Codex
-- Branch: codex/admin-edge-auth-fix
-- Changes:
-  - Updated `supabase/functions/admin-users/index.ts` and `supabase/functions/platform-connections/index.ts` to validate the caller through a request-scoped Supabase auth client using the incoming `Authorization` header, instead of relying on the previous `auth.getUser(token)` path that was rejecting valid browser sessions
-  - Kept privileged table reads and writes on the service-role client after the user is resolved, so admin-only behaviour is unchanged apart from the authentication fix
-  - Deployed both fixed edge functions live to Supabase project `oepehanwmfelowfumkes`
-- Verification:
-  - `deno check --node-modules-dir=auto supabase/functions/admin-users/index.ts`
-  - `deno check --node-modules-dir=auto supabase/functions/platform-connections/index.ts`
-  - `supabase functions deploy admin-users --project-ref oepehanwmfelowfumkes`
-  - `supabase functions deploy platform-connections --project-ref oepehanwmfelowfumkes`
-- Status: Complete
-
-## 2026-04-16 - Retry admin edge auth with direct token verification
-
-- Tool: Codex
-- Branch: codex/admin-edge-auth-fix-2
-- Changes:
-  - Replaced the request-auth lookup in `admin-users` and `platform-connections` with a direct `auth/v1/user` verification call using the incoming bearer token, after the previous request-scoped client approach still returned `401` in production
-  - Redeployed both functions live to Supabase project `oepehanwmfelowfumkes`
-- Verification:
-  - `deno check --node-modules-dir=auto supabase/functions/admin-users/index.ts`
-  - `deno check --node-modules-dir=auto supabase/functions/platform-connections/index.ts`
-  - `supabase functions deploy admin-users --project-ref oepehanwmfelowfumkes`
-  - `supabase functions deploy platform-connections --project-ref oepehanwmfelowfumkes`
-- Status: Complete
-
-## 2026-04-16 - Normalise shared Supabase Auth config for Content Hub and Intel Hub
-
-- Tool: Codex
-- Branch: codex/edge-jwt-config-fix
-- Changes:
-  - Audited Content Hub and Intel Hub invite and auth redirect flows to confirm both products use explicit product redirects instead of depending on the shared Supabase Auth `site_url`
-  - Updated the live shared Supabase Auth config for project `oepehanwmfelowfumkes` so `site_url` is the neutral `https://populationmatters.org` fallback instead of a product-specific URL
-  - Updated the live shared invite template copy to remove the misleading product-specific `{{ .SiteURL }}` wording
-  - Expanded the live redirect allow-list to cover both Content Hub and Intel Hub URLs, including Intel Hub Pages and Vercel routes used by the current codebase
-- Verification:
-  - `curl -sS https://api.supabase.com/v1/projects/oepehanwmfelowfumkes/config/auth -H 'Authorization: Bearer [token]'`
-  - Confirmed `site_url` is `https://populationmatters.org`
-  - Confirmed `mailer_templates_invite_content` now uses neutral Population Matters tool wording
-  - Confirmed `uri_allow_list` includes Content Hub and Intel Hub redirect targets
-- Status: Complete
-
-## 2026-04-16 - Fix Content Hub invite acceptance fallback to shared site URL
-
-- Tool: Codex
-- Branch: codex/edge-jwt-config-fix
-- Changes:
-  - Identified that Content Hub invite acceptance was falling back to the shared Supabase Auth `site_url` because the invite redirect used the bare `https://ddpopmatters.github.io/content-hub` URL, while the hosted allow-list only covered the path wildcard variant
-  - Updated `supabase/functions/admin-users/index.ts` so new Content Hub invites use the canonical trailing-slash redirect `https://ddpopmatters.github.io/content-hub/`
-  - Updated the live shared Supabase Auth allow-list to include both exact Content Hub root URLs and explicit Intel Hub login URLs alongside the existing wildcard entries
-  - Redeployed the live `admin-users` function to Supabase project `oepehanwmfelowfumkes`
-- Verification:
-  - `curl -sS https://api.supabase.com/v1/projects/oepehanwmfelowfumkes/config/auth -H 'Authorization: Bearer [token]'`
-  - Confirmed `uri_allow_list` now includes `https://ddpopmatters.github.io/content-hub` and `https://ddpopmatters.github.io/content-hub/`
-  - `supabase functions deploy admin-users --project-ref oepehanwmfelowfumkes --no-verify-jwt`
-- Status: Complete
-
-## 2026-04-16 - Brand the shared invite email for PM internal tools
-
-- Tool: Codex
-- Branch: codex/edge-jwt-config-fix
-- Changes:
-  - Replaced the plain shared Supabase invite email with a branded HTML template using the Population Matters logo, ocean accent header, card layout, and button CTA
-  - Kept the wording neutral so the same shared-auth project still works for both Content Hub and Intel Hub without implying a single product
-  - Included the raw confirmation link fallback in the email body for mail clients that suppress buttons or HTML styling
-- Verification:
-  - `curl -I -sS https://populationmatters.org/wp-content/uploads/2022/03/PM-logo.png`
-  - `curl -sS https://api.supabase.com/v1/projects/oepehanwmfelowfumkes/config/auth -H 'Authorization: Bearer [token]'`
-  - Confirmed `mailer_templates_invite_content` now stores the branded HTML template in the live shared auth project
-- Status: Complete
-
-## 2026-04-16 - Align admin edge auth with frontend profile resolution
-
-- Tool: Codex
-- Branch: codex/edge-jwt-config-fix
-- Changes:
-  - Updated `supabase/functions/admin-users/index.ts` so the admin guard resolves the caller the same way as the frontend: by `auth_user_id` first, then by email, with automatic relinking when the profile row exists but the stored `auth_user_id` has drifted
-  - Removed the edge-only dependency on exact email matching that was producing `Forbidden` even when the browser session already resolved to an admin profile in the app
-  - Redeployed the live `admin-users` function to Supabase project `oepehanwmfelowfumkes`
-- Verification:
-  - `deno check --node-modules-dir=auto supabase/functions/admin-users/index.ts`
-  - `supabase functions deploy admin-users --project-ref oepehanwmfelowfumkes --no-verify-jwt`
-- Status: Complete
-
-## 2026-04-16 - Lock Content Hub admin access to the canonical PM super-admin account
-
-- Tool: Codex
-- Branch: codex/edge-jwt-config-fix
-- Changes:
-  - Added a single canonical super-admin identity for `daniel.davis@populationmatters.org` in both the frontend and edge-function layers
-  - Updated the browser auth model so admin UI and admin feature access only recognise the canonical super-admin email rather than any row with `is_admin = true`
-  - Updated `admin-users` and `platform-connections` to require the canonical super-admin email server-side and to normalise `user_profiles.is_admin` so every other account is demoted on the next privileged admin request
-  - Kept user creation as non-admin by default, which means only the canonical super-admin account can retain or restore admin capability
-- Verification:
-  - `npm test -- src/hooks/domain/__tests__/useAuth.test.ts src/lib/adminAccess.test.ts src/lib/supabase.test.ts`
-  - `npm run typecheck`
-  - `deno check --node-modules-dir=auto supabase/functions/admin-users/index.ts`
-  - `deno check --node-modules-dir=auto supabase/functions/platform-connections/index.ts`
-  - `supabase functions deploy admin-users --project-ref oepehanwmfelowfumkes --no-verify-jwt`
-  - `supabase functions deploy platform-connections --project-ref oepehanwmfelowfumkes --no-verify-jwt`
-- Status: Complete
-
-## 2026-04-16 - Unify shell, auth, and review UI styling
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - Reworked the main app shell to support narrow screens with a mobile top bar, slide-in navigation drawer, overlay dismiss state, and desktop-only sidebar offsetting instead of a hard-coded always-on desktop layout
-  - Replaced the brittle third-party sidebar logo with the canonical Population Matters asset and tightened the sidebar hierarchy so it reads as a deliberate part of the same PM internal tool system
-  - Redesigned the login screen as a branded entry surface with stronger hierarchy, PM identity, and a clearer split between sign-in actions and product context
-  - Refreshed `public/review.html` so approval and review links now use the same PM internal visual language rather than a separate dated microsite style
-- Verification:
-  - `npm run lint`
-  - `npm run typecheck`
   - `npm run build`
-- Status: Complete
+  - Full `npm test`: 257 passed, 1 unrelated date-sensitive `UpcomingPeaksWidget` test failed because its fixed peak ended on 14 July 2026
+  - Full publisher Deno lint remains blocked by pre-existing inline-import, unused-variable and `require-await` findings outside this checkpoint
+- Status: Local implementation complete; production deployment pending review
 
-## 2026-04-16 - Align invite and loading screens with the new auth surface
-
-- Tool: Codex
-- Branch: main
-- Changes:
-  - Added a shared auth-shell treatment in `src/app.jsx` so the invite-password flow and loading/session-check state now match the updated PM internal-tool sign-in surface
-  - Replaced the old standalone invite card with a branded activation screen and clearer account-state copy
-  - Replaced the old loading card with a branded session-check screen so the full unauthenticated journey now reads as one coherent product
-- Verification:
-  - `npm run lint`
-  - `npm run typecheck`
-  - `npm run build`
-- Status: Complete
-
-## 2026-04-16 - Improve feature-view responsiveness in dashboard, planning, and entry flows
+## 2026-07-16 - Source publication content from approved database entries
 
 - Tool: Codex
-- Branch: main
+- Branch: `feature/social-docs-2026-refresh`
 - Changes:
-  - Updated dashboard quick actions and header controls so they stack and breathe properly on smaller screens instead of assuming dense desktop button rows
-  - Reworked the calendar toolbar, filters, and export controls to collapse more cleanly on narrower widths while keeping the same planning functionality
-  - Relaxed several dense `EntryForm` grid sections so platform selection, workflow dates, UTM fields, and preview grids stop cramping on smaller laptops and mobile widths
+  - Implemented the next bounded Phase 1 publishing-integrity checkpoint without deploying or changing production data.
+  - Reduced the authenticated browser request to an entry ID; caption, platforms, media and other publication fields are no longer accepted from the browser.
+  - Added a server-side authoritative entry lookup which rejects missing, soft-deleted, unapproved and platform-less entries before platform credentials or provider adapters are accessed.
+  - Added a tested database-to-publisher mapper, filtered inline data URLs, hid database lookup details from clients and removed the browser-controlled callback contract and outbound callback side effect.
+  - Recorded that exact-revision approval, idempotent durable jobs, provider capability validation, OAuth state hardening and production deployment remain future checkpoints.
 - Verification:
-  - `npm run lint`
+  - `deno test supabase/functions/_shared/publishableEntry.test.ts supabase/functions/_shared/ownerAuth.test.ts` (11 tests passed)
+  - `deno lint supabase/functions/_shared/publishableEntry.ts supabase/functions/_shared/publishableEntry.test.ts supabase/functions/_shared/ownerAuth.ts supabase/functions/_shared/ownerAuth.test.ts`
+  - `deno check --node-modules-dir=auto supabase/functions/publish-entry/index.ts`
   - `npm run typecheck`
+  - `npx eslint src/hooks/domain/useEntries.ts src/hooks/domain/__tests__/useEntries.test.ts src/lib/supabase.ts`
+  - `npm test -- src/hooks/domain/__tests__/useEntries.test.ts src/features/publishing/__tests__/publishUtils.test.ts` (2 files, 29 tests passed)
   - `npm run build`
-- Status: Complete
+  - `git diff --check`
+- Status: Local implementation complete; production deployment pending review and database reactivation
 
-## 2026-04-16 - Refine modal and detail-view layouts for smaller screens
+## 2026-07-16 - Enforce truthful publication capabilities
 
 - Tool: Codex
-- Branch: main
+- Branch: `feature/social-docs-2026-refresh`
 - Changes:
-  - Restacked dense controls inside `EntryModal` so content approach buttons, workflow dates, UTM fields, preview grids, and approver guidance no longer assume desktop width
-  - Widened and softened the campaign and organisation-event modals so date fields, colour swatches, and footer actions collapse more cleanly on smaller screens
-  - Updated `WeeklyStatsWidget` to use clearer stat cards instead of a cramped bare two-column grid
+  - Implemented the next bounded Phase 1 publishing-integrity checkpoint without deploying or changing production data.
+  - Added a single capability matrix shared by the React publishing controls and Edge validation, while retaining the server as the authoritative enforcement point.
+  - Allowed only implemented text, design and carousel paths across BlueSky, Instagram, Facebook and LinkedIn; blocked Video, YouTube, LinkedIn carousel downgrades and text-only Instagram publication.
+  - Required HTTPS media, at least two distinct carousel images and exact platform limits of four BlueSky, ten Instagram and twenty Facebook images before platform credentials or provider adapters are accessed.
+  - Removed the YouTube publisher stub, made BlueSky design publishing fail before posting when image loading/upload fails, and added a defensive LinkedIn carousel rejection.
+  - Updated the UI to hide Publish and Retry for unsupported approved entries and explain why direct publication is unavailable.
+  - Left MIME, size, public-fetchability, private-network protection, exact-revision approval and durable idempotent jobs for later gated checkpoints.
 - Verification:
-  - `npm run lint`
   - `npm run typecheck`
+  - Targeted ESLint for publishing actions, utilities, hook and tests
+  - `npm test -- src/features/publishing/__tests__/PublishActions.test.tsx src/features/publishing/__tests__/publishUtils.test.ts src/hooks/domain/__tests__/useEntries.test.ts` (3 files, 36 tests passed)
+  - `deno test supabase/functions/_shared/publishCapabilities.test.ts supabase/functions/_shared/publishableEntry.test.ts supabase/functions/_shared/ownerAuth.test.ts` (18 tests passed)
+  - Targeted Deno lint for the three shared publishing contracts and tests
+  - `deno check --node-modules-dir=auto supabase/functions/publish-entry/index.ts`
   - `npm run build`
-- Status: Complete
+  - `git diff --check`
+- Status: Local implementation complete; production deployment pending review and database reactivation
 
-## 2026-04-16 - Normalise older dashboard widgets to the new card language
+## 2026-07-16 - Make planning dates and publishing controls truthful
 
 - Tool: Codex
-- Branch: main
+- Branch: `feature/social-docs-2026-refresh`
 - Changes:
-  - Updated older dashboard widgets so their internal stat grids, stage rows, and summary blocks use the same softer card treatment and responsive stacking as the rest of the refreshed dashboard
-  - Tightened button alignment and header spacing in the series and peaks widgets so secondary controls no longer feel bolted on
-  - Removed several remaining bare two-column metric grids in favour of clearer small stat cards and better spacing on narrower widths
+  - Implemented the next bounded Phase 1 publishing-integrity checkpoint without deploying or changing production data.
+  - Removed the dormant Zapier publishing panel, Auto-publish toggle, optional browser-secret field, `no-cors` webhook sender, payload builder, settings type, unused hook dependency and exports.
+  - Added a one-time cleanup which removes previously persisted `pm-publish-settings` browser data, including any obsolete webhook secret.
+  - Changed user-facing calendar-date language from scheduled to planned across entry creation/editing, calendar summaries, previews, pipeline labels, approval pages, notifications and approval emails.
+  - Removed the unused `scheduledDate`, campaign, content-pillar and links fields from the internal Edge publisher payload so a planning date cannot be mistaken for an executable schedule.
+  - Retained the platform-connections interface because it backs the authenticated, server-authoritative manual publishing path.
+  - Applied the existing internal Content Hub design context: direct, calm wording for a small expert team, without adding replacement settings or decorative UI.
 - Verification:
-  - `npm run lint`
   - `npm run typecheck`
+  - Targeted ESLint across the changed publishing, entry, calendar, email, hook and model files
+  - `npm test -- src/hooks/domain/__tests__/usePublishing.test.ts src/hooks/domain/__tests__/useEntries.test.ts src/features/publishing/__tests__/publishUtils.test.ts src/features/publishing/__tests__/PublishActions.test.tsx src/lib/email.test.ts src/lib/sanitizers.test.ts src/lib/performance.test.ts src/constants.test.ts` (8 files, 44 tests passed)
+  - `deno test supabase/functions/_shared/publishCapabilities.test.ts supabase/functions/_shared/publishableEntry.test.ts supabase/functions/_shared/ownerAuth.test.ts` (18 tests passed)
+  - Targeted Deno lint for shared publication contracts and tests
+  - `deno check --node-modules-dir=auto supabase/functions/publish-entry/index.ts`
   - `npm run build`
-- Status: Complete
+  - `git diff --check`
+- Status: Local implementation complete; production deployment pending review and database reactivation
+
+## 2026-07-17 - Contain publication after stale approval
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Implemented the next bounded Phase 1 publishing-integrity checkpoint without deploying, changing production data or editing migrations.
+  - Added a shared browser/Edge approval-freshness contract. Missing or invalid approval timestamps and entries updated materially after approval now fail closed before platform connections or provider adapters are accessed.
+  - Allowed a five-second timestamp window for the existing database `updated_at` trigger to follow the approval write; documented that a monotonic content revision remains the durable exact-binding solution.
+  - Added publication-field change detection for platforms, asset type, captions and media. Editing those fields now clears `approvedAt`, returns the entry to Ready for Review and persists the revocation alongside the edit.
+  - Hid Publish and Retry for stale approvals and gave the owner an explicit re-approval message using the same freshness contract as the Edge boundary.
+  - Preserved functional local-state merging and added a regression test for rapid successive partial edits after the implementation review caught a possible lost-update regression.
+- Verification:
+  - `npm run typecheck`
+  - `npm run lint`
+  - Targeted frontend tests for publishing actions, publishing utilities, entry updates and sanitizers (4 files, 41 tests passed)
+  - Shared Edge contract tests for approval freshness, authoritative entries, capabilities and owner authentication (21 tests passed)
+  - Targeted Deno lint and `deno check --node-modules-dir=auto supabase/functions/publish-entry/index.ts`
+  - `npm run build`
+  - `git diff --check`
+  - Full frontend test suite: 268 passed; one pre-existing date-sensitive `UpcomingPeaksWidget` fixture failed because its fixed July 2026 peak is no longer upcoming
+- Status: Local containment complete; exact revision binding and production deployment remain pending the approved database/rollout flow
+
+## 2026-07-17 - Secure OAuth connection state and redirects
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Implemented the remaining local Phase 1 OAuth integrity checkpoint without deploying, changing production data or editing migrations.
+  - Replaced browser-generated base64 identity/platform/redirect state with an owner-authenticated `begin-oauth` server action and enabled repository gateway JWT verification for `platform-connections`.
+  - Added a ten-minute, 256-bit opaque state contract stored under a SHA-256-derived key in the existing service-only `app_secrets` table. The callback atomically deletes the state before provider token exchange, making replay fail closed.
+  - Bound state to the canonical owner and selected platform, fixed callback and success URLs from server configuration, rejected tampered/expired/wrong-owner state and removed the unsupported YouTube callback path.
+  - Restricted browser navigation to exact Meta and LinkedIn HTTPS authorisation endpoints; success messages now require the exact same-origin popup source instead of wildcard `postMessage`.
+  - Removed unused OAuth identifiers and URL construction from the frontend build and sanitised callback, provider and database failures so credentials, codes and upstream response bodies are not returned.
+  - Removed the inherited Meta configuration-ID fallback so every OAuth provider now fails closed when its server-side public configuration is incomplete.
+  - Updated platform documentation and the publishing-integrity plan with the local acceptance evidence and deployment prerequisites.
+- Verification:
+  - `npm run typecheck`
+  - `npm run lint`
+  - Targeted frontend publishing tests (5 files, 44 tests passed)
+  - Shared OAuth, owner, approval and capability Edge contract tests (29 tests passed)
+  - Targeted ESLint and Deno lint
+  - Deno checks for `platform-connections`, `oauth-callback` and `publish-entry`
+  - `npm run build`
+  - `git diff --check`
+  - Full frontend test suite: 265 passed; one pre-existing date-sensitive `UpcomingPeaksWidget` fixture failed because its fixed July 2026 peak is no longer upcoming
+- Status: Local implementation complete; coordinated deployment and test-account smoke testing remain pending
+
+## 2026-07-17 - Secure and clarify manual publication results
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Implemented the next bounded Phase 1 publishing-integrity checkpoint without deploying, changing production data or editing migrations.
+  - Added a shared result boundary which replaces provider bodies and exception text with fixed public errors before storage or return, restricts published links to exact provider locations and omits provider post IDs from browser responses.
+  - Removed raw response-body handling from the browser and mapped transport failures to fixed status-based copy, including an actionable sign-in message for expired sessions.
+  - Required a confirmed platform publication before the Edge response reports success and moved an entry to Published only when every selected platform confirms publication.
+  - Made partial results explicit, automatically displayed per-platform details and blocked another direct attempt which could duplicate an already successful post.
+  - Added truthful complete, partial and failed messaging which distinguishes the current entry-level record from a durable publication job.
+- Verification:
+  - Targeted frontend publication tests (3 files, 44 tests passed)
+  - All shared OAuth, publication-result, capability, authoritative-entry and owner Edge contract tests (33 tests passed)
+  - `npm run typecheck`
+  - `npm run lint`
+  - `deno check --node-modules-dir=auto supabase/functions/publish-entry/index.ts`
+  - Targeted Deno lint, Prettier check and `git diff --check`
+  - `npm run build`
+  - Full frontend test suite: 273 passed; one pre-existing date-sensitive `UpcomingPeaksWidget` fixture failed because its fixed July 2026 peak is no longer upcoming
+- Status: Local result-integrity containment complete; durable jobs, unknown outcomes and production smoke testing remain pending
+
+## 2026-07-17 - Bind approval to exact content revisions
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Implemented the remaining local Phase 1 approval-integrity checkpoint without contacting or changing the hosted Supabase project.
+  - Generated a migration through the Supabase CLI which adds database-owned `content_revision` and `approved_revision` columns, constraints and a trigger for the provider-facing entry fields.
+  - Made content edits increment once, ignore client revision values, clear approval and return previously Approved, Scheduled or Published entries to review.
+  - Bound only real approval transitions or new approval timestamps, preserved the approved revision after publication and deliberately left legacy approvals unbound until re-approval.
+  - Replaced the timestamp-skew heuristic in the shared browser/Edge publication guard with exact revision equality and wired the fields through application types, mapping, sanitisation and optimistic state.
+  - Added reusable SQL invariants covering legacy approval, re-approval, hostile revision values, content-edit revocation, insertion and publication retention.
+  - Rotated the 76 March–June dev-log entries into monthly archives while retaining the 12 July entries in the project log.
+- Verification:
+  - `npm run typecheck`
+  - `npm run lint`
+  - Targeted frontend approval and publishing tests (4 files, 51 tests passed)
+  - Full frontend test suite: 275 passed; one pre-existing date-sensitive `UpcomingPeaksWidget` fixture failed because its fixed July 2026 peak is no longer upcoming
+  - All shared Edge contract tests (33 tests passed), including 10 authoritative-entry and revision tests
+  - Deno checks for `publish-entry` and `approve-entry`, plus targeted Deno lint
+  - Migration and trigger invariant SQL passed on clean disposable Postgres 17
+  - Full local Supabase replay progressed through earlier migrations but remains blocked before this migration by the pre-existing invalid `CREATE POLICY IF NOT EXISTS` syntax in `20260318_org_events.sql`
+  - Prettier check and `git diff --check`
+  - `npm run build`
+  - Dev-log rotation count: 88 entries before and after rotation
+- Status: Local exact revision binding complete; hosted schema reconciliation, coordinated deployment and legacy-entry re-approval remain pending
+
+## 2026-07-17 - Add durable publication schema primitives
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Implemented the first larger Phase 2 publishing-integrity checkpoint locally without changing the hosted Supabase project or switching real provider calls onto the new path.
+  - Generated an additive migration through the Supabase CLI for durable publication jobs and per-platform results, including lifecycle and outcome constraints, request-key idempotency, indexes and exact approved-entry revision validation.
+  - Added service-only database functions which atomically create or replay an intent, claim each platform once and complete only claimed results while deriving failed, partial, published or unknown aggregate state.
+  - Added owner-only RLS and column-level browser grants. Approved payload snapshots, requester email and provider post IDs remain server-only, while browser roles cannot mutate durable state or execute orchestration functions.
+  - Removed arbitrary stored error text from the completion contract; the database now derives fixed messages from allowlisted error classifications.
+  - Added shared durable publication TypeScript contracts and a focused four-entity publication data reference after the configured data-reference analyser was unavailable.
+  - Documented that these are additive schema primitives only. The current provider path remains unchanged until hosted reconciliation, generated-type validation, Storage-backed media preflight and Edge fault tests are complete.
+- Verification:
+  - Durable revision/job migrations and reusable publication invariants passed together on clean Postgres 17
+  - Two simultaneous database sessions raced for one pending platform result: one claim succeeded and one was rejected
+  - Invariants cover idempotent replay, conflicting keys, mismatched payload platforms, result matrices, unknown outcomes, fixed stored errors, RLS visibility and service-only mutation privileges
+  - `npm run typecheck`
+  - `npm run lint`
+  - All shared Edge contract tests (33 tests passed)
+  - Deno check and targeted Deno lint
+  - `npm run build`
+  - Prettier check and `git diff --check`
+  - Full frontend test suite: 275 passed; one pre-existing date-sensitive `UpcomingPeaksWidget` fixture failed because its fixed July 2026 peak is no longer upcoming
+- Status: Local durable schema primitives complete; Edge integration, generated database types, durable media preflight and hosted rollout remain pending
+
+## 2026-07-17 - Add publication media preflight and orchestration kernel
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Implemented the next local Phase 2 prerequisite checkpoint without changing the hosted schema, credentials or provider accounts and without switching the runtime handler to durable job execution.
+  - Removed new persisted base64 fallback from the shared create/edit preview uploader, derived object extensions from allowlisted MIME types and added explicit image, planning-video and PDF size limits.
+  - Added browser truthfulness checks which require direct-publication images to use the exact public `content-media` origin and reject external hosts, credentials, signed query strings, fragments and malformed object paths.
+  - Added Edge media preflight before platform-credential lookup with exact Storage origin/path checks, manual redirect handling, bounded byte-range reads, a 10 MB maximum, image MIME allowlisting, magic-byte validation and a five-second timeout.
+  - Added a dependency-injected durable orchestration kernel which preflights before job creation, claims before provider execution, applies platform captions and uses both an abort signal and a hard provider timeout.
+  - Made post-claim timeouts, ignored aborts and unexpected adapter exceptions conservative Unknown results; database failures before a claim reach no provider, while completion persistence failure cannot report false durable success.
+  - Kept the kernel staged rather than dead-switching the current providers before their repository and abort-aware adapter integration is complete.
+- Verification:
+  - New media preflight and orchestration suites: 14 tests passed
+  - Targeted upload and publishing UI suites: 22 tests passed
+  - All shared Edge contract tests: 47 tests passed
+  - `npm run typecheck`
+  - `npm run lint`
+  - Deno check and targeted Deno lint
+  - `npm run build`
+  - Prettier and `git diff --check`
+  - Full frontend test suite: 279 passed; one pre-existing date-sensitive `UpcomingPeaksWidget` fixture failed because its fixed July 2026 peak is no longer upcoming
+- Status: Local media safety and orchestration prerequisites complete; RPC/provider integration, stale-claim recovery, durable browser reads and hosted rollout remain pending
+
+## 2026-07-17 - Complete durable publication runtime and recovery
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Switched the local `publish-entry` runtime to the service-only durable repository and orchestration kernel without changing the hosted schema, credentials or provider accounts.
+  - Resolved owner/request-key replays before mutable approval and media validation, added one guarded intent per owner/entry/revision and serialised claim, completion and recovery with a parent-before-child lock order.
+  - Added service-only stale recovery, fixed Unknown outcomes for ambiguous provider mutations and browser transport failures, and owner-scoped durable hydration with same-key reconciliation after reload.
+  - Kept local-storage projections fail closed until authenticated durable hydration, and blocked blind retry after Partial, Published or Unknown outcomes while allowing a corrected retry after a completely Failed job.
+  - Removed silent caption truncation, rejected first comments until they can be tracked durably, pinned Meta calls to Graph API `v24.0` and moved LinkedIn to the versioned `202607` Images and Posts APIs with exact upload-host validation.
+  - Added a repeatable multi-session PostgreSQL race test for guarded creation, duplicate claim, sibling completion and completion-versus-recovery; the expected losing creation session must report the guarded-intent constraint by name.
+  - Completed four fresh adversarial-review rounds. All 14 material findings were addressed across concurrency, recovery triggering, provider failure classification, transport ambiguity, omitted content, replay identity, hydration and test precision.
+- Verification:
+  - Approval-revision, durable-job and stale-recovery SQL invariants passed on disposable PostgreSQL 17.
+  - Multi-session PostgreSQL concurrency suite passed with actual overlapping transactions.
+  - All shared Edge contract tests passed (57 tests), plus Deno checks and lint for the publication and OAuth boundaries.
+  - Targeted durable publishing/browser tests passed, including rejected transport, malformed JSON, replay identity, pre-hydration fail-closed state and durable Unknown recovery.
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - `git diff --check`
+  - Full frontend suite: 294 passed; one pre-existing date-sensitive `UpcomingPeaksWidget` fixture failed because its fixed July 2026 peak is no longer upcoming.
+- Status: Local durable manual-publication checkpoint complete; hosted schema reconciliation, generated database types, coordinated deployment, provider test-account smoke tests and targeted per-platform retry remain pending
+
+## 2026-07-17 - Add safe targeted publication retry
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Added a service-only database transition for retrying one definitive Failed platform on its existing Partial manual-publication job; Published, Skipped and Unknown siblings are never reset.
+  - Bound the retry claim to the authenticated owner, immutable approved payload snapshot and exact current approved entry revision in one database transaction.
+  - Retained every durable per-attempt request key so in-flight, definitively failed, published and very-late HTTP replays return the existing job without another provider call; a later deliberate retry of a definitive failure receives a new key.
+  - Added an owner-authenticated `retry_failed` Edge action which returns a confirmed replay without another provider call and rejects unsafe, stale or uncertain outcomes with fixed public copy.
+  - Integrated the durable publication panel into the entry modal and exposed Retry only beside an eligible failed platform. Confirmed siblings remain visible and are not reposted.
+  - Made browser recovery fail closed: if a dispatched retry cannot be reconciled to the same job and revision, only the selected platform becomes Unknown and further retry is disabled.
+  - Kept retry state as a projection of durable job rows and removed entry-table writes from retry reconciliation, preventing an older browser snapshot from overwriting concurrent content edits.
+  - Updated the focused data reference, platform documentation and publishing-integrity plan. The configured data-reference analyser was unavailable, so the schema, migrations, shared types, runtime repository and documentation were cross-checked manually.
+- Verification:
+  - Targeted publishing UI, utility and hook suites passed (62 tests), including preservation of an in-flight concurrent content edit.
+  - All shared Edge contract tests passed (60 tests), including current and historical retry-key replay and Unknown refusal.
+  - Deno checks passed for the publication Edge boundary, orchestration and repository.
+  - Targeted retry SQL invariants passed on disposable PostgreSQL 17, covering atomic claim, preserved Published siblings, current and delayed historical replay, wrong-owner rejection, stale approval and Unknown refusal.
+  - `npm run typecheck`
+  - Targeted ESLint, Deno lint, Prettier and `git diff --check`
+  - `npm run build`
+  - Full frontend suite: 300 passed; one pre-existing date-sensitive `UpcomingPeaksWidget` fixture failed because its fixed July 2026 peak is no longer upcoming.
+  - Three fresh adversarial-review rounds completed. The first found and prompted fixes for a split approval/claim race, stale entry writes and missing retry-intent idempotency; both subsequent rounds returned nitpicks-only with no material findings.
+- Status: Local targeted retry complete; hosted schema reconciliation, generated database types, coordinated deployment and provider test-account smoke tests remain pending
+
+## 2026-07-18 - Add fail-closed publication rollout gate
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Added a service-only `durable-manual-v1` database marker and an authenticated `publish-entry` readiness response which returns unavailable until the matching schema is present.
+  - Added `npm run check:publication-backend` and wired it into the production Pages workflow so the frontend cannot deploy against a missing, legacy or mismatched publication backend.
+  - Made the gate use the same public Supabase configuration resolver as the build. This fixed a review finding where checking the unnormalised deployment secret could approve the standalone project while the built application targeted the shared project. A security-best-practices pass then pinned the canonical production origin and required the exact two-field readiness response.
+  - Removed the obsolete direct-post script, which used the legacy browser-authored payload and could reach real providers outside the durable test-account flow.
+  - Added an attended rollout and rollback runbook and refreshed the focused platform and data references. The configured documentation analysers were unavailable, so the runtime target, hosted Edge metadata, migrations, application contracts and workflow were cross-checked manually.
+  - Reconfirmed read-only that the configured shared Intel Hub project is inactive and retains unauthenticated legacy `publish-entry` version 1. The separate standalone Content Hub project is also inactive with legacy version 13 and is not the runtime target. No hosted state or provider account was changed.
+- Verification:
+  - Publication backend gate tests passed (6 tests), including canonical-target enforcement, exact contract matching, unavailable/malformed responses and build-target resolution.
+  - Publication SQL invariants passed on disposable PostgreSQL 17, including the service-only contract marker and targeted-retry constraints.
+  - All shared Edge contract tests passed (60 tests); Deno check and targeted Deno lint passed for `publish-entry`.
+  - `npm run typecheck`, `npm run lint`, `npm run build` and `git diff --check` passed.
+  - Full frontend suite: 306 passed; one pre-existing date-sensitive `UpcomingPeaksWidget` fixture failed because its fixed July 2026 peak is no longer upcoming.
+  - `npm audit --audit-level=critical` exited successfully but reported one high-severity Vite advisory and four moderate advisories; dependency remediation remains outside this publication version-skew checkpoint.
+- Status: Local rollout gate complete and production frontend deployment intentionally blocked; attended shared-project restore, hosted schema reconciliation, secured Edge deployment, generated types and test-account smoke tests remain pending
+
+## 2026-07-18 - Stabilise the upcoming-peaks widget test clock
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Froze the `UpcomingPeaksWidget` test clock within its suite so the July 2026 fixture exercises live/upcoming filtering consistently instead of expiring as wall-clock time advances.
+  - Restored real timers after each test and left production date filtering unchanged.
+- Verification:
+  - Focused `UpcomingPeaksWidget` suite passed (1 test).
+  - Full frontend suite passed (40 files, 307 tests).
+  - `npm run typecheck`
+  - `npm run lint`
+  - Targeted ESLint and Prettier checks passed.
+  - `git diff --check`
+- Status: The date-sensitive release-verification failure is resolved; the frontend suite is fully green
+
+## 2026-07-18 - Patch the high-severity Vite advisory
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Updated the existing Vite override from 7.3.2 to the patched 7.3.6 release without changing the Vitest major line or unrelated application dependencies.
+  - Refreshed only the matching Vite lockfile record and verified a clean npm install resolves both Vitest and `@vitest/mocker` to Vite 7.3.6.
+  - Kept this checkpoint limited to the high-severity Windows development-server path advisory; the two remaining moderate transitive package findings are recorded for a separate review.
+- Verification:
+  - `npm ci --ignore-scripts`
+  - `npm ls vite --all` resolves one overridden Vite 7.3.6 installation.
+  - `npm audit --audit-level=high` passed with zero high or critical findings; two moderate transitive findings remain.
+  - Full frontend suite passed (40 files, 307 tests) under Vitest 4.1.8.
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - `git diff --check`
+- Status: The high-severity build-tool advisory is resolved; DOMPurify and JS-YAML moderate advisories remain for separate bounded checkpoints
+
+## 2026-07-18 - Patch the DOMPurify advisory in the PDF stack
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Added an exact DOMPurify 3.4.12 override for the jsPDF dependency, replacing vulnerable 3.4.7 without changing the jsPDF or reporting APIs.
+  - Refreshed only the matching DOMPurify lockfile record and verified the production bundle uses the patched sanitiser chunk.
+  - Kept the checkpoint limited to the DOMPurify configuration-pollution and sanitisation-bypass advisories; JS-YAML remains a separate build-tool concern.
+- Verification:
+  - `npm ci --ignore-scripts`
+  - `npm ls dompurify --all` resolves jsPDF to overridden DOMPurify 3.4.12.
+  - DOMPurify is absent from `npm audit`; one moderate JS-YAML advisory remains.
+  - Reporting and sanitisation suites passed (4 files, 12 tests).
+  - Full frontend suite passed (40 files, 307 tests).
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - `git diff --check`
+- Status: The bundled DOMPurify advisory is resolved; the moderate JS-YAML advisory remains for its own bounded checkpoint
+
+## 2026-07-18 - Patch the JS-YAML build-tool advisory
+
+- Tool: Codex
+- Branch: `feature/social-docs-2026-refresh`
+- Changes:
+  - Added an exact JS-YAML 4.2.0 override for ESLint's configuration dependency, replacing vulnerable 4.1.1 while remaining within the existing supported 4.x range.
+  - Refreshed only the matching JS-YAML lockfile record and retained the existing Vite and DOMPurify security overrides.
+  - Kept the dependency build-time only; application runtime behaviour and public bundle inputs were unchanged.
+- Verification:
+  - `npm ci --ignore-scripts`
+  - `npm ls js-yaml --all` resolves ESLint to overridden JS-YAML 4.2.0.
+  - `npm audit` reports zero vulnerabilities across 469 audited packages.
+  - Full frontend suite passed (40 files, 307 tests).
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - Targeted Prettier and `git diff --check` passed.
+- Status: All npm audit findings identified by the deployment checklist are resolved
+
+## 2026-07-18 - Consolidate branches for the live rollout
+
+- Tool: Codex
+- Branch: `codex/content-hub-live`
+- Changes:
+  - Audited every local and remote branch, worktree and pull request before changing repository references.
+  - Preserved all 20 historical local branches, both existing stashes and the complete dirty worktree in the verified bundle `/Users/dan/dev/population_matters/content-hub-pre-consolidation-20260718.bundle`.
+  - Renamed the active reviewed branch from `feature/social-docs-2026-refresh` to the canonical `codex/content-hub-live` branch.
+  - Pruned one stale worktree record and removed the backed-up historical local branch pointers, leaving only `main` and `codex/content-hub-live`.
+  - Kept the unmerged audience-simulation prototype and obsolete social-publishing implementation out of the forward branch; both remain recoverable from the bundle.
+  - Closed stale pull request #6 after confirming its reporting, visual-integrity and strategy-alignment work had been superseded by later work already present in the repository.
+  - Excluded generated TDD-guard path metadata from the consolidated source changes.
+  - Made the public runtime-config generator apply the repository's canonical Prettier format, preventing build and commit hooks from leaving a formatting-only dirty worktree.
+- Verification:
+  - `git bundle verify` confirmed a complete history and recoverable stash state.
+  - `git branch -vv` shows only `main` and `codex/content-hub-live`.
+  - `git worktree list` shows one valid worktree on the canonical branch.
+  - Two consecutive production builds left the generated public config unchanged.
+  - GitHub reports no stale open pull requests and only `main` plus the published canonical rollout branch.
+- Status: Branch history is consolidated and losslessly backed up; the canonical branch is published and ready for review

@@ -8,6 +8,7 @@ import { ensureArray, normalizeDateValue } from './utils';
 import { ensureAnalytics } from './sanitizers';
 import {
   normalizePlatform,
+  normalizePerformanceMetricKey,
   PERFORMANCE_HEADER_KEYS,
   PERFORMANCE_IGNORED_METRIC_KEYS,
 } from './platforms';
@@ -166,7 +167,7 @@ export const mergePerformanceData = (entries: Entry[], dataset: CsvDataset): Mer
       if (!ensureArray(matchedEntry.platforms).includes(platform)) {
         summary.ambiguous.push({
           rowNumber,
-          reason: `Entry ID "${entryIdValue}" is not scheduled for ${platform}.`,
+          reason: `Entry ID "${entryIdValue}" is not planned for ${platform}.`,
         });
         return;
       }
@@ -239,7 +240,7 @@ export const mergePerformanceData = (entries: Entry[], dataset: CsvDataset): Mer
     metricKeys.forEach((key) => {
       const rawValue = normalizedRow[key];
       if (rawValue === undefined || rawValue === null || rawValue === '') return;
-      const label = headerLabels[key] || key;
+      const label = normalizePerformanceMetricKey(headerLabels[key] || key);
       const cleanedNumeric = typeof rawValue === 'string' ? rawValue.replace(/,/g, '') : rawValue;
       const numericValue =
         typeof cleanedNumeric === 'string' && cleanedNumeric !== ''

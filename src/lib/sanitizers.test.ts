@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { determineWorkflowStatus, getWorkflowBlockers } from './sanitizers';
+import {
+  determineWorkflowStatus,
+  getWorkflowBlockers,
+  hasPublicationRelevantChanges,
+  sanitizeEntry,
+} from './sanitizers';
 
 describe('workflow readiness helpers', () => {
   it('flags required execution blockers for video content awaiting review', () => {
@@ -75,5 +80,66 @@ describe('workflow readiness helpers', () => {
         platforms: ['Instagram'],
       }),
     ).toBe('Draft');
+  });
+});
+
+describe('publication approval helpers', () => {
+  const approvedEntry = {
+    platforms: ['BlueSky'],
+    assetType: 'Design',
+    caption: 'Approved caption',
+    platformCaptions: { BlueSky: 'Approved platform caption' },
+    firstComment: 'Approved first comment',
+    assetPreviews: ['https://cdn.example.org/image.jpg'],
+    previewUrl: 'https://cdn.example.org/image.jpg',
+    comments: [],
+  };
+
+  it('detects changes to fields sent to social providers', () => {
+    expect(
+      hasPublicationRelevantChanges(approvedEntry, {
+        ...approvedEntry,
+        caption: 'Edited caption',
+      }),
+    ).toBe(true);
+    expect(
+      hasPublicationRelevantChanges(approvedEntry, {
+        ...approvedEntry,
+        assetPreviews: ['https://cdn.example.org/replacement.jpg'],
+      }),
+    ).toBe(true);
+  });
+
+  it('ignores comments and planning metadata that are not published', () => {
+    expect(
+      hasPublicationRelevantChanges(approvedEntry, {
+        ...approvedEntry,
+        comments: [
+          {
+            id: 'comment-1',
+            author: 'Fran',
+            body: 'Looks good',
+            createdAt: '2026-07-17T09:30:00.000Z',
+          },
+        ],
+        campaign: 'Choice',
+      }),
+    ).toBe(false);
+  });
+
+  it('normalises database-owned approval revisions', () => {
+    const current = sanitizeEntry({
+      id: 'entry-1',
+      contentRevision: 5,
+      approvedRevision: 5,
+    });
+    const invalid = sanitizeEntry({
+      id: 'entry-2',
+      contentRevision: 2,
+      approvedRevision: 3,
+    });
+
+    expect(current).toMatchObject({ contentRevision: 5, approvedRevision: 5 });
+    expect(invalid).toMatchObject({ contentRevision: 2, approvedRevision: null });
   });
 });

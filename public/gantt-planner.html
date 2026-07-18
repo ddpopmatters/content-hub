@@ -1,0 +1,2007 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gantt Planner</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7fbfc;
+        --surface: #ffffff;
+        --surface-soft: #eef8fa;
+        --surface-muted: #f2f4f5;
+        --border: #d6e2e6;
+        --border-strong: #9bb8c3;
+        --text: #1f3037;
+        --muted: #667780;
+        --ocean: #11607d;
+        --ocean-dark: #0c3d4e;
+        --aqua: #00c4c7;
+        --red: #b91c1c;
+        --shadow: 0 24px 70px -42px rgba(11, 44, 75, 0.55);
+        --radius: 8px;
+        --radius-sm: 6px;
+        --label-width: 180px;
+        --timeline-width: 920px;
+        --focus: 0 0 0 3px rgba(0, 196, 199, 0.28);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        min-height: 100%;
+        background: var(--bg);
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        font-family:
+          'Neue Haas Grotesk Display', 'Neue Haas Grotesk', 'Helvetica Neue', Arial, sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(0, 196, 199, 0.16), transparent 32rem),
+          linear-gradient(180deg, #f7fbfc 0%, #ffffff 52%, #f7fbfc 100%);
+        color: var(--text);
+      }
+
+      button,
+      input,
+      textarea,
+      select {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      :focus-visible {
+        outline: none;
+        box-shadow: var(--focus);
+      }
+
+      .app {
+        min-height: 100vh;
+        padding: 24px;
+      }
+
+      .topbar,
+      .control-strip,
+      .planner-shell {
+        max-width: 1440px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: minmax(260px, 1fr) auto;
+        gap: 20px;
+        align-items: start;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        color: var(--ocean-dark);
+        font-size: 2rem;
+        font-weight: 750;
+        line-height: 1.1;
+      }
+
+      .board-title-input {
+        width: min(100%, 36rem);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.88);
+        color: var(--text);
+        padding: 10px 12px;
+        font-size: 0.95rem;
+        line-height: 1.4;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 40px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        color: var(--ocean-dark);
+        padding: 9px 12px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        line-height: 1.2;
+        text-decoration: none;
+        transition:
+          border-color 160ms ease,
+          background 160ms ease,
+          color 160ms ease,
+          transform 160ms ease;
+      }
+
+      .button:hover {
+        border-color: var(--border-strong);
+        transform: translateY(-1px);
+      }
+
+      .button.primary {
+        border-color: var(--ocean);
+        background: var(--ocean);
+        color: #ffffff;
+      }
+
+      .button.primary:hover {
+        background: var(--ocean-dark);
+      }
+
+      .button.danger {
+        color: var(--red);
+      }
+
+      .button.icon-only {
+        width: 40px;
+        padding: 0;
+      }
+
+      .button svg {
+        width: 16px;
+        height: 16px;
+        flex: 0 0 auto;
+      }
+
+      .import-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+
+      .control-strip {
+        display: grid;
+        grid-template-columns: auto minmax(220px, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 18px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.82);
+        padding: 12px;
+        box-shadow: var(--shadow);
+      }
+
+      .year-nav {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 184px;
+      }
+
+      .year-display {
+        min-width: 5ch;
+        color: var(--ocean-dark);
+        text-align: center;
+        font-size: 1.15rem;
+        font-weight: 800;
+      }
+
+      .search-field {
+        position: relative;
+      }
+
+      .search-field svg {
+        position: absolute;
+        top: 50%;
+        left: 12px;
+        width: 16px;
+        height: 16px;
+        transform: translateY(-50%);
+        color: var(--muted);
+        pointer-events: none;
+      }
+
+      .search-field input {
+        width: 100%;
+        min-height: 40px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        color: var(--text);
+        padding: 9px 12px 9px 38px;
+        font-size: 0.92rem;
+      }
+
+      .stats {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      .stat-pill {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface-soft);
+        padding: 8px 10px;
+        white-space: nowrap;
+      }
+
+      .planner-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+
+      .lane {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.86);
+        box-shadow: var(--shadow);
+      }
+
+      .lane-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--border);
+        padding: 14px 16px;
+      }
+
+      .lane-title {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        line-height: 1.2;
+        text-transform: uppercase;
+      }
+
+      .timeline-scroll {
+        overflow-x: auto;
+        padding: 12px 16px 16px;
+      }
+
+      .gantt {
+        min-width: calc(var(--label-width) + var(--timeline-width));
+      }
+
+      .month-row {
+        display: flex;
+        margin-left: var(--label-width);
+      }
+
+      .month {
+        color: #8a9aa2;
+        text-align: center;
+        font-size: 0.74rem;
+        font-weight: 800;
+        line-height: 1.4;
+      }
+
+      .timeline-area {
+        position: relative;
+      }
+
+      .grid-lines {
+        position: absolute;
+        inset: 0 0 0 var(--label-width);
+        pointer-events: none;
+      }
+
+      .grid-line {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        border-left: 1px solid #edf2f4;
+      }
+
+      .today-line {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        z-index: 4;
+        width: 1px;
+        background: var(--ocean);
+        pointer-events: none;
+      }
+
+      .gantt-row {
+        display: flex;
+        align-items: center;
+        min-height: 38px;
+        padding: 4px 0;
+      }
+
+      .row-label {
+        display: flex;
+        width: var(--label-width);
+        flex: 0 0 var(--label-width);
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        padding-right: 12px;
+      }
+
+      .row-name {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--text);
+        font-size: 0.88rem;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .type-badge {
+        flex: 0 0 auto;
+        border-radius: var(--radius-sm);
+        background: #e8f7f9;
+        color: var(--ocean-dark);
+        padding: 3px 6px;
+        font-size: 0.68rem;
+        font-weight: 800;
+        line-height: 1.2;
+        text-transform: capitalize;
+      }
+
+      .type-badge.theme {
+        background: #f3e8ff;
+        color: #6b21a8;
+      }
+
+      .type-badge.series,
+      .type-badge.policy {
+        background: #fef3c7;
+        color: #92400e;
+      }
+
+      .type-badge.conference {
+        background: #ede9fe;
+        color: #5b21b6;
+      }
+
+      .type-badge.fundraising {
+        background: #dcfce7;
+        color: #166534;
+      }
+
+      .type-badge.internal {
+        background: #f1f5f9;
+        color: #475569;
+      }
+
+      .type-badge.report {
+        background: #e0f2fe;
+        color: #075985;
+      }
+
+      .type-badge.partnership {
+        background: #fce7f3;
+        color: #9d174d;
+      }
+
+      .bar-cell {
+        position: relative;
+        height: 30px;
+        flex: 1 0 var(--timeline-width);
+      }
+
+      .gantt-bar {
+        position: absolute;
+        inset-block: 4px;
+        overflow: hidden;
+        min-width: 8px;
+        border: 0;
+        border-radius: var(--radius-sm);
+        color: #ffffff;
+        padding: 0 9px;
+        text-align: left;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.78rem;
+        font-weight: 800;
+        line-height: 22px;
+        box-shadow: 0 10px 22px -18px rgba(3, 22, 29, 0.82);
+      }
+
+      .gantt-bar:hover {
+        filter: brightness(0.94);
+      }
+
+      .empty-state {
+        padding: 32px 12px;
+        color: #8a9aa2;
+        text-align: center;
+        font-size: 0.9rem;
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: grid;
+        place-items: center;
+        overflow: auto;
+        background: rgba(3, 22, 29, 0.48);
+        padding: 18px;
+      }
+
+      .modal-backdrop[hidden] {
+        display: none;
+      }
+
+      .modal {
+        width: min(100%, 620px);
+        max-height: calc(100vh - 36px);
+        overflow: auto;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        box-shadow: 0 30px 80px -36px rgba(3, 22, 29, 0.72);
+      }
+
+      .modal-header,
+      .modal-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px;
+      }
+
+      .modal-header {
+        border-bottom: 1px solid var(--border);
+      }
+
+      .modal-footer {
+        border-top: 1px solid var(--border);
+      }
+
+      .modal-title {
+        margin: 0;
+        color: var(--ocean-dark);
+        font-size: 1.15rem;
+        line-height: 1.2;
+      }
+
+      .modal-body {
+        padding: 16px;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .field.full {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+
+      input,
+      textarea,
+      select {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        color: var(--text);
+        padding: 9px 10px;
+        font-size: 0.9rem;
+        line-height: 1.35;
+      }
+
+      textarea {
+        min-height: 94px;
+        resize: vertical;
+      }
+
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 7px;
+      }
+
+      .swatch {
+        width: 28px;
+        height: 28px;
+        border: 2px solid transparent;
+        border-radius: 999px;
+        padding: 0;
+      }
+
+      .swatch[aria-checked='true'] {
+        border-color: var(--text);
+        box-shadow: 0 0 0 2px #ffffff inset;
+        transform: scale(1.08);
+      }
+
+      .tooltip {
+        position: fixed;
+        z-index: 80;
+        width: 240px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        box-shadow: 0 18px 52px -30px rgba(3, 22, 29, 0.82);
+        pointer-events: none;
+      }
+
+      .tooltip[hidden] {
+        display: none;
+      }
+
+      .tooltip-accent {
+        height: 4px;
+        border-radius: var(--radius) var(--radius) 0 0;
+      }
+
+      .tooltip-body {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 10px 12px;
+      }
+
+      .tooltip-title {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .tooltip-name {
+        color: var(--text);
+        font-size: 0.88rem;
+        font-weight: 800;
+        line-height: 1.25;
+      }
+
+      .tooltip-meta,
+      .tooltip-duration,
+      .tooltip-notes {
+        color: var(--muted);
+        font-size: 0.78rem;
+        line-height: 1.35;
+      }
+
+      .tooltip-notes {
+        border-top: 1px solid var(--border);
+        margin: 0;
+        padding-top: 7px;
+      }
+
+      .toast {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 70;
+        width: min(360px, calc(100vw - 36px));
+        border: 1px solid #b7eadf;
+        border-radius: var(--radius);
+        background: #ecfdf5;
+        color: #065f46;
+        padding: 12px 14px;
+        box-shadow: 0 18px 48px -28px rgba(3, 22, 29, 0.72);
+        font-size: 0.88rem;
+        font-weight: 700;
+      }
+
+      .toast[hidden] {
+        display: none;
+      }
+
+      .screen-reader-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+        padding: 0;
+      }
+
+      @media (max-width: 980px) {
+        .topbar,
+        .control-strip {
+          grid-template-columns: 1fr;
+        }
+
+        .toolbar,
+        .stats {
+          justify-content: flex-start;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .app {
+          padding: 14px;
+        }
+
+        h1 {
+          font-size: 1.55rem;
+        }
+
+        .lane-header,
+        .modal-header,
+        .modal-footer {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .modal-footer .button {
+          width: 100%;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      @media print {
+        body {
+          background: #ffffff;
+        }
+
+        .toolbar,
+        .control-strip,
+        .button,
+        .toast {
+          display: none;
+        }
+
+        .app {
+          padding: 0;
+        }
+
+        .lane {
+          break-inside: avoid;
+          box-shadow: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div>
+          <h1>Gantt Planner</h1>
+          <label class="screen-reader-only" for="board-title">Plan name</label>
+          <input
+            class="board-title-input"
+            id="board-title"
+            type="text"
+            maxlength="80"
+            autocomplete="off"
+          />
+        </div>
+        <div class="toolbar" aria-label="Plan actions">
+          <button class="button primary" id="add-campaign-button" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 5v14M5 12h14"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-width="2"
+              />
+            </svg>
+            Add campaign
+          </button>
+          <button class="button" id="add-event-button" type="button">Add event</button>
+          <button class="button" id="export-json-button" type="button">Export JSON</button>
+          <button class="button" id="export-csv-button" type="button">Export CSV</button>
+          <button class="button" id="export-excel-button" type="button">Export Excel</button>
+          <label class="button" for="import-json-input">Import JSON</label>
+          <input
+            class="import-input"
+            id="import-json-input"
+            type="file"
+            accept=".json,application/json"
+          />
+          <label class="button" for="import-excel-input">Import Excel</label>
+          <input
+            class="import-input"
+            id="import-excel-input"
+            type="file"
+            accept=".xls,.xml,application/vnd.ms-excel,text/xml,application/xml"
+          />
+          <a class="button" id="excel-template-link" href="gantt-planner-storage.xlsx" download
+            >Excel template</a
+          >
+          <button class="button danger" id="clear-plan-button" type="button">Clear</button>
+        </div>
+      </header>
+
+      <section class="control-strip" aria-label="Timeline controls">
+        <div class="year-nav">
+          <button
+            class="button icon-only"
+            id="previous-year-button"
+            type="button"
+            aria-label="Previous year"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="m15 18-6-6 6-6"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+              />
+            </svg>
+          </button>
+          <div class="year-display" id="year-display" aria-live="polite"></div>
+          <button
+            class="button icon-only"
+            id="next-year-button"
+            type="button"
+            aria-label="Next year"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="m9 18 6-6-6-6"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+              />
+            </svg>
+          </button>
+        </div>
+        <div class="search-field">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="m21 21-4.35-4.35M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-width="2"
+            />
+          </svg>
+          <label class="screen-reader-only" for="search">Search timeline items</label>
+          <input id="search" type="search" placeholder="Search campaigns, events, types or notes" />
+        </div>
+        <div class="stats" id="stats" aria-live="polite"></div>
+      </section>
+
+      <main class="planner-shell">
+        <section class="lane" aria-labelledby="campaign-lane-title">
+          <div class="lane-header">
+            <h2 class="lane-title" id="campaign-lane-title">Comms campaigns</h2>
+            <button class="button" id="lane-add-campaign-button" type="button">Add campaign</button>
+          </div>
+          <div class="timeline-scroll">
+            <div class="gantt" id="campaign-gantt"></div>
+          </div>
+        </section>
+
+        <section class="lane" aria-labelledby="org-lane-title">
+          <div class="lane-header">
+            <h2 class="lane-title" id="org-lane-title">Organisation</h2>
+            <button class="button" id="lane-add-event-button" type="button">Add event</button>
+          </div>
+          <div class="timeline-scroll">
+            <div class="gantt" id="org-gantt"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <section
+      class="modal-backdrop"
+      id="item-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="item-modal-title"
+      hidden
+    >
+      <div class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title" id="item-modal-title">New item</h2>
+          <button
+            class="button icon-only"
+            id="close-item-modal"
+            type="button"
+            aria-label="Close editor"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="m6 6 12 12M18 6 6 18"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-width="2"
+              />
+            </svg>
+          </button>
+        </div>
+        <form id="item-form">
+          <div class="modal-body">
+            <input id="item-id" type="hidden" />
+            <input id="item-kind" type="hidden" />
+            <div class="form-grid">
+              <div class="field full">
+                <label for="item-name">Name</label>
+                <input id="item-name" type="text" maxlength="120" required />
+              </div>
+              <div class="field">
+                <label for="item-type">Type</label>
+                <select id="item-type" required></select>
+              </div>
+              <div class="field" id="custom-type-field" hidden>
+                <label for="item-custom-type">Custom type</label>
+                <input id="item-custom-type" type="text" maxlength="60" />
+              </div>
+              <div class="field">
+                <label for="item-start">Start date</label>
+                <input id="item-start" type="date" required />
+              </div>
+              <div class="field">
+                <label for="item-end">End date</label>
+                <input id="item-end" type="date" required />
+              </div>
+              <div class="field full">
+                <label id="colour-label">Colour</label>
+                <div
+                  class="swatches"
+                  id="colour-swatches"
+                  role="radiogroup"
+                  aria-labelledby="colour-label"
+                ></div>
+              </div>
+              <div class="field full">
+                <label for="item-notes">Notes</label>
+                <textarea id="item-notes" maxlength="1200"></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="button danger" id="delete-item-button" type="button">Delete</button>
+            <div class="toolbar">
+              <button class="button" id="cancel-item-button" type="button">Cancel</button>
+              <button class="button primary" type="submit">Save</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <div class="tooltip" id="tooltip" role="tooltip" hidden>
+      <div class="tooltip-accent" id="tooltip-accent"></div>
+      <div class="tooltip-body">
+        <div class="tooltip-title">
+          <span class="tooltip-name" id="tooltip-name"></span>
+          <span class="type-badge" id="tooltip-type"></span>
+        </div>
+        <div class="tooltip-meta" id="tooltip-dates"></div>
+        <div class="tooltip-duration" id="tooltip-duration"></div>
+        <p class="tooltip-notes" id="tooltip-notes"></p>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <script>
+      (() => {
+        const STORAGE_KEY = 'content-hub-standalone-gantt-v1';
+        const CURRENT_YEAR = new Date().getFullYear();
+        const MONTHS = [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
+        const MONTH_DAYS_NORMAL = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        const MONTH_DAYS_LEAP = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        const CUSTOM_TYPE = '__custom__';
+        const COLOURS = [
+          ['Crimson', '#dc2626'],
+          ['Coral', '#ea580c'],
+          ['Amber', '#d97706'],
+          ['Yellow', '#ca8a04'],
+          ['Lime', '#65a30d'],
+          ['Emerald', '#059669'],
+          ['Teal', '#0d9488'],
+          ['Cyan', '#0891b2'],
+          ['Sky', '#0284c7'],
+          ['Blue', '#2563eb'],
+          ['Indigo', '#4338ca'],
+          ['Violet', '#7c3aed'],
+          ['Purple', '#9333ea'],
+          ['Fuchsia', '#c026d3'],
+          ['Pink', '#db2777'],
+          ['Rose', '#e11d48'],
+          ['Slate', '#334155'],
+          ['Steel', '#475569'],
+          ['Bronze', '#92400e'],
+          ['Forest', '#166534'],
+          ['Navy', '#1e3a8a'],
+          ['Plum', '#6b21a8'],
+          ['Garnet', '#881337'],
+          ['Moss', '#3f6212'],
+        ];
+        const CAMPAIGN_TYPES = [
+          ['campaign', 'Campaign', '#0284c7'],
+          ['theme', 'Theme', '#7c3aed'],
+          ['series', 'Series', '#d97706'],
+        ];
+        const ORG_TYPES = [
+          ['conference', 'Conference / event', '#7c3aed'],
+          ['policy', 'Policy moment', '#d97706'],
+          ['fundraising', 'Fundraising', '#059669'],
+          ['internal', 'Internal milestone', '#475569'],
+          ['report', 'Report / publication', '#0284c7'],
+          ['partnership', 'Partnership', '#db2777'],
+        ];
+        const EXCEL_HEADERS = [
+          'ID',
+          'Name',
+          'Type',
+          'Start date',
+          'End date',
+          'Colour',
+          'Notes',
+          'Created by',
+          'Created at',
+        ];
+        const SPREADSHEET_NAMESPACE = 'urn:schemas-microsoft-com:office:spreadsheet';
+
+        const elements = {
+          boardTitle: document.getElementById('board-title'),
+          previousYear: document.getElementById('previous-year-button'),
+          nextYear: document.getElementById('next-year-button'),
+          yearDisplay: document.getElementById('year-display'),
+          search: document.getElementById('search'),
+          stats: document.getElementById('stats'),
+          campaignGantt: document.getElementById('campaign-gantt'),
+          orgGantt: document.getElementById('org-gantt'),
+          addCampaignButton: document.getElementById('add-campaign-button'),
+          laneAddCampaignButton: document.getElementById('lane-add-campaign-button'),
+          addEventButton: document.getElementById('add-event-button'),
+          laneAddEventButton: document.getElementById('lane-add-event-button'),
+          exportJsonButton: document.getElementById('export-json-button'),
+          exportCsvButton: document.getElementById('export-csv-button'),
+          exportExcelButton: document.getElementById('export-excel-button'),
+          importJsonInput: document.getElementById('import-json-input'),
+          importExcelInput: document.getElementById('import-excel-input'),
+          clearPlanButton: document.getElementById('clear-plan-button'),
+          itemModal: document.getElementById('item-modal'),
+          itemForm: document.getElementById('item-form'),
+          itemModalTitle: document.getElementById('item-modal-title'),
+          closeItemModal: document.getElementById('close-item-modal'),
+          cancelItemButton: document.getElementById('cancel-item-button'),
+          deleteItemButton: document.getElementById('delete-item-button'),
+          itemId: document.getElementById('item-id'),
+          itemKind: document.getElementById('item-kind'),
+          itemName: document.getElementById('item-name'),
+          itemType: document.getElementById('item-type'),
+          customTypeField: document.getElementById('custom-type-field'),
+          itemCustomType: document.getElementById('item-custom-type'),
+          itemStart: document.getElementById('item-start'),
+          itemEnd: document.getElementById('item-end'),
+          itemNotes: document.getElementById('item-notes'),
+          colourSwatches: document.getElementById('colour-swatches'),
+          tooltip: document.getElementById('tooltip'),
+          tooltipAccent: document.getElementById('tooltip-accent'),
+          tooltipName: document.getElementById('tooltip-name'),
+          tooltipType: document.getElementById('tooltip-type'),
+          tooltipDates: document.getElementById('tooltip-dates'),
+          tooltipDuration: document.getElementById('tooltip-duration'),
+          tooltipNotes: document.getElementById('tooltip-notes'),
+          toast: document.getElementById('toast'),
+        };
+
+        let selectedColour = '#0284c7';
+        let toastTimer = 0;
+        let state = loadState();
+
+        function storage() {
+          try {
+            window.localStorage.setItem('__gantt_test__', '1');
+            window.localStorage.removeItem('__gantt_test__');
+            return window.localStorage;
+          } catch {
+            return null;
+          }
+        }
+
+        function createId(prefix) {
+          if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            return window.crypto.randomUUID();
+          }
+          return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        }
+
+        function asString(value) {
+          return typeof value === 'string' ? value.trim() : '';
+        }
+
+        function dateOffset(month, day, year = CURRENT_YEAR) {
+          return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
+
+        function isLeapYear(year) {
+          return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+        }
+
+        function daysInYear(year) {
+          return isLeapYear(year) ? 366 : 365;
+        }
+
+        function monthWidths(year) {
+          const days = isLeapYear(year) ? MONTH_DAYS_LEAP : MONTH_DAYS_NORMAL;
+          const total = daysInYear(year);
+          return days.map((dayCount) => (dayCount / total) * 100);
+        }
+
+        function dayOfYear(dateStr) {
+          const [year, month, day] = dateStr.split('-').map(Number);
+          const diff = Date.UTC(year, month - 1, day) - Date.UTC(year, 0, 1);
+          return Math.floor(diff / 86400000) + 1;
+        }
+
+        function clamp(value, min, max) {
+          return Math.max(min, Math.min(max, value));
+        }
+
+        function barPosition(startDate, endDate, year) {
+          const yearStart = `${year}-01-01`;
+          const yearEnd = `${year}-12-31`;
+          if (!startDate || !endDate || startDate > yearEnd || endDate < yearStart) return null;
+          const clampedStart = startDate < yearStart ? yearStart : startDate;
+          const clampedEnd = endDate > yearEnd ? yearEnd : endDate;
+          const total = daysInYear(year);
+          const startDay = dayOfYear(clampedStart);
+          const endDay = dayOfYear(clampedEnd);
+          const left = clamp(((startDay - 1) / total) * 100, 0, 100);
+          const width = clamp(((endDay - startDay + 1) / total) * 100, 0, 100 - left);
+          return { left: `${left.toFixed(2)}%`, width: `${width.toFixed(2)}%` };
+        }
+
+        function todayPosition(year) {
+          const now = new Date();
+          if (now.getFullYear() !== year) return null;
+          const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+            now.getDate(),
+          ).padStart(2, '0')}`;
+          return ((dayOfYear(today) - 1) / daysInYear(year)) * 100;
+        }
+
+        function normaliseColour(value, fallback) {
+          const colour = asString(value);
+          return /^#[0-9a-f]{6}$/i.test(colour) ? colour : fallback;
+        }
+
+        function normaliseItem(raw, kind) {
+          const typeOptions = kind === 'campaign' ? CAMPAIGN_TYPES : ORG_TYPES;
+          const fallbackType = typeOptions[0][0];
+          const fallbackColour = typeOptions[0][2];
+          const type = asString(raw.type) || fallbackType;
+          const now = new Date().toISOString();
+          return {
+            id: asString(raw.id) || createId(kind),
+            name: asString(raw.name) || asString(raw.title) || 'Untitled',
+            type,
+            startDate: asString(raw.startDate) || asString(raw.start_date) || dateOffset(1, 1),
+            endDate: asString(raw.endDate) || asString(raw.end_date) || dateOffset(1, 31),
+            colour: normaliseColour(
+              raw.colour || raw.color,
+              normaliseTypeColour(kind, type, fallbackColour),
+            ),
+            notes: asString(raw.notes),
+            createdBy: asString(raw.createdBy) || asString(raw.created_by),
+            createdAt: asString(raw.createdAt) || asString(raw.created_at) || now,
+          };
+        }
+
+        function sampleCampaigns() {
+          return [
+            normaliseItem(
+              {
+                name: 'Spring campaign',
+                type: 'campaign',
+                startDate: dateOffset(2, 10),
+                endDate: dateOffset(4, 15),
+                colour: '#0284c7',
+                notes: 'Launch planning, asset deadlines and approval windows.',
+              },
+              'campaign',
+            ),
+            normaliseItem(
+              {
+                name: 'Rights messaging theme',
+                type: 'theme',
+                startDate: dateOffset(5, 1),
+                endDate: dateOffset(8, 31),
+                colour: '#7c3aed',
+                notes: 'A broad editorial theme for content planning.',
+              },
+              'campaign',
+            ),
+            normaliseItem(
+              {
+                name: 'Explainer series',
+                type: 'series',
+                startDate: dateOffset(9, 5),
+                endDate: dateOffset(11, 22),
+                colour: '#d97706',
+                notes: 'Recurring posts across the autumn content calendar.',
+              },
+              'campaign',
+            ),
+          ];
+        }
+
+        function sampleOrgEvents() {
+          return [
+            normaliseItem(
+              {
+                name: 'Policy milestone',
+                type: 'policy',
+                startDate: dateOffset(3, 20),
+                endDate: dateOffset(3, 20),
+                colour: '#d97706',
+                notes: 'Possible response window for planning.',
+              },
+              'event',
+            ),
+            normaliseItem(
+              {
+                name: 'Annual report',
+                type: 'report',
+                startDate: dateOffset(6, 1),
+                endDate: dateOffset(6, 30),
+                colour: '#0284c7',
+                notes: 'Publication and supporting comms.',
+              },
+              'event',
+            ),
+          ];
+        }
+
+        function loadState() {
+          const fallback = {
+            version: 1,
+            planTitle: 'Standalone yearly plan',
+            year: CURRENT_YEAR,
+            campaigns: sampleCampaigns(),
+            orgEvents: sampleOrgEvents(),
+          };
+          const store = storage();
+          if (!store) return fallback;
+          try {
+            const saved = store.getItem(STORAGE_KEY);
+            if (!saved) return fallback;
+            const parsed = JSON.parse(saved);
+            return {
+              version: 1,
+              planTitle: asString(parsed.planTitle) || 'Standalone yearly plan',
+              year: Number.isInteger(parsed.year) ? parsed.year : CURRENT_YEAR,
+              campaigns: Array.isArray(parsed.campaigns)
+                ? parsed.campaigns.map((item) => normaliseItem(item, 'campaign'))
+                : [],
+              orgEvents: Array.isArray(parsed.orgEvents)
+                ? parsed.orgEvents.map((item) => normaliseItem(item, 'event'))
+                : [],
+            };
+          } catch {
+            return fallback;
+          }
+        }
+
+        function saveState() {
+          const store = storage();
+          if (!store) return;
+          store.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+              version: 1,
+              planTitle: state.planTitle,
+              year: state.year,
+              campaigns: state.campaigns,
+              orgEvents: state.orgEvents,
+            }),
+          );
+        }
+
+        function setToast(message) {
+          window.clearTimeout(toastTimer);
+          elements.toast.textContent = message;
+          elements.toast.hidden = false;
+          toastTimer = window.setTimeout(() => {
+            elements.toast.hidden = true;
+          }, 2600);
+        }
+
+        function normaliseTypeColour(kind, type, fallback) {
+          const options = kind === 'campaign' ? CAMPAIGN_TYPES : ORG_TYPES;
+          const match = options.find(([value]) => value === type);
+          return match ? match[2] : fallback;
+        }
+
+        function typeLabel(kind, type) {
+          const options = kind === 'campaign' ? CAMPAIGN_TYPES : ORG_TYPES;
+          const match = options.find(([value]) => value === type);
+          if (match) return match[1];
+          return type;
+        }
+
+        function typeClass(type) {
+          return asString(type)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-');
+        }
+
+        function itemVisibleInYear(item) {
+          return item.startDate <= `${state.year}-12-31` && item.endDate >= `${state.year}-01-01`;
+        }
+
+        function matchesSearch(item) {
+          const query = elements.search.value.trim().toLowerCase();
+          if (!query) return true;
+          return [item.name, item.type, item.notes, item.startDate, item.endDate]
+            .join(' ')
+            .toLowerCase()
+            .includes(query);
+        }
+
+        function visibleItems(items) {
+          return items
+            .filter(itemVisibleInYear)
+            .filter(matchesSearch)
+            .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.name.localeCompare(b.name));
+        }
+
+        function formatDate(value) {
+          if (!value) return '';
+          const [year, month, day] = value.split('-').map(Number);
+          if (!year || !month || !day) return value;
+          return new Intl.DateTimeFormat('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }).format(new Date(year, month - 1, day));
+        }
+
+        function durationLabel(startDate, endDate) {
+          const start = new Date(`${startDate}T00:00:00Z`);
+          const end = new Date(`${endDate}T00:00:00Z`);
+          const days = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+          if (days <= 1) return '1 day';
+          if (days < 7) return `${days} days`;
+          const weeks = Math.round(days / 7);
+          if (weeks < 5) return `${weeks} week${weeks === 1 ? '' : 's'}`;
+          const months = Math.round(days / 30.44);
+          return `${months} month${months === 1 ? '' : 's'}`;
+        }
+
+        function createMonthHeader(widths) {
+          const row = document.createElement('div');
+          row.className = 'month-row';
+          MONTHS.forEach((month, index) => {
+            const cell = document.createElement('div');
+            cell.className = 'month';
+            cell.style.width = `${widths[index]}%`;
+            cell.textContent = month;
+            row.append(cell);
+          });
+          return row;
+        }
+
+        function createGridLines(widths) {
+          const lines = document.createElement('div');
+          lines.className = 'grid-lines';
+          MONTHS.forEach((_, index) => {
+            const left = widths.slice(0, index).reduce((sum, width) => sum + width, 0);
+            const line = document.createElement('div');
+            line.className = 'grid-line';
+            line.style.left = `${left}%`;
+            lines.append(line);
+          });
+          const rightLine = document.createElement('div');
+          rightLine.className = 'grid-line';
+          rightLine.style.right = '0';
+          lines.append(rightLine);
+          return lines;
+        }
+
+        function createTodayLine(year) {
+          const position = todayPosition(year);
+          if (position === null) return null;
+          const line = document.createElement('div');
+          line.className = 'today-line';
+          line.style.left = `calc(var(--label-width) + ${position / 100} * var(--timeline-width))`;
+          line.setAttribute('aria-hidden', 'true');
+          return line;
+        }
+
+        function renderGantt(container, items, kind, emptyText) {
+          const filtered = visibleItems(items);
+          const widths = monthWidths(state.year);
+          container.innerHTML = '';
+          container.append(createMonthHeader(widths));
+          const area = document.createElement('div');
+          area.className = 'timeline-area';
+          area.append(createGridLines(widths));
+          const todayLine = createTodayLine(state.year);
+          if (todayLine) area.append(todayLine);
+
+          if (!filtered.length) {
+            const empty = document.createElement('div');
+            empty.className = 'empty-state';
+            empty.textContent = emptyText;
+            area.append(empty);
+          } else {
+            filtered.forEach((item) => area.append(createGanttRow(item, kind)));
+          }
+          container.append(area);
+        }
+
+        function createGanttRow(item, kind) {
+          const row = document.createElement('div');
+          row.className = 'gantt-row';
+          const label = document.createElement('div');
+          label.className = 'row-label';
+          const name = document.createElement('span');
+          name.className = 'row-name';
+          name.title = item.name;
+          name.textContent = item.name;
+          const badge = document.createElement('span');
+          badge.className = `type-badge ${typeClass(item.type)}`;
+          badge.textContent = typeLabel(kind, item.type);
+          label.append(name, badge);
+
+          const cell = document.createElement('div');
+          cell.className = 'bar-cell';
+          const pos = barPosition(item.startDate, item.endDate, state.year);
+          if (pos) {
+            const bar = document.createElement('button');
+            bar.type = 'button';
+            bar.className = 'gantt-bar';
+            bar.style.left = pos.left;
+            bar.style.width = pos.width;
+            bar.style.backgroundColor = item.colour;
+            bar.textContent = item.name;
+            bar.setAttribute(
+              'aria-label',
+              `${item.name} (${typeLabel(kind, item.type)}): ${item.startDate} to ${item.endDate}; click to edit`,
+            );
+            bar.addEventListener('click', () => openItemModal(kind, item.id));
+            bar.addEventListener('mouseenter', (event) => showTooltip(item, kind, event));
+            bar.addEventListener('mousemove', (event) => positionTooltip(event));
+            bar.addEventListener('mouseleave', hideTooltip);
+            cell.append(bar);
+          }
+          row.append(label, cell);
+          return row;
+        }
+
+        function renderStats() {
+          const campaignCount = visibleItems(state.campaigns).length;
+          const eventCount = visibleItems(state.orgEvents).length;
+          elements.stats.innerHTML = '';
+          [`${campaignCount} campaigns`, `${eventCount} org items`, `${state.year}`].forEach(
+            (text) => {
+              const pill = document.createElement('span');
+              pill.className = 'stat-pill';
+              pill.textContent = text;
+              elements.stats.append(pill);
+            },
+          );
+        }
+
+        function render() {
+          elements.boardTitle.value = state.planTitle;
+          elements.yearDisplay.textContent = String(state.year);
+          renderGantt(
+            elements.campaignGantt,
+            state.campaigns,
+            'campaign',
+            `No campaigns for ${state.year} - add one to get started.`,
+          );
+          renderGantt(
+            elements.orgGantt,
+            state.orgEvents,
+            'event',
+            `No org events for ${state.year} - add conferences, milestones, policy moments and more.`,
+          );
+          renderStats();
+        }
+
+        function populateTypeOptions(kind, currentType) {
+          const options = kind === 'campaign' ? CAMPAIGN_TYPES : ORG_TYPES;
+          elements.itemType.innerHTML = '';
+          options.forEach(([value, label]) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            elements.itemType.append(option);
+          });
+          const divider = document.createElement('option');
+          divider.disabled = true;
+          divider.textContent = '----------';
+          elements.itemType.append(divider);
+          const custom = document.createElement('option');
+          custom.value = CUSTOM_TYPE;
+          custom.textContent = 'Custom...';
+          elements.itemType.append(custom);
+          const known = options.some(([value]) => value === currentType);
+          elements.itemType.value = known ? currentType : CUSTOM_TYPE;
+          elements.customTypeField.hidden = known;
+          elements.itemCustomType.required = !known;
+          elements.itemCustomType.value = known ? '' : currentType || '';
+        }
+
+        function renderSwatches(colour) {
+          selectedColour = colour;
+          elements.colourSwatches.innerHTML = '';
+          COLOURS.forEach(([label, value]) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'swatch';
+            button.style.backgroundColor = value;
+            button.setAttribute('role', 'radio');
+            button.setAttribute('aria-label', label);
+            button.setAttribute('aria-checked', String(value === selectedColour));
+            button.title = label;
+            button.addEventListener('click', () => {
+              selectedColour = value;
+              Array.from(elements.colourSwatches.children).forEach((child) => {
+                child.setAttribute('aria-checked', String(child === button));
+              });
+            });
+            elements.colourSwatches.append(button);
+          });
+        }
+
+        function getCollection(kind) {
+          return kind === 'campaign' ? state.campaigns : state.orgEvents;
+        }
+
+        function setCollection(kind, items) {
+          if (kind === 'campaign') state.campaigns = items;
+          else state.orgEvents = items;
+        }
+
+        function openItemModal(kind, id = '') {
+          const collection = getCollection(kind);
+          const item = collection.find((entry) => entry.id === id);
+          const defaults = kind === 'campaign' ? CAMPAIGN_TYPES[0] : ORG_TYPES[0];
+          elements.itemForm.reset();
+          elements.itemKind.value = kind;
+          elements.itemId.value = item ? item.id : '';
+          elements.itemModalTitle.textContent = item
+            ? kind === 'campaign'
+              ? 'Edit campaign'
+              : 'Edit org event'
+            : kind === 'campaign'
+              ? 'New campaign'
+              : 'New org event';
+          elements.deleteItemButton.hidden = !item;
+          elements.itemName.value = item ? item.name : '';
+          populateTypeOptions(kind, item ? item.type : defaults[0]);
+          elements.itemStart.value = item ? item.startDate : `${state.year}-01-01`;
+          elements.itemEnd.value = item ? item.endDate : `${state.year}-01-31`;
+          elements.itemNotes.value = item ? item.notes : '';
+          renderSwatches(item ? item.colour : defaults[2]);
+          elements.itemModal.hidden = false;
+          window.setTimeout(() => elements.itemName.focus(), 0);
+        }
+
+        function closeItemModal() {
+          elements.itemModal.hidden = true;
+        }
+
+        function saveItem(event) {
+          event.preventDefault();
+          const kind = elements.itemKind.value;
+          const id = elements.itemId.value || createId(kind);
+          const collection = getCollection(kind);
+          const existing = collection.find((entry) => entry.id === id);
+          const selectedType =
+            elements.itemType.value === CUSTOM_TYPE
+              ? elements.itemCustomType.value.trim()
+              : elements.itemType.value;
+          if (!selectedType) {
+            window.alert('Type is required.');
+            return;
+          }
+          if (elements.itemEnd.value < elements.itemStart.value) {
+            window.alert('End date must be on or after the start date.');
+            return;
+          }
+          const item = normaliseItem(
+            {
+              id,
+              name: elements.itemName.value,
+              type: selectedType,
+              startDate: elements.itemStart.value,
+              endDate: elements.itemEnd.value,
+              colour: selectedColour,
+              notes: elements.itemNotes.value,
+              createdBy: existing ? existing.createdBy : '',
+              createdAt: existing ? existing.createdAt : new Date().toISOString(),
+            },
+            kind,
+          );
+          const next = existing
+            ? collection.map((entry) => (entry.id === id ? item : entry))
+            : [...collection, item];
+          setCollection(
+            kind,
+            next.sort(
+              (a, b) => a.startDate.localeCompare(b.startDate) || a.name.localeCompare(b.name),
+            ),
+          );
+          saveState();
+          closeItemModal();
+          render();
+          setToast(existing ? 'Item updated.' : 'Item added.');
+        }
+
+        function deleteItem() {
+          const kind = elements.itemKind.value;
+          const id = elements.itemId.value;
+          const item = getCollection(kind).find((entry) => entry.id === id);
+          if (!item) return;
+          if (!window.confirm(`Delete "${item.name}"?`)) return;
+          setCollection(
+            kind,
+            getCollection(kind).filter((entry) => entry.id !== id),
+          );
+          saveState();
+          closeItemModal();
+          render();
+          setToast('Item deleted.');
+        }
+
+        function showTooltip(item, kind, event) {
+          elements.tooltipAccent.style.backgroundColor = item.colour;
+          elements.tooltipName.textContent = item.name;
+          elements.tooltipType.textContent = typeLabel(kind, item.type);
+          elements.tooltipType.className = `type-badge ${typeClass(item.type)}`;
+          const sameDay = item.startDate === item.endDate;
+          elements.tooltipDates.textContent = sameDay
+            ? formatDate(item.startDate)
+            : `${formatDate(item.startDate)} to ${formatDate(item.endDate)}`;
+          elements.tooltipDuration.textContent = sameDay
+            ? ''
+            : durationLabel(item.startDate, item.endDate);
+          elements.tooltipNotes.textContent = item.notes || '';
+          elements.tooltipNotes.hidden = !item.notes;
+          elements.tooltip.hidden = false;
+          positionTooltip(event);
+        }
+
+        function positionTooltip(event) {
+          const width = 240;
+          const rect = elements.tooltip.getBoundingClientRect();
+          let left = event.clientX - width / 2;
+          let top = event.clientY + 12;
+          if (left + width > window.innerWidth - 8) left = window.innerWidth - width - 8;
+          if (left < 8) left = 8;
+          if (top + rect.height > window.innerHeight - 8) top = event.clientY - rect.height - 12;
+          elements.tooltip.style.left = `${left}px`;
+          elements.tooltip.style.top = `${top}px`;
+        }
+
+        function hideTooltip() {
+          elements.tooltip.hidden = true;
+        }
+
+        function exportBlob(filename, content, type) {
+          const blob = new Blob([content], { type });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.append(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(url);
+        }
+
+        function exportJson() {
+          exportBlob(
+            'gantt-planner-export.json',
+            JSON.stringify({ ...state, exportedAt: new Date().toISOString() }, null, 2),
+            'application/json',
+          );
+          setToast('JSON exported.');
+        }
+
+        function csvCell(value) {
+          return `"${String(value ?? '').replaceAll('"', '""')}"`;
+        }
+
+        function exportCsv() {
+          const rows = [
+            ['Lane', 'Name', 'Type', 'Start date', 'End date', 'Colour', 'Notes'],
+            ...state.campaigns.map((item) => [
+              'Comms campaigns',
+              item.name,
+              item.type,
+              item.startDate,
+              item.endDate,
+              item.colour,
+              item.notes,
+            ]),
+            ...state.orgEvents.map((item) => [
+              'Organisation',
+              item.name,
+              item.type,
+              item.startDate,
+              item.endDate,
+              item.colour,
+              item.notes,
+            ]),
+          ];
+          exportBlob(
+            'gantt-planner-export.csv',
+            rows.map((row) => row.map(csvCell).join(',')).join('\n'),
+            'text/csv',
+          );
+          setToast('CSV exported.');
+        }
+
+        function escapeXml(value) {
+          return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&apos;');
+        }
+
+        function excelDateTime(value) {
+          const text = asString(value);
+          return /^\d{4}-\d{2}-\d{2}$/.test(text) ? `${text}T00:00:00.000` : text;
+        }
+
+        function excelCell(value, options = {}) {
+          const style = options.styleId ? ` ss:StyleID="${options.styleId}"` : '';
+          if (value === null || value === undefined || value === '') return `<Cell${style}/>`;
+          if (options.type === 'DateTime') {
+            return `<Cell${style}><Data ss:Type="DateTime">${escapeXml(
+              excelDateTime(value),
+            )}</Data></Cell>`;
+          }
+          return `<Cell${style}><Data ss:Type="String">${escapeXml(value)}</Data></Cell>`;
+        }
+
+        function excelRow(cells, options = {}) {
+          return `<Row>${cells
+            .map((value, index) => {
+              const isDate = options.dateColumns && options.dateColumns.includes(index);
+              return excelCell(value, {
+                styleId: options.header ? 'Header' : isDate ? 'Date' : '',
+                type: isDate ? 'DateTime' : 'String',
+              });
+            })
+            .join('')}</Row>`;
+        }
+
+        function excelItemRow(item) {
+          return [
+            item.id,
+            item.name,
+            item.type,
+            item.startDate,
+            item.endDate,
+            item.colour,
+            item.notes,
+            item.createdBy,
+            item.createdAt,
+          ];
+        }
+
+        function excelWorksheetXml(name, items) {
+          const rows = [
+            excelRow(EXCEL_HEADERS, { header: true }),
+            ...items.map((item) => excelRow(excelItemRow(item), { dateColumns: [3, 4] })),
+          ].join('');
+          return `<Worksheet ss:Name="${escapeXml(name)}"><Table>${rows}</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>`;
+        }
+
+        function buildExcelWorkbookXml() {
+          return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">
+  <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+    <Title>${escapeXml(state.planTitle)}</Title>
+    <Subject>Standalone Gantt Planner backup</Subject>
+    <Created>${new Date().toISOString()}</Created>
+  </DocumentProperties>
+  <Styles>
+    <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Top"/><Font ss:FontName="Arial" ss:Size="10"/></Style>
+    <Style ss:ID="Header"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0F766E" ss:Pattern="Solid"/></Style>
+    <Style ss:ID="Date"><NumberFormat ss:Format="yyyy\\-mm\\-dd"/></Style>
+  </Styles>
+  ${excelWorksheetXml('Campaigns', state.campaigns)}
+  ${excelWorksheetXml('Organisation', state.orgEvents)}
+  <Worksheet ss:Name="Instructions"><Table>${excelRow(['Use the Campaigns and Organisation sheets as the editable storage for this plan. Keep the column headers unchanged when importing the backup into the standalone Gantt Planner.'])}</Table></Worksheet>
+</Workbook>`;
+        }
+
+        function exportExcel() {
+          exportBlob(
+            'gantt-planner-backup.xls',
+            buildExcelWorkbookXml(),
+            'application/vnd.ms-excel',
+          );
+          setToast('Excel backup exported.');
+        }
+
+        function localElements(parent, name) {
+          return Array.from(parent.getElementsByTagNameNS('*', name));
+        }
+
+        function spreadsheetAttribute(element, name) {
+          return (
+            element.getAttribute(`ss:${name}`) ||
+            element.getAttribute(name) ||
+            element.getAttributeNS(SPREADSHEET_NAMESPACE, name) ||
+            ''
+          );
+        }
+
+        function worksheetByName(documentNode, name) {
+          return localElements(documentNode, 'Worksheet').find(
+            (sheet) => spreadsheetAttribute(sheet, 'Name') === name,
+          );
+        }
+
+        function worksheetRows(worksheet) {
+          if (!worksheet) return [];
+          const table = localElements(worksheet, 'Table')[0];
+          const rows = localElements(table || worksheet, 'Row');
+          return rows.map((row) => {
+            const cells = [];
+            let cellIndex = 0;
+            localElements(row, 'Cell').forEach((cell) => {
+              const explicitIndex = Number(spreadsheetAttribute(cell, 'Index'));
+              if (Number.isInteger(explicitIndex) && explicitIndex > 0) {
+                cellIndex = explicitIndex - 1;
+              }
+              const data = localElements(cell, 'Data')[0];
+              cells[cellIndex] = data ? data.textContent || '' : '';
+              cellIndex += 1;
+            });
+            return cells.map((value) => value || '');
+          });
+        }
+
+        function excelHeaderKey(value) {
+          return asString(value).toLowerCase();
+        }
+
+        function excelDateValue(value) {
+          const match = asString(value).match(/^(\d{4}-\d{2}-\d{2})/);
+          return match ? match[1] : asString(value);
+        }
+
+        function parseExcelItems(rows, kind) {
+          if (rows.length < 2) return [];
+          const headers = rows[0].map(excelHeaderKey);
+          const indexOf = (label) => headers.indexOf(label.toLowerCase());
+          const valueFor = (row, label) => {
+            const index = indexOf(label);
+            return index >= 0 ? row[index] || '' : '';
+          };
+          return rows
+            .slice(1)
+            .map((row) => {
+              const startDate = excelDateValue(valueFor(row, 'Start date'));
+              const rawEndDate = excelDateValue(valueFor(row, 'End date'));
+              const item = {
+                id: valueFor(row, 'ID'),
+                name: valueFor(row, 'Name'),
+                type: valueFor(row, 'Type'),
+                startDate,
+                endDate: rawEndDate < startDate ? startDate : rawEndDate,
+                colour: valueFor(row, 'Colour'),
+                notes: valueFor(row, 'Notes'),
+                createdBy: valueFor(row, 'Created by'),
+                createdAt: valueFor(row, 'Created at'),
+              };
+              return item.name && item.startDate && item.endDate ? normaliseItem(item, kind) : null;
+            })
+            .filter(Boolean);
+        }
+
+        function parseExcelWorkbookXml(xmlText) {
+          const parser = new DOMParser();
+          const documentNode = parser.parseFromString(xmlText, 'text/xml');
+          if (documentNode.getElementsByTagName('parsererror').length > 0) {
+            throw new Error('The Excel backup could not be read.');
+          }
+          const campaigns = parseExcelItems(
+            worksheetRows(worksheetByName(documentNode, 'Campaigns')),
+            'campaign',
+          );
+          const orgEvents = parseExcelItems(
+            worksheetRows(worksheetByName(documentNode, 'Organisation')),
+            'event',
+          );
+          return { campaigns, orgEvents };
+        }
+
+        function importJson(event) {
+          const file = event.target.files && event.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.addEventListener('load', () => {
+            try {
+              const parsed = JSON.parse(String(reader.result || ''));
+              const campaigns = Array.isArray(parsed)
+                ? parsed
+                : Array.isArray(parsed.campaigns)
+                  ? parsed.campaigns
+                  : [];
+              const orgEvents = Array.isArray(parsed.orgEvents) ? parsed.orgEvents : [];
+              state = {
+                version: 1,
+                planTitle: asString(parsed.planTitle) || state.planTitle,
+                year: Number.isInteger(parsed.year) ? parsed.year : state.year,
+                campaigns: campaigns.map((item) => normaliseItem(item, 'campaign')),
+                orgEvents: orgEvents.map((item) => normaliseItem(item, 'event')),
+              };
+              saveState();
+              render();
+              setToast('JSON imported.');
+            } catch (error) {
+              window.alert(`Import failed: ${error.message}`);
+            } finally {
+              elements.importJsonInput.value = '';
+            }
+          });
+          reader.readAsText(file);
+        }
+
+        function importExcel(event) {
+          const file = event.target.files && event.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.addEventListener('load', () => {
+            try {
+              const parsed = parseExcelWorkbookXml(String(reader.result || ''));
+              state = {
+                version: 1,
+                planTitle: state.planTitle,
+                year: state.year,
+                campaigns: parsed.campaigns,
+                orgEvents: parsed.orgEvents,
+              };
+              saveState();
+              render();
+              setToast('Excel backup imported.');
+            } catch (error) {
+              window.alert(`Import failed: ${error.message}`);
+            } finally {
+              elements.importExcelInput.value = '';
+            }
+          });
+          reader.readAsText(file);
+        }
+
+        function clearPlan() {
+          if (!window.confirm('Clear all campaigns and organisation events from this plan?'))
+            return;
+          state.campaigns = [];
+          state.orgEvents = [];
+          saveState();
+          render();
+          setToast('Plan cleared.');
+        }
+
+        elements.addCampaignButton.addEventListener('click', () => openItemModal('campaign'));
+        elements.laneAddCampaignButton.addEventListener('click', () => openItemModal('campaign'));
+        elements.addEventButton.addEventListener('click', () => openItemModal('event'));
+        elements.laneAddEventButton.addEventListener('click', () => openItemModal('event'));
+        elements.previousYear.addEventListener('click', () => {
+          state.year -= 1;
+          saveState();
+          render();
+        });
+        elements.nextYear.addEventListener('click', () => {
+          state.year += 1;
+          saveState();
+          render();
+        });
+        elements.boardTitle.addEventListener('input', () => {
+          state.planTitle = elements.boardTitle.value.trim() || 'Standalone yearly plan';
+          saveState();
+        });
+        elements.search.addEventListener('input', render);
+        elements.itemType.addEventListener('change', () => {
+          const kind = elements.itemKind.value;
+          const options = kind === 'campaign' ? CAMPAIGN_TYPES : ORG_TYPES;
+          const isCustom = elements.itemType.value === CUSTOM_TYPE;
+          elements.customTypeField.hidden = !isCustom;
+          elements.itemCustomType.required = isCustom;
+          if (!isCustom && !elements.itemId.value) {
+            const match = options.find(([value]) => value === elements.itemType.value);
+            if (match) renderSwatches(match[2]);
+          }
+        });
+        elements.itemForm.addEventListener('submit', saveItem);
+        elements.deleteItemButton.addEventListener('click', deleteItem);
+        elements.closeItemModal.addEventListener('click', closeItemModal);
+        elements.cancelItemButton.addEventListener('click', closeItemModal);
+        elements.itemModal.addEventListener('click', (event) => {
+          if (event.target === elements.itemModal) closeItemModal();
+        });
+        elements.exportJsonButton.addEventListener('click', exportJson);
+        elements.exportCsvButton.addEventListener('click', exportCsv);
+        elements.exportExcelButton.addEventListener('click', exportExcel);
+        elements.importJsonInput.addEventListener('change', importJson);
+        elements.importExcelInput.addEventListener('change', importExcel);
+        elements.clearPlanButton.addEventListener('click', clearPlan);
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') closeItemModal();
+        });
+
+        render();
+      })();
+    </script>
+  </body>
+</html>

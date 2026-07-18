@@ -69,7 +69,7 @@ const orgId = conn.org_account_id;
 - [ ] **Step 3: Run typecheck**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm run typecheck
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm run typecheck
 ```
 
 Expected: no errors related to `org_account_id`.
@@ -143,7 +143,7 @@ return {
 - [ ] **Step 2: Run typecheck**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm run typecheck
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm run typecheck
 ```
 
 Expected: no errors.
@@ -219,7 +219,7 @@ return {
 - [ ] **Step 2: Run typecheck**
 
 ```bash
-cd "/Users/dan/dev/population_matters/tools/Content Hub" && npm run typecheck
+cd "/Users/dan/dev/population_matters/tools/content-hub" && npm run typecheck
 ```
 
 Expected: no errors.

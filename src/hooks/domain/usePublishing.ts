@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { DEFAULT_PUBLISH_SETTINGS } from '../../features/publishing';
 
 interface AssetGoals {
   Video: number;
@@ -9,17 +8,6 @@ interface AssetGoals {
 }
 
 export function usePublishing() {
-  const [publishSettings, setPublishSettings] = useState(() => {
-    try {
-      const stored = window.localStorage.getItem('pm-publish-settings');
-      return stored
-        ? { ...DEFAULT_PUBLISH_SETTINGS, ...JSON.parse(stored) }
-        : DEFAULT_PUBLISH_SETTINGS;
-    } catch {
-      return DEFAULT_PUBLISH_SETTINGS;
-    }
-  });
-
   const [dailyPostTarget, setDailyPostTarget] = useState(() => {
     try {
       const stored = window.localStorage.getItem('pm-daily-post-target');
@@ -35,14 +23,14 @@ export function usePublishing() {
     Carousel: 20,
   }));
 
-  // Persist publish settings to localStorage
+  // Remove retired browser-side webhook configuration, including any stored secret.
   useEffect(() => {
     try {
-      window.localStorage.setItem('pm-publish-settings', JSON.stringify(publishSettings));
+      window.localStorage.removeItem('pm-publish-settings');
     } catch {
       // Ignore storage errors
     }
-  }, [publishSettings]);
+  }, []);
 
   const handleDailyPostTargetChange = useCallback((target: number) => {
     setDailyPostTarget(target);
@@ -54,14 +42,11 @@ export function usePublishing() {
   }, []);
 
   const reset = useCallback(() => {
-    setPublishSettings(DEFAULT_PUBLISH_SETTINGS);
     setDailyPostTarget(0);
     setAssetGoals({ Video: 40, Design: 40, Carousel: 20 });
   }, []);
 
   return {
-    publishSettings,
-    setPublishSettings,
     dailyPostTarget,
     setDailyPostTarget,
     handleDailyPostTargetChange,

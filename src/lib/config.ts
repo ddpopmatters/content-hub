@@ -44,8 +44,6 @@ const supabaseAnonKey =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lcGVoYW53bWZlbG93ZnVta2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NDE2NTksImV4cCI6MjA4ODExNzY1OX0.VaBVUk4fZSPF17ude4w9x5qcOCniLM8KGXKN8YOTL04';
 const contentMediaUploadsEnabled = import.meta.env.CONTENT_MEDIA_UPLOADS_ENABLED === 'true';
 
-// Public OAuth identifiers — safe in frontend bundle (same pattern as client_id in OAuth)
-export const META_FLOB_CONFIG_ID = import.meta.env.META_FLOB_CONFIG_ID || '1823163038321738';
 const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
 
 export const APP_CONFIG: AppConfig = {

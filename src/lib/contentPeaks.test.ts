@@ -28,6 +28,8 @@ const createEntry = (overrides: Partial<Entry>): Entry => ({
   createdAt: overrides.createdAt || '2026-06-01T09:00:00.000Z',
   updatedAt: overrides.updatedAt || '2026-06-01T09:00:00.000Z',
   approvedAt: overrides.approvedAt || null,
+  contentRevision: overrides.contentRevision ?? 1,
+  approvedRevision: overrides.approvedRevision ?? null,
   deletedAt: overrides.deletedAt || null,
   contentPeak: overrides.contentPeak,
 });

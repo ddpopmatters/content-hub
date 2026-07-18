@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { entryReviewLink } from './email';
+import { buildEntryEmailPayload, entryReviewLink } from './email';
 
 const originalLocation = window.location;
 
@@ -34,5 +34,22 @@ describe('entryReviewLink', () => {
     const link = entryReviewLink({ id: 'entry-123' });
 
     expect(link).toBe('https://ddpopmatters.github.io/content-hub/review.html?id=entry-123');
+  });
+});
+
+describe('approval email planning language', () => {
+  it('describes the entry date as planned rather than scheduled', () => {
+    const payload = buildEntryEmailPayload({
+      id: 'entry-123',
+      date: '2026-07-20',
+      author: 'Dan',
+      platforms: ['BlueSky'],
+      caption: 'Test content',
+    });
+
+    expect(payload?.text).toContain('Planned date:');
+    expect(payload?.html).toContain('Planned date');
+    expect(payload?.text).not.toContain('Scheduled:');
+    expect(payload?.html).not.toContain('>Scheduled<');
   });
 });
