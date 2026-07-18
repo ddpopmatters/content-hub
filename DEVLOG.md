@@ -483,4 +483,5 @@
   - `npm run build`
   - `npm audit` reports zero vulnerabilities.
   - `git diff --check`
-- Status: Local verification passed; pending GitHub Actions rerun
+  - GitHub Actions passed tests, lint and type-check, dependency security, and the supply-chain IOC scan.
+- Status: Local and GitHub verification passed
