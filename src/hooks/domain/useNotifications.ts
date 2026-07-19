@@ -266,6 +266,7 @@ export function useNotifications({
           {
             approvers: Array.from(recipients),
             to: Array.from(recipients),
+            entryId: String(entry.id ?? ''),
             subject: `[PM Dashboard] New comment on ${descriptor}`,
             text,
             html,
@@ -328,6 +329,7 @@ export function useNotifications({
           {
             approvers: recipients,
             to: recipients,
+            entryId: String(entry.id ?? ''),
             subject: `[PM Dashboard] ${actorName} updated ${descriptor}`,
             text,
             html,

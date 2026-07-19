@@ -101,6 +101,15 @@ export interface ApproverEntry {
   approvedAt?: string;
 }
 
+export interface AgentProvenance {
+  source: 'PM Hermes';
+  actionId: string;
+  actionType: string;
+  approvalReference: string;
+  approvedBy: string;
+  appliedAt: string;
+}
+
 export interface Entry {
   id: string;
   date: string;
@@ -130,6 +139,7 @@ export interface Entry {
   contentRevision: number;
   approvedRevision: number | null;
   deletedAt: string | null;
+  agentProvenance?: AgentProvenance;
   // Publishing fields
   evergreen?: boolean;
   publishStatus?: Record<string, PlatformPublishStatus>;
@@ -226,6 +236,7 @@ export interface Idea {
   convertedToEntryId?: string;
   /** Timestamp when this idea was converted to an entry */
   convertedAt?: string;
+  agentProvenance?: AgentProvenance;
 }
 
 export interface PlanningCampaign {
@@ -622,6 +633,7 @@ export interface MonthlyReport {
   createdByEmail: string;
   createdAt: string;
   updatedAt: string;
+  agentProvenance?: AgentProvenance;
 }
 
 export type OrgEventType = string;

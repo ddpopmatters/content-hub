@@ -1291,7 +1291,23 @@ export function EntryModal({
   );
 
   const canEdit = isAuthorView;
-  const timelineList = Array.isArray(timelineEntries) ? timelineEntries : [];
+  const provenanceTimelineEntry = draft?.agentProvenance?.actionId
+    ? {
+        id: `agent-${draft.agentProvenance.actionId}`,
+        ts: draft.agentProvenance.appliedAt,
+        user: draft.agentProvenance.source || 'PM Hermes',
+        action: `agent-${draft.agentProvenance.actionType || 'update'}`,
+        meta: {
+          actionId: draft.agentProvenance.actionId,
+          approvalReference: draft.agentProvenance.approvalReference,
+          approvedBy: draft.agentProvenance.approvedBy,
+        },
+      }
+    : null;
+  const timelineList = [
+    ...(provenanceTimelineEntry ? [provenanceTimelineEntry] : []),
+    ...(Array.isArray(timelineEntries) ? timelineEntries : []),
+  ];
 
   return (
     <>
@@ -1318,6 +1334,13 @@ export function EntryModal({
               <Badge className={PRIORITY_TIER_BADGE_CLASSES[currentPriorityTier]}>
                 {currentPriorityTier}
               </Badge>
+              {draft.agentProvenance?.source === 'PM Hermes' ? (
+                <Badge className="border border-aqua-100 bg-ocean-700 text-white">
+                  {draft.agentProvenance.actionType === 'create_entry'
+                    ? 'PM Hermes draft'
+                    : 'PM Hermes update'}
+                </Badge>
+              ) : null}
               <span
                 className={cx(
                   'rounded-full px-3 py-1 text-xs font-semibold text-ocean-900',

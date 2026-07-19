@@ -477,15 +477,15 @@ export function useEntries({
       });
       const publicationContentChangedForPersistence = Boolean(
         existingEntry &&
-          sanitizedForPersistence &&
-          hasPublicationRelevantChanges(existingEntry as Partial<Entry>, sanitizedForPersistence),
+        sanitizedForPersistence &&
+        hasPublicationRelevantChanges(existingEntry as Partial<Entry>, sanitizedForPersistence),
       );
       const approvalRevokedForPersistence = Boolean(
         publicationContentChangedForPersistence &&
-          existingEntry &&
-          (existingEntry.workflowStatus === 'Approved' ||
-            existingEntry.workflowStatus === 'Published' ||
-            existingEntry.status === 'Approved'),
+        existingEntry &&
+        (existingEntry.workflowStatus === 'Approved' ||
+          existingEntry.workflowStatus === 'Published' ||
+          existingEntry.status === 'Approved'),
       );
       const updateForPersistence = approvalRevokedForPersistence
         ? {
@@ -790,6 +790,7 @@ export function useEntries({
               teamsWebhookUrl: (guidelines as Record<string, unknown>)?.teamsWebhookUrl,
               message: `Entry ${id} ${statusMsg} by ${currentUser}`,
               approvers: entryApprovers,
+              entryId: id,
               subject: (emailPayload as unknown as Record<string, unknown>)?.subject || subject,
               text:
                 (emailPayload as unknown as Record<string, unknown>)?.text ||

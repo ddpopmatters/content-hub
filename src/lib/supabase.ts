@@ -210,7 +210,8 @@ interface EntryRow {
   content_revision: number;
   approved_revision: number | null;
   deleted_at: string | null;
-  comments: string | null;
+  comments: unknown;
+  agent_provenance: Entry['agentProvenance'] | null;
 }
 
 interface PublicationJobReadRow {
@@ -255,6 +256,7 @@ interface MonthlyReportRow {
   created_by_email: string | null;
   created_at: string;
   updated_at: string;
+  agent_provenance: MonthlyReport['agentProvenance'] | null;
 }
 
 interface IdeaRow {
@@ -269,6 +271,7 @@ interface IdeaRow {
   target_date: string;
   target_month: string;
   created_at: string;
+  agent_provenance: Idea['agentProvenance'] | null;
 }
 
 interface CampaignRow {
@@ -2929,10 +2932,12 @@ export const SUPABASE_API = {
     contentRevision: row.content_revision,
     approvedRevision: row.approved_revision,
     deletedAt: row.deleted_at,
+    agentProvenance: row.agent_provenance || undefined,
     comments: (() => {
       if (!row.comments) return [];
       try {
-        return JSON.parse(row.comments);
+        const comments = typeof row.comments === 'string' ? JSON.parse(row.comments) : row.comments;
+        return Array.isArray(comments) ? (comments as Entry['comments']) : [];
       } catch {
         return [];
       }
@@ -3026,6 +3031,7 @@ export const SUPABASE_API = {
     createdByEmail: row.created_by_email || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    agentProvenance: row.agent_provenance || undefined,
   }),
 
   mapMonthlyReportToDb: (
@@ -3069,6 +3075,7 @@ export const SUPABASE_API = {
     targetDate: row.target_date,
     targetMonth: row.target_month,
     createdAt: row.created_at,
+    agentProvenance: row.agent_provenance || undefined,
   }),
 
   mapIdeaToDb: (idea: Partial<Idea>, userEmail: string) => ({

@@ -1,5 +1,10 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { generateApprovalToken } from '../_shared/approvalToken.ts';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import {
+  CONTENT_REVIEW_URL_PLACEHOLDER,
+  injectRecipientNotificationLinks,
+} from '../_shared/notificationLinks.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -25,41 +30,6 @@ interface NotificationPayload {
 interface ProfileRow {
   name: string;
   email: string;
-}
-
-// ── Token generation ────────────────────────────────────────────────────────
-
-function b64urlEncode(buf: ArrayBuffer): string {
-  return btoa(String.fromCharCode(...new Uint8Array(buf)))
-    .replace(/[+]/g, '-')
-    .replace(/[/]/g, '_')
-    .replace(/=/g, '');
-}
-
-function b64urlEncodeStr(s: string): string {
-  return btoa(unescape(encodeURIComponent(s)))
-    .replace(/[+]/g, '-')
-    .replace(/[/]/g, '_')
-    .replace(/=/g, '');
-}
-
-async function generateApprovalToken(entryId: string, email: string): Promise<string | null> {
-  if (!APPROVAL_TOKEN_SECRET) return null;
-  const now = Math.floor(Date.now() / 1000);
-  const header = b64urlEncodeStr(JSON.stringify({ alg: 'HS256', typ: 'APT' }));
-  const body = b64urlEncodeStr(
-    JSON.stringify({ eid: entryId, eml: email, iat: now, exp: now + 7 * 24 * 3600 }),
-  );
-  const message = header + '.' + body;
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(APPROVAL_TOKEN_SECRET),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
-  return message + '.' + b64urlEncode(sig);
 }
 
 // ── Email helpers ───────────────────────────────────────────────────────────
@@ -116,7 +86,12 @@ function buildApproveButton(approveUrl: string): string {
   );
 }
 
-async function sendEmail(to: string, payload: NotificationPayload, html?: string): Promise<void> {
+async function sendEmail(
+  to: string,
+  payload: NotificationPayload,
+  text: string,
+  html?: string,
+): Promise<void> {
   if (RESEND_API_KEY) {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -128,13 +103,12 @@ async function sendEmail(to: string, payload: NotificationPayload, html?: string
         from: `${FROM_NAME} <${FROM_EMAIL}>`,
         to: [to],
         subject: payload.subject,
-        text: payload.text,
+        text,
         ...(html ? { html } : payload.html ? { html: payload.html } : {}),
       }),
     });
     if (!res.ok) {
-      const body = await res.text();
-      throw new Error('Resend error ' + res.status + ': ' + body);
+      throw new Error(`Resend delivery failed with status ${res.status}.`);
     }
     return;
   }
@@ -151,13 +125,12 @@ async function sendEmail(to: string, payload: NotificationPayload, html?: string
         From: FROM_NAME + ' <' + FROM_EMAIL + '>',
         To: to,
         Subject: payload.subject,
-        TextBody: payload.text,
+        TextBody: text,
         ...(html ? { HtmlBody: html } : payload.html ? { HtmlBody: payload.html } : {}),
       }),
     });
     if (!res.ok) {
-      const body = await res.text();
-      throw new Error('Postmark error ' + res.status + ': ' + body);
+      throw new Error(`Postmark delivery failed with status ${res.status}.`);
     }
     return;
   }
@@ -194,22 +167,39 @@ Deno.serve(async (req: Request) => {
 
     const sendTasks = emails.map(async (email) => {
       let perRecipientHtml: string | undefined = payload.html;
+      let perRecipientText = payload.text;
+      const containsReviewLink =
+        perRecipientText.includes(CONTENT_REVIEW_URL_PLACEHOLDER) ||
+        Boolean(perRecipientHtml?.includes(CONTENT_REVIEW_URL_PLACEHOLDER));
 
-      if (payload.entryId && payload.html && APPROVAL_TOKEN_SECRET) {
-        const token = await generateApprovalToken(payload.entryId, email);
-        if (token) {
-          const approveUrl = APP_URL + '/approve.html?token=' + encodeURIComponent(token);
+      if (containsReviewLink && !payload.entryId) {
+        throw new Error('Signed review links are unavailable.');
+      }
+
+      if (payload.entryId) {
+        const token = await generateApprovalToken(APPROVAL_TOKEN_SECRET, payload.entryId, email);
+        if (!token) throw new Error('Approval links are unavailable.');
+        const links = injectRecipientNotificationLinks(
+          perRecipientText,
+          perRecipientHtml,
+          APP_URL,
+          token,
+        );
+        perRecipientText = links.text;
+        perRecipientHtml = links.html;
+        if (perRecipientHtml) {
+          const approveUrl = links.approveUrl;
           const button = buildApproveButton(approveUrl);
           const insertBefore = '</div>\n  </div>';
-          if (perRecipientHtml && perRecipientHtml.includes(insertBefore)) {
+          if (perRecipientHtml.includes(insertBefore)) {
             perRecipientHtml = perRecipientHtml.replace(insertBefore, button + '\n' + insertBefore);
           } else {
-            perRecipientHtml = (perRecipientHtml ?? '') + '\n' + button;
+            perRecipientHtml += '\n' + button;
           }
         }
       }
 
-      return sendEmail(email, payload, perRecipientHtml);
+      return sendEmail(email, payload, perRecipientText, perRecipientHtml);
     });
 
     const results = await Promise.allSettled(sendTasks);
@@ -236,8 +226,8 @@ Deno.serve(async (req: Request) => {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
-  } catch (err) {
-    console.error('[send-notification] Unhandled error:', err);
+  } catch {
+    console.error('[send-notification] Unhandled notification error.');
     return new Response(JSON.stringify({ error: 'Internal error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

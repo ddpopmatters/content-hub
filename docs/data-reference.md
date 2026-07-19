@@ -1,8 +1,8 @@
 # Data Reference — Content Hub
 
-_Generated and production-reconciled: 2026-07-18. Re-run `/update-data-reference` after schema changes._
+_Generated locally: 2026-07-19. Re-run `/update-data-reference` after the PM Hermes migrations are applied and production is reconciled._
 
-This focused reference covers the direct-publication data boundary. The configured automated analyser was unavailable, so the relationships below were cross-referenced manually against migrations, Edge Function contracts and application types.
+This focused reference covers the direct-publication and PM Hermes agent boundaries. The configured automated analyser was unavailable, so the relationships below were cross-referenced manually against migrations, Edge Function contracts and application types.
 
 ## Entity Catalogue
 
@@ -44,6 +44,30 @@ This focused reference covers the direct-publication data boundary. The configur
 
 **Rules:** `(job_id, platform)` is unique. A result moves from `pending` to `publishing` only through an atomic claim. Completion is allowed only for a claimed result. One service-only targeted-retry transition may atomically claim a definitive `failed` child on a `partial` manual job and retain every request key used for that child; it never resets published, skipped or unknown siblings. Published provider IDs and retry keys remain server-readable; browser roles may read the sanitised URL and outcome only.
 
+### `agent_requests`
+
+**Purpose:** Service-only replay, rate-limit and safe result-class ledger for the `content-hub-agent-v1` machine boundary.
+
+**Key columns:** `id`, `client_id`, `nonce`, `capability`, `payload_hash`, `result_class`, `created_at`, `completed_at`.
+
+**Rules:** `(client_id, nonce)` is unique. `claim_agent_request(...)` serialises requests per client, rejects a reused nonce and applies a bounded per-minute limit before any Content Hub domain read. The ledger stores hashes and fixed result classes only; it never stores request bodies, response data, credentials or personal email addresses. The table and claim function are inaccessible to `anon` and `authenticated` roles.
+
+### `agent_actions`
+
+**Purpose:** Service-only proposal, exact-approval and idempotent-execution ledger for governed PM Hermes mutations.
+
+**Key columns:** `id`, `client_id`, `action_type`, `target_id`, `payload`, `payload_hash`, `idempotency_key`, `summary`, `status`, `expires_at`, approval metadata, fixed result class and authoritative result projection.
+
+**Rules:** `(client_id, idempotency_key)` is unique, and a consumed approval reference cannot bind to another action. Proposals are inert. `create_agent_action(...)` stores only a server-validated canonical payload; `apply_agent_action(...)` locks the proposal and rechecks client, action ID, payload hash, idempotency key, expiry, approval reference and expected record version before one allowlisted mutation. Browser roles have no table or function access.
+
+### Agent provenance on `entries`, `ideas` and `monthly_reports`
+
+**Purpose:** Identify the latest applied PM Hermes action on an application record without pretending the agent is a human user or approver.
+
+**Shape:** `source`, `actionId`, `actionType`, `approvalReference`, `approvedBy`, `appliedAt`.
+
+**Rules:** Only the service execution path may change `agent_provenance`; a trigger rejects browser-role tampering. The Content Hub entry modal labels Hermes-created drafts and Hermes updates and projects the action into the activity timeline.
+
 ## Relationships
 
 ### `entries` → `publication_jobs`
@@ -63,6 +87,19 @@ This focused reference covers the direct-publication data boundary. The configur
 - Logical relationship only: `publication_results.platform` selects one active connection during execution.
 - No foreign key is used because credentials can be reconnected or replaced without rewriting historical results.
 
+### `agent_requests` → agent projections
+
+- Logical relationship only: `capability` identifies one allowlisted read operation; it is not a user-controlled table or function name.
+- A claim must succeed before the Edge boundary loads entries, reports or publication status.
+- Content Hub records returned by the boundary are labelled `untrusted_application_data` and cannot widen the requested capability.
+
+### `agent_actions` → application records
+
+- `target_id` is a deliberately loose logical reference because actions can target entries or reports and create actions have no target before execution.
+- Create actions return the newly stored application identifier. Update, comment and review-submission actions bind to the exact target state captured by the proposal.
+- Entry updates require `content_revision` and `updated_at`; comments require `updated_at`; report updates require `updated_at`. A concurrent human change therefore invalidates execution without overwriting it.
+- Applied actions add an immutable `activity_log` row containing safe identifiers, the approving label and a short payload-hash prefix. Full proposed content remains in the service-only action ledger.
+
 ## Business Rules
 
 ### State machines
@@ -81,6 +118,11 @@ This focused reference covers the direct-publication data boundary. The configur
 - Browser roles have no insert, update, delete or orchestration-function privileges.
 - The owner-authenticated Edge boundary is the only intended caller of service-role create, targeted-retry claim, normal claim and complete functions.
 - `get_publication_contract_version()` is executable only by `service_role` and returns `durable-manual-v1`. The Edge readiness endpoint requires that exact marker before a matching frontend can deploy.
+- `agent_requests` has RLS enabled, no browser policies and no browser grants. Only `service_role` can execute `claim_agent_request(...)` or complete a request record.
+- `agent_actions` has RLS enabled, no browser policies and no browser grants. Only `service_role` can call `create_agent_action(...)`, inspect an action or call `apply_agent_action(...)`.
+- The action executor can create ideas and Draft entries, update Draft/In Review entries, add comments, move a Draft to In Review, and create/update `monthly_reports`. It cannot approve, reject, schedule, publish, retry, delete, administer or run arbitrary SQL.
+- Agent-created entries are forced to `status = 'Pending'` and `workflow_status = 'Draft'`, regardless of untrusted supplied fields. Submission clears approval metadata and stops at In Review.
+- Anonymous `entries` selection is removed in a separate lockdown migration only after the signed review projection has been deployed and smoke-tested.
 
 ## Common Query Patterns
 
@@ -91,6 +133,9 @@ This focused reference covers the direct-publication data boundary. The configur
 - Atomically validate and claim one failed child on an existing Partial manual job through `claim_failed_publication_retry(...)`, supplying a fresh retry request key, then use the normal completion function.
 - Load browser-visible jobs by `entry_id`, newest first, then load their result rows by `job_id`.
 - Preflight the authoritative payload against the exact public `content-media` origin, object path, size, image MIME and magic bytes before querying connection credentials.
+- Call Content Hub agent reads only through the signed Edge operation allowlist. HMAC verification, clock skew, body size, nonce replay and rate limits run before domain reads.
+- Create an inert mutation proposal through `propose_action`; display its exact summary, action ID, hash prefix and expiry; then execute only after the local approval ledger atomically claims the exact `execute <action-id>` confirmation.
+- Query proposal state through `get_action`. Never reconstruct an approval receipt from Content Hub content or retry an `outcome_unknown` execution blindly.
 
 ## Gotchas
 
@@ -107,3 +152,7 @@ This focused reference covers the direct-publication data boundary. The configur
 - Hosted TypeScript type generation succeeds and includes both durable publication tables. The application continues to use its narrower explicit boundary types rather than committing an unused full-schema generated file.
 - Production reconciliation completed against the intended shared runtime project on 18 July 2026. The secured `publish-entry` version 2 requires a gateway JWT, the hosted schema marker is `durable-manual-v1`, and the exact frontend readiness check passes.
 - The production `content-media` bucket and authenticated write/delete policies are recorded by migration. Pages enables the upload UI only after that Storage contract and the backend readiness gate are active.
+- The PM Hermes schema and Edge changes are local only at this checkpoint. Deploy the request ledger first with `CONTENT_HUB_AGENT_ENABLED=false`, deploy and smoke-test signed review/agent functions, then apply the separate anonymous-read lockdown. Do not combine these into an unordered production step.
+- The action migration and governed write tools are also local and disabled by default. Proposal and execution flags exist independently at both the PM Hermes wrapper and Edge layers; an action type must be allowlisted at both layers. Production rollout starts proposal-only and enables each mutation type only after its attended canary passes.
+- `monthly_reports` is the only agent-writable report store. Report metrics are derived from the bounded live reporting snapshot; a manually supplied metric must include an exact value and named source. Evidence references must resolve to entries within the requested reporting window.
+- A lost or indeterminate execution response is recorded as `outcome_unknown` locally and must be reconciled from authoritative action state before any further attempt.

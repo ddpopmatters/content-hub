@@ -28,7 +28,7 @@ import {
   extractMentions,
   serializeForComparison,
 } from './utils';
-import type { Entry, Idea, Comment } from '../types/models';
+import type { AgentProvenance, Entry, Idea, Comment } from '../types/models';
 
 // Type for checklist object
 export type Checklist = Record<string, boolean>;
@@ -38,6 +38,46 @@ export type Analytics = Record<string, Record<string, unknown>>;
 
 // Type for platform captions
 export type PlatformCaptions = Record<string, string>;
+
+const AGENT_ACTION_TYPES = new Set([
+  'create_idea',
+  'create_entry',
+  'update_entry',
+  'add_comment',
+  'submit_for_review',
+  'create_report',
+  'update_report',
+]);
+
+const sanitizeAgentProvenance = (value: unknown): AgentProvenance | undefined => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const provenance = value as Record<string, unknown>;
+  const actionId = typeof provenance.actionId === 'string' ? provenance.actionId : '';
+  const actionType = typeof provenance.actionType === 'string' ? provenance.actionType : '';
+  const approvalReference =
+    typeof provenance.approvalReference === 'string' ? provenance.approvalReference : '';
+  const approvedBy = typeof provenance.approvedBy === 'string' ? provenance.approvedBy.trim() : '';
+  const appliedAt = typeof provenance.appliedAt === 'string' ? provenance.appliedAt : '';
+  if (
+    provenance.source !== 'PM Hermes' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(actionId) ||
+    !AGENT_ACTION_TYPES.has(actionType) ||
+    !/^cha_[a-f0-9]{24}$/.test(approvalReference) ||
+    !approvedBy ||
+    approvedBy.length > 160 ||
+    Number.isNaN(Date.parse(appliedAt))
+  ) {
+    return undefined;
+  }
+  return {
+    source: 'PM Hermes',
+    actionId: actionId.toLowerCase(),
+    actionType,
+    approvalReference,
+    approvedBy,
+    appliedAt,
+  };
+};
 
 // Checklist helpers
 export const createEmptyChecklist = (): Checklist => {
@@ -222,6 +262,7 @@ export const sanitizeEntry = (entry: unknown): Entry | null => {
     contentRevision,
     approvedRevision,
     deletedAt: typeof raw.deletedAt === 'string' ? raw.deletedAt : null,
+    agentProvenance: sanitizeAgentProvenance(raw.agentProvenance),
   };
 
   if (assetType !== 'Video') base.script = undefined;
@@ -352,6 +393,7 @@ export const sanitizeIdea = (raw: unknown): Idea | null => {
     convertedToEntryId:
       typeof data.convertedToEntryId === 'string' ? data.convertedToEntryId : undefined,
     convertedAt: typeof data.convertedAt === 'string' ? data.convertedAt : undefined,
+    agentProvenance: sanitizeAgentProvenance(data.agentProvenance),
   };
 };
 

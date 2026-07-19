@@ -1,5 +1,100 @@
 # Content Hub — Dev Log
 
+## 2026-07-19 - Verify the PM Hermes production rollout boundary
+
+- Tool: Codex
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Reconciled the local Supabase link against the canonical shared Intel Hub target without reading `.env*` or reporting secret values.
+  - Confirmed the existing durable publication backend remains healthy and the new `content-hub-agent` function is not yet hosted, preserving the intended pre-rollout baseline.
+  - Kept the production guard active throughout the preflight; no migration, function, runtime secret, feature switch, GitHub Pages deployment or application record was changed.
+- Verification:
+  - All 308 Vitest tests, 86 Deno tests, 10 PM Hermes Python tests, TypeScript checking, strict lint, Ruff, Edge checks, the production build, review-boundary contract, dependency audit and `git diff --check` passed.
+  - The three agent migrations and their RLS, replay, idempotency, conflict and provenance invariants passed in isolated PostgreSQL 17.
+  - The Content Hub MCP server discovered all 18 tools. PM Hermes control-plane, tool-availability, pre-handoff, security, tool-hygiene and Doctor checks passed; the integration correctly reports unavailable while runtime values are absent.
+- Status: Release candidate verified and production-disabled. The current Supabase CLI identity lacks the privileges required to inspect or mutate the canonical linked project, so attended production rollout remains blocked until the production profile and authorised Supabase organisation access are active
+
+## 2026-07-19 - Implement approval-gated PM Hermes Content Hub writes
+
+- Tool: Codex
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Added the service-only `agent_actions` proposal/execution ledger, immutable PM Hermes provenance and a transactional executor for idea/Draft creation, eligible entry updates, comments, Draft-to-review submission and canonical `monthly_reports` create/update.
+  - Added strict allowlisted payload validation, PM language checks, exact payload hashes and idempotency keys, proposal expiry, stale entry/report rejection, one-time local approval receipts and the exact `execute <action-id>` confirmation boundary.
+  - Expanded the local MCP server from nine read tools to 18 read/governed tools. Local and Edge proposal/execution switches remain independently false by default, with no action types enabled.
+  - Made report proposals derive metrics from bounded Content Hub analytics, retain coverage and evidence references, require named sources for manual figures and query campaign reports by the exact campaign. Live reporting also supports bounded campaign, content-pillar and asset-type filters.
+  - Added safe JSONB comment mapping and strictly sanitised provenance labels/timeline context in the entry UI. Updated the implementation plan, data reference, platform documentation and attended rollout/rollback runbook.
+- Verification:
+  - Strict lint, TypeScript checking, the production build, all 308 Vitest tests, the signed review-boundary test and `git diff --check` passed.
+  - All 86 Deno tests and the Edge Function check passed; all 10 app-local Python integration/approval tests and Ruff passed.
+  - The generated action migration and its RLS/idempotency/conflict/provenance invariants passed in an isolated PostgreSQL 17 container.
+  - `hermes mcp test content-hub` discovered 18 tools. PM Hermes control-plane validation, pre-handoff validation, security scan, tool hygiene and Doctor passed with no findings; `npm audit --omit=dev` found no vulnerabilities.
+  - The configured data/platform analyser was unavailable, so both references were reconciled manually against the migration, Edge contract and application types.
+- Residual check: the pre-existing standalone `npm run test:copy-check` command does not load its JSON rule import under the installed Node 25 runtime; the normal Vitest suite and production bundler cover that module successfully.
+- Status: Local Phase 2 implementation complete and production-disabled; no migration, function, runtime secret, proposal flag or write flag was applied to production
+
+## 2026-07-19 - Implement the PM Hermes read and reporting foundation
+
+- Tool: Codex
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Added the fail-closed `content-hub-agent-v1` Edge boundary with HMAC authentication, bounded request streaming, timestamp validation, replay protection, per-client throttling, safe result classes and fixed read projections for entries, calendar summaries, organic reporting, saved reports and publication status.
+  - Added a service-only `agent_requests` ledger and a separately deployable anonymous-review-policy lockdown migration, generated through the Supabase CLI so production rollout can verify signed review reads before removing the old policy.
+  - Replaced guessable public review reads with recipient-specific signed links and a fixed `approve-entry` projection. New tokens contain a keyed recipient identifier rather than a readable email address; legacy signed tokens remain verifiable during transition.
+  - Added a nine-tool read-only PM Hermes MCP client, safe readiness CLI, reporting snapshot compatibility path, control-plane registration and an attended rollout/rotation/rollback runbook.
+  - Kept `monthly_reports` as the first canonical saved-report source, made missing analytics distinct from measured zero, removed stored error text from agent publication responses and treated all returned content as untrusted application data.
+  - Kept every create, update, delete, approval, publication, retry, raw database and administrative capability out of this checkpoint.
+- Verification:
+  - `npm run typecheck`, strict lint, all 307 Vitest tests, review-boundary contract, production build and `git diff --check` passed.
+  - Fourteen Deno tests and Deno checks for the agent, approval and notification Edge functions passed.
+  - Four app-local Python client tests and three migrated Hermes snapshot-wrapper tests passed; `hermes mcp test content-hub` discovered exactly nine read-only tools.
+  - PM Hermes control-plane validation passed with zero findings. The tool probe remains correctly unavailable until production runtime values are provisioned.
+  - `npm audit --omit=dev` reported zero vulnerabilities, the PM Hermes security scan reported zero findings and Hermes Doctor completed successfully.
+  - Both new migrations and `agent_request_invariants.sql` passed in an isolated PostgreSQL container. The full local Supabase stack remains blocked earlier by the pre-existing `20260318_org_events.sql` `CREATE POLICY IF NOT EXISTS` syntax and that historical migration was not changed.
+- Status: Local Phase 1 foundation complete and production-disabled; production migration/function rollout and Phase 2 approval-gated writes remain pending
+
+## 2026-07-19 - Add reporting to the PM Hermes integration plan
+
+- Tool: Codex
+- Branch: `main`
+- Changes:
+  - Made live reporting analysis and saved-report creation/update required PM Hermes outcomes.
+  - Added bounded reporting queries, period comparisons, coverage disclosure, evidence references, and exact approval-gated report writes.
+  - Selected `monthly_reports` as the initial agent write target because it backs the currently rendered Reporting and Insights screens; prohibited dual writes to the unused `reporting_periods` workspace model.
+  - Added report-specific conflict checks, create/update canaries, missing-data handling, observability, risks, and completion criteria.
+- Verification:
+  - Inspected the rendered Reporting and Insights flows, both report models, reporting calculations, metric registry, persistence services, and current organic reporting contract.
+  - Revalidated plan structure, permissions, rollout gates, and completion definition against the reporting requirement.
+- Status: Complete
+
+## 2026-07-19 - Make PM Hermes writing and updating a required outcome
+
+- Tool: Codex
+- Branch: `main`
+- Changes:
+  - Revised `plans/pm-hermes-content-hub-integration.md` so live Content Hub creation and updates are mandatory Phase 2 deliverables rather than an optional future capability.
+  - Defined the initial write scope: ideas, drafts, eligible entry fields, comments, and submission for human review, with authoritative read-after-write results.
+  - Added separate create and update production canaries and made both required for completion.
+  - Retained exact one-time approval for each mutation and kept approval, publication, deletion, administration, arbitrary database access, and edits to Approved or Published records blocked.
+- Verification:
+  - Rechecked the current platform catalogue for Content Hub create/edit capabilities.
+  - Revalidated plan acceptance criteria, rollout gates, and completion definition against the clarified write/update requirement.
+- Status: Complete
+
+## 2026-07-18 - Plan PM Hermes Agent integration
+
+- Tool: Codex
+- Branch: `main`
+- Changes:
+  - Added `plans/pm-hermes-content-hub-integration.md`, defining three larger vertical phases for secure read access, approval-gated content preparation, and production hardening.
+  - Selected a PM-owned local MCP wrapper and versioned Edge API instead of browser automation, raw Supabase access, or direct provider access.
+  - Made removal of the existing anonymous `entries` read dependency a Phase 1 prerequisite and preserved human-only approval and publication as hard boundaries.
+  - Defined HMAC request authentication, replay protection, bounded projections, exact one-time action approvals, revision-safe idempotency, provenance, rollout, rollback, and acceptance tests.
+- Verification:
+  - Cross-checked the plan against the current Content Hub application, platform documentation, production architecture, PM Hermes capability registries, approval policy, plugin runbook, and existing organic reporting wrapper.
+  - Markdown formatting and structural checks recorded with the plan.
+- Status: Complete
+
 ## 2026-07-01 - Add Excel backup workflow to standalone Gantt planner
 
 - Tool: Codex

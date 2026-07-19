@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
     <title>Content Review — Population Matters</title>
     <meta
       name="description"
@@ -327,14 +328,10 @@
     </div>
 
     <script src="./content-hub-config.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <script>
       (function () {
         const PUBLIC_CONFIG = window.CONTENT_HUB_PUBLIC_CONFIG || {};
-        const SUPABASE_URL = PUBLIC_CONFIG.supabaseUrl;
-        const SUPABASE_ANON_KEY = PUBLIC_CONFIG.supabaseAnonKey;
-
-        const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const SUPABASE_FUNCTIONS_URL = PUBLIC_CONFIG.supabaseFunctionsUrl;
         const contentEl = document.getElementById('content');
 
         /** Safely set text content on an element */
@@ -349,9 +346,9 @@
           return node;
         }
 
-        function getEntryId() {
+        function getReviewToken() {
           var params = new URLSearchParams(window.location.search);
-          return params.get('id') || params.get('entry');
+          return params.get('token') || '';
         }
 
         function statusClass(status) {
@@ -400,12 +397,12 @@
         function renderEntry(entry) {
           var platforms = parseArray(entry.platforms);
           var approvers = parseArray(entry.approvers);
-          var wfStatus = entry.workflow_status || entry.workflowStatus || entry.status || 'Draft';
+          var wfStatus = entry.workflowStatus || entry.status || 'Draft';
           var caption = entry.caption || '';
-          var previewUrl = entry.preview_url || entry.previewUrl || '';
-          var assetType = entry.asset_type || entry.assetType || '';
+          var previewUrl = entry.previewUrl || '';
+          var assetType = entry.assetType || '';
           var campaign = entry.campaign || '';
-          var pillar = entry.content_pillar || entry.contentPillar || '';
+          var pillar = entry.contentPillar || '';
           var author = entry.author || '';
           var date = entry.date || '';
 
@@ -519,25 +516,33 @@
         }
 
         function load() {
-          var id = getEntryId();
-          if (!id) {
-            renderError('No entry ID provided. Check the link in your notification email.');
+          var token = getReviewToken();
+          if (!token) {
+            renderError('No review token provided. Check the link in your notification email.');
+            return;
+          }
+          if (!SUPABASE_FUNCTIONS_URL) {
+            renderError(
+              'The review service is unavailable. Please contact the communications team.',
+            );
             return;
           }
 
-          client
-            .from('entries')
-            .select('*')
-            .eq('id', id)
-            .is('deleted_at', null)
-            .single()
+          fetch(SUPABASE_FUNCTIONS_URL + '/approve-entry?token=' + encodeURIComponent(token), {
+            headers: { Accept: 'application/json' },
+          })
+            .then(function (response) {
+              return response.json().then(function (body) {
+                return { ok: response.ok, body: body };
+              });
+            })
             .then(function (result) {
-              if (result.error || !result.data) {
+              if (!result.ok || result.body.error || !result.body.entry) {
                 renderError(
                   'Entry not found. It may have been deleted or the link may be incorrect.',
                 );
               } else {
-                renderEntry(result.data);
+                renderEntry(result.body.entry);
               }
             })
             .catch(function () {

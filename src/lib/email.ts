@@ -5,6 +5,8 @@ import { escapeHtml, ensureArray } from './utils';
 import { getPlatformCaption } from './sanitizers';
 import type { Entry } from '../types/models';
 
+export const CONTENT_REVIEW_URL_PLACEHOLDER = '{{CONTENT_REVIEW_URL}}';
+
 export interface EmailAttachment {
   name: string;
   url: string;
@@ -38,29 +40,6 @@ export interface EntryEmailPayload {
   html: string;
 }
 
-const getAppBaseUrl = (): string => {
-  if (typeof window === 'undefined') return '';
-
-  try {
-    const url = new URL(window.location.href);
-    url.hash = '';
-    url.search = '';
-
-    if (url.hostname === 'ddpopmatters.github.io') {
-      url.pathname = '/content-hub/';
-      return url.toString();
-    }
-
-    if (!url.pathname.endsWith('/')) {
-      url.pathname = url.pathname.replace(/[^/]*$/, '');
-    }
-
-    return url.toString();
-  } catch {
-    return window.location.href.split('#')[0].replace(/[^/]*$/, '');
-  }
-};
-
 /**
  * Returns a human-readable description of an entry
  */
@@ -80,12 +59,8 @@ export const entryDescriptor = (entry: Partial<Entry> | null | undefined): strin
  * Returns the review link URL for an entry
  */
 export const entryReviewLink = (entry: Partial<Entry> | null | undefined): string => {
-  if (typeof window === 'undefined' || !entry) return '';
-  try {
-    return `${getAppBaseUrl()}review.html?id=${encodeURIComponent(entry.id || '')}`;
-  } catch {
-    return '';
-  }
+  if (!entry) return '';
+  return entry.id ? CONTENT_REVIEW_URL_PLACEHOLDER : '';
 };
 
 /**

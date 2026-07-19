@@ -5,12 +5,13 @@
  * POST { token }              → validate token + mark entry Approved
  *
  * Token format: base64url(header).base64url(payload).base64url(sig)
- * Payload: { eid: string, eml: string, iat: number, exp: number }
+ * Payload: { eid: string, rid: string, iat: number, exp: number }
  *
  * Secret: APPROVAL_TOKEN_SECRET env var (set via `supabase secrets set`)
  */
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { verifyApprovalToken } from '../_shared/approvalToken.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -22,57 +23,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
-function b64urlDecode(s: string): string {
-  return atob(s.replace(/-/g, '+').replace(/_/g, '/').replace(/\./g, '='));
-}
-
-function b64urlEncode(buf: ArrayBuffer): string {
-  return btoa(String.fromCharCode(...new Uint8Array(buf)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
-}
-
-interface TokenPayload {
-  eid: string;
-  eml: string;
-  iat: number;
-  exp: number;
-}
-
-async function verifyToken(token: string): Promise<TokenPayload | null> {
-  if (!APPROVAL_TOKEN_SECRET) return null;
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  const [header, body, sig] = parts;
-  const message = `${header}.${body}`;
-
-  try {
-    const sigBytes = Uint8Array.from(b64urlDecode(sig), (c) => c.charCodeAt(0));
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(APPROVAL_TOKEN_SECRET),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['verify'],
-    );
-    const valid = await crypto.subtle.verify(
-      'HMAC',
-      key,
-      sigBytes,
-      new TextEncoder().encode(message),
-    );
-    if (!valid) return null;
-
-    const payload = JSON.parse(b64urlDecode(body)) as TokenPayload;
-    if (!payload.eid || !payload.eml || !payload.exp) return null;
-    if (Date.now() / 1000 > payload.exp) return null; // expired
-    return payload;
-  } catch {
-    return null;
-  }
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -83,7 +33,7 @@ Deno.serve(async (req) => {
   // ── GET: validate token + return entry data ────────────────────────────────
   if (req.method === 'GET') {
     const token = url.searchParams.get('token') ?? '';
-    const payload = await verifyToken(token);
+    const payload = await verifyApprovalToken(APPROVAL_TOKEN_SECRET, token);
     if (!payload) {
       return new Response(JSON.stringify({ error: 'Invalid or expired approval link.' }), {
         status: 400,
@@ -94,8 +44,11 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data: entry, error } = await supabase
       .from('entries')
-      .select('id, caption, asset_type, date, platforms, status, author, campaign, approved_at')
+      .select(
+        'id, caption, asset_type, date, platforms, status, workflow_status, author, campaign, content_pillar, approvers, preview_url, approved_at',
+      )
       .eq('id', payload.eid)
+      .is('deleted_at', null)
       .single();
 
     if (error || !entry) {
@@ -114,10 +67,13 @@ Deno.serve(async (req) => {
           date: entry.date,
           platforms: entry.platforms,
           status: entry.status,
+          workflowStatus: entry.workflow_status,
           author: entry.author,
           campaign: entry.campaign,
+          contentPillar: entry.content_pillar,
+          approvers: entry.approvers,
+          previewUrl: entry.preview_url,
         },
-        approverEmail: payload.eml,
         alreadyApproved: entry.status === 'Approved',
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -137,7 +93,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const payload = await verifyToken(token);
+    const payload = await verifyApprovalToken(APPROVAL_TOKEN_SECRET, token);
     if (!payload) {
       return new Response(JSON.stringify({ error: 'Invalid or expired approval link.' }), {
         status: 400,
@@ -157,6 +113,7 @@ Deno.serve(async (req) => {
         updated_at: now,
       })
       .eq('id', payload.eid)
+      .is('deleted_at', null)
       .in('status', ['In Review', 'Pending', 'Draft']); // only advance, never regress
 
     if (error) {

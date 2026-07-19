@@ -142,4 +142,24 @@ describe('publication approval helpers', () => {
     expect(current).toMatchObject({ contentRevision: 5, approvedRevision: 5 });
     expect(invalid).toMatchObject({ contentRevision: 2, approvedRevision: null });
   });
+
+  it('preserves only structurally valid PM Hermes provenance', () => {
+    const provenance = {
+      source: 'PM Hermes',
+      actionId: '12345678-1234-4234-9234-123456789abc',
+      actionType: 'create_entry',
+      approvalReference: 'cha_1234567890abcdef12345678',
+      approvedBy: 'Dan',
+      appliedAt: '2026-07-19T12:00:00.000Z',
+    };
+    expect(sanitizeEntry({ id: 'entry-1', agentProvenance: provenance })?.agentProvenance).toEqual(
+      provenance,
+    );
+    expect(
+      sanitizeEntry({
+        id: 'entry-2',
+        agentProvenance: { ...provenance, approvalReference: 'fabricated' },
+      })?.agentProvenance,
+    ).toBeUndefined();
+  });
 });
