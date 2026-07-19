@@ -1,5 +1,16 @@
 # Content Hub — Dev Log
 
+## 2026-07-19 - Align the Hermes release candidate with CI formatting
+
+- Tool: Codex
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Applied the two indentation-only changes required by the lockfile-pinned Prettier 3.6.2 formatter in `useEntries.ts`.
+  - Reinstalled dependencies from the lockfile so local commit hooks and GitHub Actions use the same formatter version.
+- Verification:
+  - Full-repository Prettier checking, TypeScript checking, strict ESLint and `git diff --check` passed.
+- Status: Formatter-only CI repair complete with no behavioural or production change
+
 ## 2026-07-19 - Verify the PM Hermes production rollout boundary
 
 - Tool: Codex

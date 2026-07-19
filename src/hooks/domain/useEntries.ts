@@ -477,15 +477,15 @@ export function useEntries({
       });
       const publicationContentChangedForPersistence = Boolean(
         existingEntry &&
-        sanitizedForPersistence &&
-        hasPublicationRelevantChanges(existingEntry as Partial<Entry>, sanitizedForPersistence),
+          sanitizedForPersistence &&
+          hasPublicationRelevantChanges(existingEntry as Partial<Entry>, sanitizedForPersistence),
       );
       const approvalRevokedForPersistence = Boolean(
         publicationContentChangedForPersistence &&
-        existingEntry &&
-        (existingEntry.workflowStatus === 'Approved' ||
-          existingEntry.workflowStatus === 'Published' ||
-          existingEntry.status === 'Approved'),
+          existingEntry &&
+          (existingEntry.workflowStatus === 'Approved' ||
+            existingEntry.workflowStatus === 'Published' ||
+            existingEntry.status === 'Approved'),
       );
       const updateForPersistence = approvalRevokedForPersistence
         ? {
