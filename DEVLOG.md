@@ -1,5 +1,18 @@
 # Content Hub — Dev Log
 
+## 2026-07-20 - Refresh the expired PM Hermes update canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Received exact approval for update action `8de02761-1c7e-4c7e-9817-344fd9b96ae3` after its local approval receipt had expired. Kept both execution switches false and did not transfer that approval or call the execution tool.
+  - Re-read the canary Draft's authoritative revision binding and created a fresh inert `update_entry` proposal, `9034488c-fa0f-4051-aea9-26b3df5b397b`, for the same caption-only change.
+  - Used the deterministic MCP client because the Hermes language-model provider reported a temporary quota limit; no approval boundary was bypassed.
+- Verification:
+  - The Draft remains at content revision 1 with unchanged `updated_at`, and the fresh action is `proposed` / `awaiting_exact_approval` with no application result.
+  - Local writes and Edge execution remain disabled throughout. No Content Hub application record changed.
+- Status: Execute the refreshed update only when Dan's newest direct message is exactly `execute 9034488c-fa0f-4051-aea9-26b3df5b397b`.
+
 ## 2026-07-20 - Keep the completed create canary replay-safe
 
 - Tool: Codex (production guard active)
