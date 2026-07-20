@@ -1,5 +1,17 @@
 # Content Hub — Dev Log
 
+## 2026-07-20 - Keep the completed create canary replay-safe
+
+- Tool: Codex (production guard active)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Received the already-consumed exact command for create action `dbdcc1bb-980b-4be6-9119-a4ba9f5d7227` a second time.
+  - Kept both execution switches false and performed only a read-only reconciliation; the execution tool was not called again and no production record changed.
+- Verification:
+  - The local receipt remains `executed`, the Edge action remains `applied`, and both still resolve to the original Draft entry `1edb47ba-aab8-4425-a01d-a9177026d307`.
+  - The local write switch and Edge execution switch are false. The separately staged update action remains `8de02761-1c7e-4c7e-9817-344fd9b96ae3`.
+- Status: Completed create action safely treated as already consumed; no duplicate entry or update was created.
+
 ## 2026-07-20 - Execute the first PM Hermes write canary and stage an update
 
 - Tool: Codex (full-access production session with production guard active)
