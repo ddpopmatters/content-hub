@@ -1,6 +1,6 @@
 # Data Reference — Content Hub
 
-_Generated locally: 2026-07-19. Re-run `/update-data-reference` after the PM Hermes migrations are applied and production is reconciled._
+_Production checkpoint: 2026-07-20. Re-run `/update-data-reference` after the remaining PM Hermes write canaries are reconciled._
 
 This focused reference covers the direct-publication and PM Hermes agent boundaries. The configured automated analyser was unavailable, so the relationships below were cross-referenced manually against migrations, Edge Function contracts and application types.
 
@@ -122,7 +122,7 @@ This focused reference covers the direct-publication and PM Hermes agent boundar
 - `agent_actions` has RLS enabled, no browser policies and no browser grants. Only `service_role` can call `create_agent_action(...)`, inspect an action or call `apply_agent_action(...)`.
 - The action executor can create ideas and Draft entries, update Draft/In Review entries, add comments, move a Draft to In Review, and create/update `monthly_reports`. It cannot approve, reject, schedule, publish, retry, delete, administer or run arbitrary SQL.
 - Agent-created entries are forced to `status = 'Pending'` and `workflow_status = 'Draft'`, regardless of untrusted supplied fields. Submission clears approval metadata and stops at In Review.
-- Anonymous `entries` selection is removed in a separate lockdown migration only after the signed review projection has been deployed and smoke-tested.
+- Anonymous `entries` selection was removed in a separate lockdown migration only after the signed review projection had been deployed and smoke-tested. Authenticated application policies and the fixed signed-review service projection remain the intended read paths.
 
 ## Common Query Patterns
 
@@ -152,7 +152,8 @@ This focused reference covers the direct-publication and PM Hermes agent boundar
 - Hosted TypeScript type generation succeeds and includes both durable publication tables. The application continues to use its narrower explicit boundary types rather than committing an unused full-schema generated file.
 - Production reconciliation completed against the intended shared runtime project on 18 July 2026. The secured `publish-entry` version 2 requires a gateway JWT, the hosted schema marker is `durable-manual-v1`, and the exact frontend readiness check passes.
 - The production `content-media` bucket and authenticated write/delete policies are recorded by migration. Pages enables the upload UI only after that Storage contract and the backend readiness gate are active.
-- The PM Hermes schema and Edge changes are local only at this checkpoint. Deploy the request ledger first with `CONTENT_HUB_AGENT_ENABLED=false`, deploy and smoke-test signed review/agent functions, then apply the separate anonymous-read lockdown. Do not combine these into an unordered production step.
-- The action migration and governed write tools are also local and disabled by default. Proposal and execution flags exist independently at both the PM Hermes wrapper and Edge layers; an action type must be allowlisted at both layers. Production rollout starts proposal-only and enables each mutation type only after its attended canary passes.
+- The service-only `agent_requests` and `agent_actions` migrations are recorded on the canonical production project. Their RLS, browser-role revocations, service-role grants and pinned security-definer boundaries are active. The anonymous-entry review policy was removed only after the valid, missing, expired and tampered signed-review probes passed; a known entry now projects zero rows to the anonymous REST role.
+- The reviewed `approve-entry` v2, `send-notification` v6 and `content-hub-agent` v1 bundles are hosted from this branch. Signed reads, bounded reporting and saved-report metadata are live for PM Hermes. The HMAC client signs the function-local `/content-hub-agent` path verified after the Supabase gateway rewrite.
+- Proposal and execution flags remain independent at both PM Hermes and Edge layers. Proposal-only `create_entry` is enabled and its first inert canary changed no application record. Execution remains disabled until the matching action receives Dan's exact one-time `execute <action-id>` confirmation; other action types remain disabled until their attended canaries pass.
 - `monthly_reports` is the only agent-writable report store. Report metrics are derived from the bounded live reporting snapshot; a manually supplied metric must include an exact value and named source. Evidence references must resolve to entries within the requested reporting window.
 - A lost or indeterminate execution response is recorded as `outcome_unknown` locally and must be reconciled from authoritative action state before any further attempt.

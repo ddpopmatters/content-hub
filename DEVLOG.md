@@ -1,5 +1,51 @@
 # Content Hub — Dev Log
 
+## 2026-07-20 - Activate governed PM Hermes reads and stage the first write canary
+
+- Tool: Codex (full-access production session with production guard active)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Provisioned the Hermes MCP environment hand-off without exposing credential values, enabled signed reads on the canonical `oepehanwmfelowfumkes` backend and kept proposal/execution emergency stops closed during authentication tests.
+  - Corrected the Hermes HMAC client to sign the `/content-hub-agent` path verified after Supabase Edge gateway rewriting, with a focused regression assertion.
+  - Applied only the reviewed `add_pm_hermes_agent_actions` and `lock_down_entry_review_reads` migrations through an isolated migration workspace. Browser roles remain excluded from both agent ledgers and anonymous entry reads now expose zero rows.
+  - Enabled proposal-only access for `create_entry` at the local and Edge boundaries while keeping execution disabled. Staged action `dbdcc1bb-980b-4be6-9119-a4ba9f5d7227`; its campaign matched zero entries before and after proposal creation.
+- Verification:
+  - Live negative probes passed for method restriction, body limit, invalid signature, expired timestamp, operation allowlisting, nonce replay and the 60-request per-minute limit.
+  - Hermes live health, bounded entry list/detail, calendar, reporting, saved-report and publication-status reads passed. Reporting retained null analytics coverage when no measurements were available.
+  - Signed review returned 200 only for a valid token with the bounded projection; missing, expired and tampered tokens returned 400 before and after lockdown. A known entry returned zero rows to the anonymous REST role after lockdown.
+  - The live GitHub Pages app loaded in Brave. That browser profile was signed out, so an authenticated UI read was not claimed from the browser session.
+  - All 10 PM Hermes Python tests passed after the signing correction.
+- Status: Reads and reporting are live. Proposal-only `create_entry` is live, but application writes remain disabled. Execute the canary only when Dan's newest direct message is exactly `execute dbdcc1bb-980b-4be6-9119-a4ba9f5d7227`; otherwise no Draft will be created. Pull request 29 remains draft and unmerged.
+
+## 2026-07-20 - Begin the PM Hermes production backend rollout
+
+- Tool: Codex (`prod` profile for live changes; production guard active)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Verified `oepehanwmfelowfumkes` as the active, healthy shared Intel Hub Supabase backend and preserved the inactive standalone Content Hub project.
+  - Applied the additive `add_pm_hermes_agent_requests` migration and deployed the reviewed signed-review and disabled agent boundaries as `approve-entry` v2, `send-notification` v6 and `content-hub-agent` v1.
+  - Kept pull request 29 unmerged. No PM Hermes credential, read switch, proposal switch, write switch, anonymous-entry RLS policy, action ledger or application record was changed.
+- Verification:
+  - The request ledger has RLS enabled, no browser policies or DML grants, service-role-only DML, and a service-role-only security-definer claim RPC with a pinned search path.
+  - All deployed source files match the reviewed branch byte-for-byte with the intended gateway JWT settings.
+  - The 26 focused Deno contract tests, three Edge type checks and signed review-boundary contract passed; Hermes still discovers all 18 tools and the local wrapper reports no runtime credentials with proposals and writes disabled.
+- Status: Rollout paused safely before credential provisioning. The Supabase CLI remains unauthenticated, outbound shell DNS and the isolated browser are unavailable for live probes, and the active Codex profile changed to `daily`; resume in `prod` through an authenticated production secret workflow, then continue from the signed negative probes. Do not apply the review RLS lockdown or merge pull request 29 yet.
+
+## 2026-07-20 - Revalidate the PM Hermes production rollout checkpoint
+
+- Tool: Codex (`prod` profile with production guard active)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Reconciled the local Supabase link with the approved canonical project `oepehanwmfelowfumkes` and did not merge pull request 29.
+  - Rechecked the rollout runbook, current data reference and focused RLS boundaries for `entries`, `agent_requests` and `agent_actions`; no production migration, function, secret, feature switch or application record was changed.
+  - Refreshed the PM Hermes control-plane and tool-availability reports. The wrapper still fails closed with all 18 tools discoverable, no runtime configuration, and proposal/write switches disabled.
+- Verification:
+  - All 308 Vitest tests, 26 Deno contract tests, 10 PM Hermes Python tests, TypeScript checking, strict lint, the production build, focused PR formatting, the signed review-boundary contract, Ruff and `git diff --check` passed.
+  - Deno checks passed for `content-hub-agent`, `approve-entry` and `send-notification` with automatic npm dependency resolution.
+  - PM Hermes control-plane validation, security scan, tool hygiene and Hermes Doctor passed with zero findings.
+  - The live npm advisory query was unavailable because the sandbox could not resolve the npm registry; the unchanged lockfile last passed with zero vulnerabilities on 19 July.
+- Status: Production rollout remains safely blocked before the first migration because Supabase MCP requires OAuth and the CLI has no access token in this sandbox. Re-authenticate the Supabase MCP from an attended terminal, then resume at `add_pm_hermes_agent_requests`; do not merge pull request 29 until the full backend-readiness sequence passes.
+
 ## 2026-07-19 - Align the Hermes release candidate with CI formatting
 
 - Tool: Codex

@@ -57,7 +57,7 @@ class ContentHubAgentClientTests(unittest.TestCase):
         payload_hash = hashlib.sha256(body).hexdigest()
         canonical = build_canonical_request(
             "POST",
-            "/functions/v1/content-hub-agent",
+            "/content-hub-agent",
             "1000000000",
             "nonce_1234567890abcdef",
             payload_hash,

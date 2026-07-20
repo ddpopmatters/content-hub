@@ -144,10 +144,13 @@ def build_signed_headers(
     nonce: str,
 ) -> dict[str, str]:
     parsed = urlsplit(config.endpoint)
+    # Supabase's gateway exposes /functions/v1/<name> publicly, then rewrites
+    # the URL seen by the Edge function to /<name>. Sign that verified path.
+    canonical_path = f"/{parsed.path.rsplit('/', maxsplit=1)[-1]}"
     payload_hash = hashlib.sha256(body).hexdigest()
     canonical = build_canonical_request(
         "POST",
-        parsed.path,
+        canonical_path,
         str(timestamp),
         nonce,
         payload_hash,
