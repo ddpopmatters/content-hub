@@ -1,5 +1,19 @@
 # Content Hub — Dev Log
 
+## 2026-07-20 - Execute the first PM Hermes write canary and stage an update
+
+- Tool: Codex (full-access production session with production guard active)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Accepted Dan's exact `execute dbdcc1bb-980b-4be6-9119-a4ba9f5d7227` message, opened execution only for `create_entry`, atomically applied that action once and immediately returned both local and Edge execution switches to false.
+  - Created one Pending/Draft Content Hub entry, `1edb47ba-aab8-4425-a01d-a9177026d307`, with PM Hermes provenance bound to the approved action. No approval, scheduling or publication state was granted.
+  - Advanced the proposal allowlist from `create_entry` to `update_entry` with execution still disabled. Staged revision-bound action `8de02761-1c7e-4c7e-9817-344fd9b96ae3` to update only the canary caption.
+- Verification:
+  - The local receipt is `executed`, the authoritative Edge action is `applied`, the campaign contains exactly one entry, and the record is `Draft` / `Pending` at content revision 1 with matching PM Hermes action provenance.
+  - Reconciliation confirmed both execution switches are false after the write window. The Edge reports proposal-only mode.
+  - The update proposal left the canary's content revision and `updated_at` unchanged and has no application result.
+- Status: The `create_entry` canary passed. Execute the revision-bound update only when Dan's newest direct message is exactly `execute 8de02761-1c7e-4c7e-9817-344fd9b96ae3`; all other write classes remain disabled.
+
 ## 2026-07-20 - Activate governed PM Hermes reads and stage the first write canary
 
 - Tool: Codex (full-access production session with production guard active)
