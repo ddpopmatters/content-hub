@@ -226,7 +226,10 @@ const optionalDate = (value: unknown): string | null =>
 const isoTimestamp = (value: unknown): string => {
   const normalised = text(value, 40, { required: true });
   if (!/^\d{4}-\d{2}-\d{2}T/.test(normalised) || Number.isNaN(Date.parse(normalised))) invalid();
-  return new Date(normalised).toISOString();
+  // PostgreSQL timestamps can retain microseconds. Re-serialising through
+  // Date would truncate them to milliseconds and make an unchanged row fail
+  // the executor's exact optimistic-concurrency comparison.
+  return normalised;
 };
 
 const identifier = (value: unknown): string => {

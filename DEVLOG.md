@@ -1,5 +1,20 @@
 # Content Hub — Dev Log
 
+## 2026-07-20 - Fail the update canary safely and preserve timestamp precision
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Accepted Dan's exact approval for update action `9034488c-fa0f-4051-aea9-26b3df5b397b`, opened execution only for `update_entry`, received the authoritative `conflict` result and immediately returned both execution switches to false.
+  - Confirmed the Draft remained unchanged. The conflict exposed that `isoTimestamp(...)` re-serialised PostgreSQL microseconds through JavaScript `Date`, truncating the proposal token to milliseconds before the executor's exact equality check.
+  - Changed the action validator to retain the validated timestamp string, added a microsecond-precision regression test and deployed only `content-hub-agent` version 18 with gateway JWT verification still false and HMAC authentication unchanged.
+  - Staged fresh inert update action `a8645c0a-eb2c-4549-938b-4f8ca6dc661d` against the exact unchanged revision and timestamp.
+- Verification:
+  - The failed local receipt and Edge action are both terminal `failed`; the Draft remains revision 1, Draft/Pending, with the original create-action provenance.
+  - All eight focused action tests and the deployed Edge type-check pass. The live function is Active, proposal-only, and execution is disabled.
+  - The replacement proposal is `proposed` / `awaiting_exact_approval` and changed no application record.
+- Status: The conflict/stale canary passed safely and the precision defect is fixed live. Execute the replacement only when Dan's newest direct message is exactly `execute a8645c0a-eb2c-4549-938b-4f8ca6dc661d`.
+
 ## 2026-07-20 - Refresh the expired PM Hermes update canary
 
 - Tool: Codex (production guard active; deterministic Hermes MCP path)

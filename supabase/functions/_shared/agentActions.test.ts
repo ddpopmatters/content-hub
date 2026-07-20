@@ -184,6 +184,33 @@ Deno.test('stale entry state is rejected before an approval proposal is stored',
   assertEquals(repo.created.length, 0);
 });
 
+Deno.test('entry update proposals retain PostgreSQL timestamp precision', async () => {
+  const repo = repository();
+  const preciseTimestamp = '2026-07-19T11:00:00.123456+00:00';
+  repo.getEntry = async () => ({
+    id: ENTRY_ID,
+    workflowStatus: 'Draft',
+    contentRevision: 2,
+    updatedAt: preciseTimestamp,
+  });
+  await proposeAgentAction(
+    {
+      actionType: 'update_entry',
+      idempotencyKey: 'draft:precise:0001',
+      payload: {
+        entryId: ENTRY_ID,
+        expectedContentRevision: 2,
+        expectedUpdatedAt: preciseTimestamp,
+        changes: { caption: 'A current rights-based caption.' },
+      },
+    },
+    'pm_hermes',
+    repo,
+    new Date('2026-07-19T12:00:00.000Z'),
+  );
+  assertEquals(repo.created[0].payload.expectedUpdatedAt, preciseTimestamp);
+});
+
 Deno.test('report evidence outside the exact period is rejected', async () => {
   const repo = repository();
   repo.getEntry = async () => ({ id: ENTRY_ID, date: '2026-05-31' });
