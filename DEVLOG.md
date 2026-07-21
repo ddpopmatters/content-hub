@@ -1,5 +1,19 @@
 # Content Hub — Dev Log
 
+## 2026-07-21 - Stage the governed review-submission canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Reconciled the completed `add_comment` action and advanced both proposal allowlists to `submit_for_review` while keeping local and Edge execution disabled.
+  - Staged revision- and timestamp-bound action `c68cabb2-2986-486d-85fd-c488806ea46a` to move Draft `1edb47ba-aab8-4425-a01d-a9177026d307` only into human review.
+- Verification:
+  - The proposal hash prefix is `d4c6dbcfb1e1`; the Edge action is `proposed`, the local receipt is `awaiting_exact_approval`, and the action has no application result.
+  - The target remains Pending/Draft at content revision 2 with the unchanged timestamp `2026-07-21T11:40:37.900296+00:00`.
+  - Both layers expose only `submit_for_review`, both execution switches are false, and pull request 29's checks pass for the completed comment canary commit.
+  - If executed, the allowlisted transaction can set only In Review/Pending, clears approval metadata and cannot approve, schedule or publish the entry.
+- Status: Execute the review-submission canary only when Dan's newest direct message is exactly `execute c68cabb2-2986-486d-85fd-c488806ea46a` before its recorded expiry.
+
 ## 2026-07-21 - Execute the governed comment canary
 
 - Tool: Codex (production guard active; deterministic Hermes MCP path)
