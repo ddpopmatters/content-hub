@@ -1,17 +1,19 @@
 # Content Hub — Dev Log
 
-## 2026-07-21 - Stage the governed comment canary
+## 2026-07-21 - Execute the governed comment canary
 
 - Tool: Codex (production guard active; deterministic Hermes MCP path)
 - Branch: `codex/pm-hermes-content-hub`
 - Changes:
   - Reconciled the completed `create_idea` action and advanced both proposal allowlists to `add_comment` while keeping local and Edge execution disabled.
   - Staged timestamp-bound action `ceb1adb4-27bf-4e69-a143-80f5c38368fd` to add one internal-only PM Hermes canary comment to Draft `1edb47ba-aab8-4425-a01d-a9177026d307`.
+  - Kept the action unconsumed and both gates false when the Supabase CLI twice rejected the remote gate update for insufficient project privileges; re-authenticated against the account that exposes the linked canonical project before proceeding.
+  - Received Dan's exact approval, opened execution only for `add_comment`, applied that action once and immediately returned both execution switches to false.
 - Verification:
-  - The proposal hash prefix is `f79a7e4e2a6e`; the Edge action is `proposed`, the local receipt is `awaiting_exact_approval`, and the action has no application result.
-  - The Draft remains Pending/Draft at content revision 2 with the unchanged authoritative timestamp `2026-07-21T08:38:30.787357+00:00`.
-  - Both layers expose only `add_comment`, both execution switches are false, and pull request 29's checks pass for the completed Ideas canary commit.
-- Status: Execute the comment canary only when Dan's newest direct message is exactly `execute ceb1adb4-27bf-4e69-a143-80f5c38368fd` before its recorded expiry.
+  - The proposal hash prefix is `f79a7e4e2a6e`; the Edge action is `applied`, the local receipt is `executed`, and both execution switches are false after reconciliation.
+  - Comment record `a129d723-69a6-42ce-934f-e741e5745a6f` records action `ceb1adb4-27bf-4e69-a143-80f5c38368fd` as its PM Hermes provenance.
+  - The target remains Pending/Draft at content revision 2, with its timestamp advanced to `2026-07-21T11:40:37.900296+00:00`; pull request 29's checks pass for the completed Ideas canary commit.
+- Status: The attended `add_comment` canary passed. `submit_for_review` and all reporting write classes remain disabled pending their separate rollout canaries.
 
 ## 2026-07-21 - Execute the governed Ideas workflow canary
 
