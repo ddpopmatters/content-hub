@@ -1,5 +1,19 @@
 # Content Hub — Dev Log
 
+## 2026-07-21 - Refresh the expired precision-fixed update canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Received exact approval for update action `a8645c0a-eb2c-4549-938b-4f8ca6dc661d` after its two-hour local approval window had expired. Kept both execution switches false and did not call the executor.
+  - Re-read the canary Draft's authoritative revision 1 and microsecond-precision `updated_at`, then staged fresh inert action `65876a12-5362-4dc7-9c17-1af4817bdf29` for the same caption-only update.
+  - Remediated newly published high-severity audit advisories in development tooling by updating the `js-yaml` override to 4.3.0 and resolving patched `brace-expansion` and ESLint transitive versions.
+- Verification:
+  - The expired Edge action remains unexecuted, local writes and Edge execution are false, and the fresh action is `proposed` / `awaiting_exact_approval`.
+  - The application record remains unchanged.
+  - Production dependencies were already clean; the complete dependency audit now reports zero vulnerabilities.
+- Status: Execute the refreshed update only when Dan's newest direct message is exactly `execute 65876a12-5362-4dc7-9c17-1af4817bdf29` before its recorded expiry.
+
 ## 2026-07-20 - Fail the update canary safely and preserve timestamp precision
 
 - Tool: Codex (production guard active; deterministic Hermes MCP path)
