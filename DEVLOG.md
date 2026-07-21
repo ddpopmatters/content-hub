@@ -1,17 +1,20 @@
 # Content Hub — Dev Log
 
-## 2026-07-21 - Stage the governed Ideas workflow canary
+## 2026-07-21 - Execute the governed Ideas workflow canary
 
 - Tool: Codex (production guard active; deterministic Hermes MCP path)
 - Branch: `codex/pm-hermes-content-hub`
 - Changes:
   - Reconciled the completed `update_entry` action and advanced both proposal allowlists to `create_idea` while keeping local and Edge execution disabled.
   - Staged inert action `572de5c8-fb92-4d5c-b007-c29457485375` to create an internal-only Ideas workflow canary with no links or publication intent.
+  - Received Dan's exact approval, opened execution only for `create_idea`, applied that action once and immediately returned both execution switches to false.
+  - Fixed the non-cryptographic UUID fallback so its documented minimum length is deterministic, after the commit gate exposed a random 19-character result; added an explicit fallback regression test.
 - Verification:
-  - The proposal hash prefix is `5521bafb2f95`; the Edge action is `proposed`, the local receipt is `awaiting_exact_approval`, and the action has no application result.
-  - Both layers expose only `create_idea`, both execution switches are false, and no Ideas record was created by the proposal.
+  - The proposal hash prefix is `5521bafb2f95`; the Edge action is `applied`, the local receipt is `executed`, and both execution switches are false after reconciliation.
+  - Ideas record `6f833f0f-190e-461a-a4f1-d53fb446c7ea` has the expected internal canary title and records action `572de5c8-fb92-4d5c-b007-c29457485375` as its PM Hermes provenance.
   - Pull request 29's lint/type-check, test, security and supply-chain checks all pass for the preceding update canary commit.
-- Status: Execute the Ideas canary only when Dan's newest direct message is exactly `execute 572de5c8-fb92-4d5c-b007-c29457485375` before its recorded expiry.
+  - The focused utility suite passes 29 tests; the full application suite passes 309 tests, with strict lint and TypeScript checks clean.
+- Status: The attended `create_idea` canary passed. `add_comment`, `submit_for_review` and all reporting write classes remain disabled pending their separate rollout canaries.
 
 ## 2026-07-21 - Execute the precision-fixed update canary
 

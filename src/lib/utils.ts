@@ -41,7 +41,9 @@ export const uuid = (): string => {
     return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
   }
   // Last resort fallback (not cryptographically secure)
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const timestamp = Date.now().toString(36).padStart(10, '0');
+  const random = Math.random().toString(36).slice(2).padEnd(12, '0');
+  return `${timestamp}${random}`;
 };
 
 // Array utilities
