@@ -1,5 +1,17 @@
 # Content Hub — Dev Log
 
+## 2026-07-21 - Execute the governed review-submission canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Received Dan's exact approval, opened execution only for `submit_for_review`, applied that action once and immediately returned both execution switches to false.
+- Verification:
+  - The proposal hash prefix is `d4c6dbcfb1e1`; the Edge action is `applied`, the local receipt is `executed`, and both execution switches are false after reconciliation.
+  - Entry `1edb47ba-aab8-4425-a01d-a9177026d307` is In Review/Pending at content revision 2, with its timestamp advanced to `2026-07-21T12:26:25.934125+00:00` and action `c68cabb2-2986-486d-85fd-c488806ea46a` recorded as PM Hermes provenance.
+  - The allowlisted transaction cleared approval metadata and stopped before approval, scheduling or publication authority.
+- Status: The attended `submit_for_review` canary passed. Reporting write classes remain disabled pending their separate rollout canaries.
+
 ## 2026-07-21 - Stage the governed review-submission canary
 
 - Tool: Codex (production guard active; deterministic Hermes MCP path)
