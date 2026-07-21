@@ -1,5 +1,18 @@
 # Content Hub — Dev Log
 
+## 2026-07-21 - Stage the governed Ideas workflow canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Reconciled the completed `update_entry` action and advanced both proposal allowlists to `create_idea` while keeping local and Edge execution disabled.
+  - Staged inert action `572de5c8-fb92-4d5c-b007-c29457485375` to create an internal-only Ideas workflow canary with no links or publication intent.
+- Verification:
+  - The proposal hash prefix is `5521bafb2f95`; the Edge action is `proposed`, the local receipt is `awaiting_exact_approval`, and the action has no application result.
+  - Both layers expose only `create_idea`, both execution switches are false, and no Ideas record was created by the proposal.
+  - Pull request 29's lint/type-check, test, security and supply-chain checks all pass for the preceding update canary commit.
+- Status: Execute the Ideas canary only when Dan's newest direct message is exactly `execute 572de5c8-fb92-4d5c-b007-c29457485375` before its recorded expiry.
+
 ## 2026-07-21 - Execute the precision-fixed update canary
 
 - Tool: Codex (production guard active; deterministic Hermes MCP path)
