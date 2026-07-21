@@ -1,5 +1,18 @@
 # Content Hub — Dev Log
 
+## 2026-07-21 - Stage the governed comment canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Reconciled the completed `create_idea` action and advanced both proposal allowlists to `add_comment` while keeping local and Edge execution disabled.
+  - Staged timestamp-bound action `ceb1adb4-27bf-4e69-a143-80f5c38368fd` to add one internal-only PM Hermes canary comment to Draft `1edb47ba-aab8-4425-a01d-a9177026d307`.
+- Verification:
+  - The proposal hash prefix is `f79a7e4e2a6e`; the Edge action is `proposed`, the local receipt is `awaiting_exact_approval`, and the action has no application result.
+  - The Draft remains Pending/Draft at content revision 2 with the unchanged authoritative timestamp `2026-07-21T08:38:30.787357+00:00`.
+  - Both layers expose only `add_comment`, both execution switches are false, and pull request 29's checks pass for the completed Ideas canary commit.
+- Status: Execute the comment canary only when Dan's newest direct message is exactly `execute ceb1adb4-27bf-4e69-a143-80f5c38368fd` before its recorded expiry.
+
 ## 2026-07-21 - Execute the governed Ideas workflow canary
 
 - Tool: Codex (production guard active; deterministic Hermes MCP path)
