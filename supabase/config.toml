@@ -64,6 +64,9 @@ verify_jwt = true
 [functions.platform-summary]
 verify_jwt = false
 
+[functions.content-hub-agent]
+verify_jwt = false
+
 [functions.iterate-content]
 verify_jwt = false
 

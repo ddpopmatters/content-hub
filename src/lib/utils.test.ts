@@ -1,5 +1,5 @@
 // src/lib/utils.test.ts
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   cx,
   daysInMonth,
@@ -98,6 +98,11 @@ describe('localMonthKey', () => {
 });
 
 describe('uuid', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it('returns a string', () => {
     expect(typeof uuid()).toBe('string');
   });
@@ -111,6 +116,13 @@ describe('uuid', () => {
   });
 
   it('returns a value at least 20 characters long', () => {
+    expect(uuid().length).toBeGreaterThanOrEqual(20);
+  });
+
+  it('retains the minimum length in the last-resort fallback', () => {
+    vi.stubGlobal('crypto', undefined);
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
     expect(uuid().length).toBeGreaterThanOrEqual(20);
   });
 });

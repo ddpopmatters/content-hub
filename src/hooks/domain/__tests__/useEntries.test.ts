@@ -14,6 +14,7 @@ const {
   mockCanRetryFailedPlatform,
   mockGetSession,
   mockFetchLatestPublicationJob,
+  mockHasApproverRelevantChanges,
   mockHasPublicationRelevantChanges,
   mockLoadEntries,
 } = vi.hoisted(() => ({
@@ -40,6 +41,7 @@ const {
   mockFetchLatestPublicationJob: vi.fn<() => Promise<DurablePublicationJob | null>>(() =>
     Promise.resolve(null),
   ),
+  mockHasApproverRelevantChanges: vi.fn(() => false),
   mockHasPublicationRelevantChanges: vi.fn(() => false),
   mockLoadEntries: vi.fn<() => Array<Record<string, unknown>>>(() => []),
 }));
@@ -65,7 +67,7 @@ vi.mock('../../../lib/sanitizers', () => ({
   createEmptyChecklist: () => ({ items: [] }),
   entrySignature: () => 'sig',
   getWorkflowBlockers: mockGetWorkflowBlockers,
-  hasApproverRelevantChanges: () => false,
+  hasApproverRelevantChanges: mockHasApproverRelevantChanges,
   hasPublicationRelevantChanges: mockHasPublicationRelevantChanges,
 }));
 
@@ -151,6 +153,7 @@ describe('useEntries', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetSession.mockResolvedValue({ access_token: 'test-jwt-token' });
+    mockHasApproverRelevantChanges.mockReturnValue(false);
     mockHasPublicationRelevantChanges.mockReturnValue(false);
     mockCanRetryFailedPlatform.mockReturnValue(false);
     mockGetWorkflowBlockers.mockReturnValue([]);
@@ -259,6 +262,53 @@ describe('useEntries', () => {
         sourceRequestId: 'request-123',
       });
     });
+
+    it('sends approval requests only after the entry is persisted', async () => {
+      let releaseSave: (() => void) | undefined;
+      const saveGate = new Promise<void>((resolve) => {
+        releaseSave = resolve;
+      });
+      const notifyViaServer = vi.fn();
+      const runSyncTask = vi.fn(
+        async (_label: string, action: () => Promise<unknown>): Promise<boolean> => {
+          await saveGate;
+          await action();
+          return true;
+        },
+      );
+      const deps = mockDeps({ notifyViaServer, runSyncTask });
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.addEntry({
+          date: '2026-03-15',
+          assetType: 'Blog',
+          caption: 'Approval ordering',
+          approvers: ['Jane Doe'],
+        });
+      });
+
+      expect(mockSaveEntry).not.toHaveBeenCalled();
+      expect(notifyViaServer).not.toHaveBeenCalled();
+
+      await act(async () => {
+        releaseSave?.();
+        await saveGate;
+        await Promise.resolve();
+      });
+
+      expect(mockSaveEntry).toHaveBeenCalledTimes(1);
+      expect(notifyViaServer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          approvers: ['Jane Doe'],
+          approvalRequested: true,
+        }),
+        expect.stringContaining('Send approval request'),
+      );
+      expect(mockSaveEntry.mock.invocationCallOrder[0]).toBeLessThan(
+        notifyViaServer.mock.invocationCallOrder[0],
+      );
+    });
   });
 
   describe('upsert', () => {
@@ -345,6 +395,121 @@ describe('useEntries', () => {
         caption: 'Edited caption',
         firstComment: 'Edited first comment',
       });
+    });
+
+    it('notifies a newly assigned approver only after the update is persisted', async () => {
+      mockLoadEntries.mockReturnValue([
+        {
+          id: 'entry-approver-ordering',
+          date: '2026-07-17',
+          assetType: 'Design',
+          caption: 'Approver assignment',
+          approvers: [],
+        },
+      ]);
+      const deps = mockDeps();
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.hydrateFromLocal();
+      });
+      const id = result.current.entries[0].id as string;
+
+      let releaseSave: (() => void) | undefined;
+      const saveGate = new Promise<void>((resolve) => {
+        releaseSave = resolve;
+      });
+      (deps.runSyncTask as Mock).mockImplementationOnce(
+        async (_label: string, action: () => Promise<unknown>): Promise<boolean> => {
+          await saveGate;
+          await action();
+          return true;
+        },
+      );
+      mockSaveEntry.mockClear();
+      (deps.notifyViaServer as Mock).mockClear();
+
+      act(() => {
+        result.current.upsert({ id, approvers: ['Jane Doe'] });
+      });
+
+      expect(mockSaveEntry).not.toHaveBeenCalled();
+      expect(deps.notifyViaServer).not.toHaveBeenCalled();
+
+      await act(async () => {
+        releaseSave?.();
+        await saveGate;
+        await Promise.resolve();
+      });
+
+      expect(mockSaveEntry).toHaveBeenCalledTimes(1);
+      expect(deps.notifyViaServer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          approvers: ['Jane Doe'],
+          approvalRequested: true,
+        }),
+        expect.stringContaining('Send approval request'),
+      );
+      expect(mockSaveEntry.mock.invocationCallOrder[0]).toBeLessThan(
+        (deps.notifyViaServer as Mock).mock.invocationCallOrder[0],
+      );
+    });
+
+    it('notifies approvers about changed content only after the update is persisted', async () => {
+      mockLoadEntries.mockReturnValue([
+        {
+          id: 'entry-review-change-ordering',
+          date: '2026-07-17',
+          assetType: 'Design',
+          caption: 'Original content',
+          approvers: ['Jane Doe'],
+        },
+      ]);
+      mockHasApproverRelevantChanges.mockReturnValue(true);
+      let releaseSave: (() => void) | undefined;
+      const saveGate = new Promise<void>((resolve) => {
+        releaseSave = resolve;
+      });
+      const runSyncTask = vi.fn(
+        async (_label: string, action: () => Promise<unknown>): Promise<boolean> => {
+          await saveGate;
+          await action();
+          return true;
+        },
+      );
+      const notifyApproversAboutChange = vi.fn();
+      const deps = mockDeps({ notifyApproversAboutChange, runSyncTask });
+      const { result } = renderHook(() => useEntries(deps));
+
+      act(() => {
+        result.current.hydrateFromLocal();
+      });
+      act(() => {
+        result.current.upsert({
+          id: 'entry-review-change-ordering',
+          caption: 'Persisted content',
+        });
+      });
+
+      expect(mockSaveEntry).not.toHaveBeenCalled();
+      expect(notifyApproversAboutChange).not.toHaveBeenCalled();
+
+      await act(async () => {
+        releaseSave?.();
+        await saveGate;
+        await Promise.resolve();
+      });
+
+      expect(mockSaveEntry).toHaveBeenCalledTimes(1);
+      expect(notifyApproversAboutChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'entry-review-change-ordering',
+          caption: 'Persisted content',
+        }),
+      );
+      expect(mockSaveEntry.mock.invocationCallOrder[0]).toBeLessThan(
+        notifyApproversAboutChange.mock.invocationCallOrder[0],
+      );
     });
   });
 

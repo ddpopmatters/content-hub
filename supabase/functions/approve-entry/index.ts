@@ -5,12 +5,17 @@
  * POST { token }              → validate token + mark entry Approved
  *
  * Token format: base64url(header).base64url(payload).base64url(sig)
- * Payload: { eid: string, eml: string, iat: number, exp: number }
+ * Payload: { eid: string, rid: string, rev: number, scp: string, iat: number, exp: number }
  *
  * Secret: APPROVAL_TOKEN_SECRET env var (set via `supabase secrets set`)
  */
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import {
+  approvalRecipientId,
+  type ApprovalTokenScope,
+  verifyApprovalToken,
+} from '../_shared/approvalToken.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -22,55 +27,85 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
-function b64urlDecode(s: string): string {
-  return atob(s.replace(/-/g, '+').replace(/_/g, '/').replace(/\./g, '='));
+interface ProfileRow {
+  name: string;
+  email: string;
 }
 
-function b64urlEncode(buf: ArrayBuffer): string {
-  return btoa(String.fromCharCode(...new Uint8Array(buf)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
-}
-
-interface TokenPayload {
-  eid: string;
-  eml: string;
-  iat: number;
-  exp: number;
-}
-
-async function verifyToken(token: string): Promise<TokenPayload | null> {
-  if (!APPROVAL_TOKEN_SECRET) return null;
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  const [header, body, sig] = parts;
-  const message = `${header}.${body}`;
-
-  try {
-    const sigBytes = Uint8Array.from(b64urlDecode(sig), (c) => c.charCodeAt(0));
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(APPROVAL_TOKEN_SECRET),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['verify'],
-    );
-    const valid = await crypto.subtle.verify(
-      'HMAC',
-      key,
-      sigBytes,
-      new TextEncoder().encode(message),
-    );
-    if (!valid) return null;
-
-    const payload = JSON.parse(b64urlDecode(body)) as TokenPayload;
-    if (!payload.eid || !payload.eml || !payload.exp) return null;
-    if (Date.now() / 1000 > payload.exp) return null; // expired
-    return payload;
-  } catch {
-    return null;
+const ensurePeople = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) return ensurePeople(parsed);
+  } catch {
+    // A plain stored name is valid.
+  }
+  return [value.trim()];
+};
+
+async function resolveEmails(names: string[]): Promise<string[]> {
+  if (!names.length) return [];
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const directEmails = names.filter((name) => name.includes('@'));
+  const namesToLookup = names.filter((name) => !name.includes('@'));
+  const resolved: string[] = [...directEmails];
+  if (namesToLookup.length) {
+    const { data: profileData } = await supabase
+      .from('user_profiles')
+      .select('name,email')
+      .in('name', namesToLookup);
+    const found = new Set<string>();
+    for (const row of (profileData as ProfileRow[]) ?? []) {
+      if (row.email) {
+        resolved.push(row.email);
+        found.add(row.name);
+      }
+    }
+    const unresolved = namesToLookup.filter((name) => !found.has(name));
+    if (unresolved.length) {
+      const { data: guidelinesData } = await supabase
+        .from('guidelines')
+        .select('approver_directory')
+        .eq('id', 'default')
+        .single();
+      const directory =
+        (
+          guidelinesData as {
+            approver_directory?: { name: string; email: string }[];
+          } | null
+        )?.approver_directory ?? [];
+      for (const item of directory) {
+        if (unresolved.includes(item.name) && item.email) resolved.push(item.email);
+      }
+    }
+  }
+  return [...new Set(resolved.map((email) => email.trim().toLowerCase()).filter(Boolean))];
+}
+
+async function tokenRecipientIsCurrentEntryRecipient(
+  author: unknown,
+  approvers: unknown,
+  recipientId: string,
+  scope: ApprovalTokenScope,
+): Promise<boolean> {
+  if (!recipientId) return false;
+  const identities =
+    scope === 'approve'
+      ? ensurePeople(approvers)
+      : [...ensurePeople(author), ...ensurePeople(approvers)];
+  const emails = await resolveEmails(identities);
+  const recipientIds = await Promise.all(
+    emails.map((email) => approvalRecipientId(APPROVAL_TOKEN_SECRET, email)),
+  );
+  return recipientIds.includes(recipientId);
 }
 
 Deno.serve(async (req) => {
@@ -83,8 +118,12 @@ Deno.serve(async (req) => {
   // ── GET: validate token + return entry data ────────────────────────────────
   if (req.method === 'GET') {
     const token = url.searchParams.get('token') ?? '';
-    const payload = await verifyToken(token);
-    if (!payload) {
+    const payload = await verifyApprovalToken(APPROVAL_TOKEN_SECRET, token);
+    if (
+      !payload ||
+      (payload.scp !== 'review' && payload.scp !== 'approve') ||
+      !Number.isInteger(payload.rev)
+    ) {
       return new Response(JSON.stringify({ error: 'Invalid or expired approval link.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -94,13 +133,30 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data: entry, error } = await supabase
       .from('entries')
-      .select('id, caption, asset_type, date, platforms, status, author, campaign, approved_at')
+      .select(
+        'id, caption, asset_type, date, platforms, status, workflow_status, author, campaign, content_pillar, approvers, preview_url, approved_at, content_revision',
+      )
       .eq('id', payload.eid)
-      .single();
+      .eq('content_revision', payload.rev)
+      .is('deleted_at', null)
+      .maybeSingle();
 
     if (error || !entry) {
-      return new Response(JSON.stringify({ error: 'Entry not found.' }), {
-        status: 404,
+      return new Response(JSON.stringify({ error: 'Entry not found or review link is stale.' }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (
+      !(await tokenRecipientIsCurrentEntryRecipient(
+        entry.author,
+        entry.approvers,
+        payload.rid,
+        payload.scp,
+      ))
+    ) {
+      return new Response(JSON.stringify({ error: 'This review link is no longer authorised.' }), {
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -114,10 +170,13 @@ Deno.serve(async (req) => {
           date: entry.date,
           platforms: entry.platforms,
           status: entry.status,
+          workflowStatus: entry.workflow_status,
           author: entry.author,
           campaign: entry.campaign,
+          contentPillar: entry.content_pillar,
+          approvers: entry.approvers,
+          previewUrl: entry.preview_url,
         },
-        approverEmail: payload.eml,
         alreadyApproved: entry.status === 'Approved',
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -137,8 +196,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    const payload = await verifyToken(token);
-    if (!payload) {
+    const payload = await verifyApprovalToken(APPROVAL_TOKEN_SECRET, token);
+    if (
+      !payload ||
+      payload.scp !== 'approve' ||
+      !Number.isInteger(payload.rev) ||
+      payload.rev === undefined
+    ) {
       return new Response(JSON.stringify({ error: 'Invalid or expired approval link.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -146,9 +210,34 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const now = new Date().toISOString();
+    const { data: currentEntry, error: currentEntryError } = await supabase
+      .from('entries')
+      .select('id,approvers,content_revision')
+      .eq('id', payload.eid)
+      .eq('content_revision', payload.rev)
+      .is('deleted_at', null)
+      .maybeSingle();
+    if (
+      currentEntryError ||
+      !currentEntry ||
+      !(await tokenRecipientIsCurrentEntryRecipient(
+        null,
+        currentEntry.approvers,
+        payload.rid,
+        'approve',
+      ))
+    ) {
+      return new Response(
+        JSON.stringify({ error: 'This approval link is stale or is no longer authorised.' }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
+    }
 
-    const { error } = await supabase
+    const now = new Date().toISOString();
+    const { data: approvedEntry, error } = await supabase
       .from('entries')
       .update({
         status: 'Approved',
@@ -157,11 +246,15 @@ Deno.serve(async (req) => {
         updated_at: now,
       })
       .eq('id', payload.eid)
-      .in('status', ['In Review', 'Pending', 'Draft']); // only advance, never regress
+      .eq('content_revision', payload.rev)
+      .is('deleted_at', null)
+      .in('status', ['In Review', 'Pending', 'Draft'])
+      .select('id')
+      .maybeSingle(); // only advance, never regress
 
-    if (error) {
+    if (error || !approvedEntry) {
       return new Response(JSON.stringify({ error: 'Failed to record approval.' }), {
-        status: 500,
+        status: error ? 500 : 409,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

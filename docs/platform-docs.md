@@ -1,6 +1,6 @@
 # Platform Documentation — Content Hub
 
-_Generated: 2026-07-18. Re-run `/update-platform-docs` after major feature changes._
+_Generated: 2026-07-19. Re-run `/update-platform-docs` after major feature changes._
 
 # Content Hub Platform Documentation
 
@@ -341,7 +341,10 @@ This section highlights specific areas in the codebase that indicate limitations
 | `app_secrets`          | `key` TEXT                                                                                    | Admin-only sensitive config (e.g. webhook URLs).                                                     |
 | `opportunities`        | `id`, `urgency`, `status`, `linked_entry_id`                                                  | Reactive content opportunities. Status: Open → Acted / Dismissed.                                    |
 | `content_requests`     | `id`, `status`, `converted_entry_id`                                                          | Internal content intake briefs. Status: Pending → In Progress → Converted / Declined.                |
+| `monthly_reports`      | `id`, `report_type`, period fields, `platform_metrics`, `qualitative`                         | Canonical saved-report store used by the live Reporting workspace and the first agent contract.      |
 | `reporting_periods`    | `id`, `cadence`, `status`, `metrics`, `narrative`                                             | Social media reporting periods with JSONB metrics.                                                   |
+| `agent_requests`       | `id`, `client_id`, `nonce`, `capability`, `payload_hash`, `result_class`                      | Service-only replay/rate/audit ledger for signed PM Hermes requests.                                 |
+| `agent_actions`        | `id`, `action_type`, `payload_hash`, `idempotency_key`, `status`, approval metadata           | Service-only inert proposals and exact, idempotent PM Hermes execution records.                      |
 | `content_peaks`        | `id`, `start_date`, `end_date`, `owner`                                                       | Strategic campaign peaks with linked content.                                                        |
 | `content_series`       | `id`, `status`, `episodes`                                                                    | Recurring content series. Status: Active / Paused / Completed.                                       |
 | `rapid_responses`      | `id`, `status`, `source_opportunity_id`, `linked_entry_id`                                    | Quick-turnaround reactive content. Status: New → Drafting → In Review → Ready to Publish → Closed.   |
@@ -385,6 +388,20 @@ This section highlights specific areas in the codebase that indicate limitations
 - `Comments` is a metric and is no longer discarded during CSV import.
 - X/Twitter is not a BlueSky alias. Imports must name BlueSky explicitly so reporting cannot mix the two networks.
 - PM Hermes reads these post-level values for organic reporting. They are not equivalent to complete native account-level exports, so answers must state date range and analytics coverage.
+- `monthly_reports` is the canonical saved-report model for the first PM Hermes contract. The currently unused `reporting_periods` model is not dual-written by the agent.
+
+### PM Hermes governed integration
+
+- `content-hub-agent-v1` is a dedicated Edge boundary for PM Hermes. It accepts only signed POST requests and validates the client ID, 32-byte-or-longer HMAC secret, five-minute clock window, bounded body, nonce and operation allowlist before reading domain data.
+- Read operations cover health, entry summaries/detail, calendar summaries, post-level reporting, saved-report list/detail/comparison and sanitised publication status. They exclude email addresses, credentials, provider IDs, raw provider bodies, arbitrary SQL and administrative fields.
+- The local `content-hub` MCP server exposes nine read tools and nine governed proposal/status/execution tools. Captions, notes, links and report prose are labelled untrusted application data, not instructions.
+- Missing analytics and measured zero are distinct. Every reporting answer carries an inclusive date range, source, truncation flag and platform coverage.
+- The old social snapshot command now delegates to this signed boundary and contains no Supabase key or direct `/rest/v1/entries` query.
+- Governed mutations cover creating ideas and Draft entries, updating eligible Draft/In Review entries, adding comments, submitting a Draft for human review, and creating/updating `monthly_reports`. Proposals are inert. A separate operator-only bridge records the exact one-time `execute <action-id>` receipt; the model-facing MCP can consume but cannot mint it.
+- The service-only action executor applies allowlisted fields only, checks entry revision/timestamps or report timestamps for conflicts, forces new entries to Pending/Draft and records PM Hermes provenance plus an activity event. Approval, rejection, publication, scheduling, retry, deletion, analytics import, administration and arbitrary data access are permanently absent.
+- New report proposals derive metrics from the bounded Content Hub reporting snapshot, preserve explicit analytics coverage, require a named source for manual figures and verify evidence entry IDs. Report updates preserve the saved metrics and references by default; `refreshCalculatedMetrics: true` explicitly refreshes server-derived values while retaining named manual figures. Agent evidence is persisted with `monthly_reports`, which remains the only report write target.
+- Signed review email links resolve a fixed projection through `approve-entry`; tokens are recipient-, scope- and content-revision-bound. Only current approvers can receive and use approve-scoped links, while author/comment notifications are review-only. The public review page no longer creates an anonymous Supabase client or selects `entries` by a guessable ID.
+- Rollout is fail-closed: the integration, proposals and execution each default disabled; action types require an allowlist at both the wrapper and Edge layers. Local Hermes registration can discover all schemas without credentials, but live calls still require runtime values. Production followed reads, proposal-only mode and one attended canary per action class; all seven write classes have passed and execution is closed at both layers.
 
 ### Direct publishing connection security
 

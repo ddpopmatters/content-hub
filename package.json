@@ -16,6 +16,7 @@
     "test:coverage": "vitest run --coverage",
     "test:copy-check": "node tools/test-copy-check.mjs",
     "test:content-media": "node tools/test-content-media.mjs",
+    "test:review-boundary": "node tools/test-review-boundary.mjs",
     "check:publication-backend": "node tools/check-publication-backend.mjs",
     "prepare": "husky",
     "supabase:start": "npx supabase start",
@@ -53,7 +54,7 @@
   },
   "overrides": {
     "dompurify": "3.4.12",
-    "js-yaml": "4.2.0",
+    "js-yaml": "4.3.0",
     "vite": "7.3.6"
   },
   "lint-staged": {

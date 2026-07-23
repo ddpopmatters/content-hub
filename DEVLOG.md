@@ -1,5 +1,369 @@
 # Content Hub — Dev Log
 
+## 2026-07-23 - Deploy the hardened PM Hermes backend release
+
+- Tool: Codex (explicit production consent; production guard preflight and attended execution)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Applied migration `20260723163337_preserve_pm_hermes_report_evidence` to the canonical `oepehanwmfelowfumkes` project through the authenticated Supabase Management API SQL route, recording the exact repository migration version in the same transaction.
+  - Deployed `approve-entry` v36, `send-notification` v40 and `content-hub-agent` v36 from the reviewed branch. Gateway JWT verification remains enabled for `send-notification`; the other two handlers retain their reviewed signed-token and HMAC authentication boundaries.
+  - Kept local write execution and Edge execution disabled. Proposal-only access remains limited to `update_report` and still requires a separately recorded exact operator approval before any future attended execution window.
+- Verification:
+  - Production exposes the JSONB `agent_evidence` column and enabled protection trigger; `anon` and `authenticated` cannot execute the trigger function.
+  - Signed Hermes health, report listing and saved-report detail reads passed against the live Edge boundary. The returned report detail includes the evidence field.
+  - Missing-token and malformed-token GET requests and a malformed-token POST to `approve-entry` all failed closed with HTTP 400.
+  - Supabase security advisers report no warning on the new protection function or agent ledgers. The existing internal authenticated-user CRUD policies on `monthly_reports` remain adviser warnings, while the trigger prevents those browser writes from forging or clearing agent evidence.
+- Status: The matched backend release and attended smoke checks are complete. Pull request 29 is ready for final CI, merge and GitHub Pages verification.
+
+## 2026-07-23 - Harden the PM Hermes production release
+
+- Tool: Codex (production guard active; independent security review)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Separated operator approval receipt creation from model-facing MCP execution and made post-dispatch action results authoritative when request-ledger completion fails.
+  - Bound every signed review link to its exact revision, scope and current recipient, and deferred approval/change emails until the corresponding entry save succeeds.
+  - Preserved missing analytics as unknown, added explicit preserve-versus-refresh semantics for saved-report updates, and generated a protected `monthly_reports.agent_evidence` migration through the Supabase migration flow.
+  - Added the differential security review at `docs/reviews/CONTENT_HUB_DIFFERENTIAL_REVIEW_2026-07-23.md`.
+- Verification:
+  - Independent final review reports no high- or medium-severity blockers; one low-risk handler-integration-test limitation is recorded for production negative probing.
+  - 312 Vitest, 94 Deno and 11 Python tests passed, followed by strict TypeScript, zero-warning ESLint, production build, review-boundary and zero-vulnerability dependency checks.
+  - The original agent-action migration, new evidence migration and full action invariant suite passed together on isolated PostgreSQL 17.
+  - PM Hermes discovered all 18 intended Content Hub MCP tools; local configuration without the Hermes runtime remains correctly fail-closed.
+- Status: Remediation is release-ready. The matched migration and Edge bundles still require attended production deployment, smoke verification and green GitHub CI before merge.
+
+## 2026-07-23 - Execute the governed saved-report update canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Received Dan's exact approval, reconciled the unexpired hash and conflict timestamp, opened execution only for `update_report`, applied action `34550c4a-39e3-4119-96b9-27358008ed33` once and returned both execution switches to false.
+  - Added only the approved `themes` narrative to report `33a81b1f-5c9b-4fc0-86a0-b91b7ca5fe19`, preserving its existing highlights, next-period focus and zero-post metrics. No manual metric or evidence reference was supplied.
+- Verification:
+  - The Edge action is `applied`, the local receipt is `executed`, and the stored report records the exact update action as its PM Hermes provenance.
+  - The report timestamp advanced from `2026-07-23T15:33:41.685213+00:00` to `2026-07-23T16:05:09.526957+00:00`; all five supported platforms still record `numberOfPosts: 0`.
+  - Both execution switches are false. Both action allowlists still contain only `update_report`, and the reviewed transaction path can write only `monthly_reports`, not `reporting_periods`, workflow approval or publication state.
+  - The PM Hermes control-plane and security scans returned zero findings, the Content Hub MCP test discovered all 18 tools, and the broad tool-availability probe completed on retry after one transient browser-host timeout. Hermes Doctor completed with two pre-existing build-tool advisories in unrelated Hermes workspaces.
+- Status: The attended `update_report` canary passed. All seven governed PM Hermes write classes have now completed their separate production canaries; exact approval and closed-by-default execution remain mandatory.
+
+## 2026-07-23 - Stage the governed saved-report update canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Reconciled the successful `create_report` canary, advanced both proposal allowlists to `update_report` and kept local and Edge execution disabled.
+  - Staged timestamp-bound action `34550c4a-39e3-4119-96b9-27358008ed33` against report `33a81b1f-5c9b-4fc0-86a0-b91b7ca5fe19`.
+  - Proposed only a `themes` narrative addition, preserved the existing qualitative fields and recalculated the same zero-post metrics from the bounded snapshot. No manual metric or evidence reference was supplied.
+- Verification:
+  - The proposal hash prefix is `c2cf8c21f7cc`; the Edge action is `proposed`, the local receipt is `awaiting_exact_approval`, and the application report did not change.
+  - The report retains timestamp `2026-07-23T15:33:41.685213+00:00` and its original `create_report` provenance action `3cc5a3b3-8fcd-405d-a72f-b9badb53eb9d`.
+  - Both layers expose only `update_report`, both execution switches remain false, and the reviewed transaction can update only `monthly_reports`, not publish content or write `reporting_periods`.
+- Status: Execute the saved-report update canary only when Dan's newest direct message is exactly `execute 34550c4a-39e3-4119-96b9-27358008ed33` before `2026-07-23T17:43:51.338+00:00`.
+
+## 2026-07-23 - Execute the governed saved-report canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Received Dan's exact approval, opened execution only for `create_report`, applied action `3cc5a3b3-8fcd-405d-a72f-b9badb53eb9d` once and immediately returned both execution switches to false.
+  - Created the canonical June 2026 monthly report from the previously reviewed, untruncated Content Hub snapshot without adding manual metrics or evidence references.
+- Verification:
+  - The Edge action is `applied`, the local receipt is `executed`, and report `33a81b1f-5c9b-4fc0-86a0-b91b7ca5fe19` records the exact action as its PM Hermes provenance.
+  - The stored report remains monthly/June 2026 and records `numberOfPosts: 0` for Facebook, Instagram, LinkedIn, YouTube and BlueSky, matching the snapshot's explicit no-data coverage rather than inventing performance values.
+  - The stored report timestamp is `2026-07-23T15:33:41.685213+00:00`. Both execution switches are false, and the reviewed transaction path writes only `monthly_reports`, not `reporting_periods`.
+- Status: The attended `create_report` canary passed. `update_report` remains disabled pending its separate conflict-checked rollout canary.
+
+## 2026-07-23 - Stage the governed saved-report canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Reauthorised the Supabase CLI against the PM account after the previously active account could not access the canonical shared project, then confirmed `oepehanwmfelowfumkes` remained the linked target.
+  - Reconciled the Reporting store and selected June 2026, the app's default previous month, as a truthful no-data canary because its bounded snapshot contains no published posts or recorded organic analytics and no June monthly report exists.
+  - Advanced both proposal allowlists to `create_report`, kept local and Edge execution disabled, and staged inert action `3cc5a3b3-8fcd-405d-a72f-b9badb53eb9d`.
+- Verification:
+  - The proposal hash prefix is `9374f046fee7`; the Edge action is `proposed`, the local receipt is `awaiting_exact_approval`, and no `monthly_reports` record was created.
+  - The proposal uses the inclusive 1–30 June 2026 `content_hub_entries` snapshot, which is untruncated and records `no_recent_posts` with zero posts and zero analysed posts for all five supported platforms.
+  - No manual metric or evidence reference was supplied. Both layers expose only `create_report`, and both execution switches remain false.
+- Status: Execute the saved-report canary only when Dan's newest direct message is exactly `execute 3cc5a3b3-8fcd-405d-a72f-b9badb53eb9d` before `2026-07-23T17:26:16.833+00:00`.
+
+## 2026-07-21 - Execute the governed review-submission canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Received Dan's exact approval, opened execution only for `submit_for_review`, applied that action once and immediately returned both execution switches to false.
+- Verification:
+  - The proposal hash prefix is `d4c6dbcfb1e1`; the Edge action is `applied`, the local receipt is `executed`, and both execution switches are false after reconciliation.
+  - Entry `1edb47ba-aab8-4425-a01d-a9177026d307` is In Review/Pending at content revision 2, with its timestamp advanced to `2026-07-21T12:26:25.934125+00:00` and action `c68cabb2-2986-486d-85fd-c488806ea46a` recorded as PM Hermes provenance.
+  - The allowlisted transaction cleared approval metadata and stopped before approval, scheduling or publication authority.
+- Status: The attended `submit_for_review` canary passed. Reporting write classes remain disabled pending their separate rollout canaries.
+
+## 2026-07-21 - Stage the governed review-submission canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Reconciled the completed `add_comment` action and advanced both proposal allowlists to `submit_for_review` while keeping local and Edge execution disabled.
+  - Staged revision- and timestamp-bound action `c68cabb2-2986-486d-85fd-c488806ea46a` to move Draft `1edb47ba-aab8-4425-a01d-a9177026d307` only into human review.
+- Verification:
+  - The proposal hash prefix is `d4c6dbcfb1e1`; the Edge action is `proposed`, the local receipt is `awaiting_exact_approval`, and the action has no application result.
+  - The target remains Pending/Draft at content revision 2 with the unchanged timestamp `2026-07-21T11:40:37.900296+00:00`.
+  - Both layers expose only `submit_for_review`, both execution switches are false, and pull request 29's checks pass for the completed comment canary commit.
+  - If executed, the allowlisted transaction can set only In Review/Pending, clears approval metadata and cannot approve, schedule or publish the entry.
+- Status: Execute the review-submission canary only when Dan's newest direct message is exactly `execute c68cabb2-2986-486d-85fd-c488806ea46a` before its recorded expiry.
+
+## 2026-07-21 - Execute the governed comment canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Reconciled the completed `create_idea` action and advanced both proposal allowlists to `add_comment` while keeping local and Edge execution disabled.
+  - Staged timestamp-bound action `ceb1adb4-27bf-4e69-a143-80f5c38368fd` to add one internal-only PM Hermes canary comment to Draft `1edb47ba-aab8-4425-a01d-a9177026d307`.
+  - Kept the action unconsumed and both gates false when the Supabase CLI twice rejected the remote gate update for insufficient project privileges; re-authenticated against the account that exposes the linked canonical project before proceeding.
+  - Received Dan's exact approval, opened execution only for `add_comment`, applied that action once and immediately returned both execution switches to false.
+- Verification:
+  - The proposal hash prefix is `f79a7e4e2a6e`; the Edge action is `applied`, the local receipt is `executed`, and both execution switches are false after reconciliation.
+  - Comment record `a129d723-69a6-42ce-934f-e741e5745a6f` records action `ceb1adb4-27bf-4e69-a143-80f5c38368fd` as its PM Hermes provenance.
+  - The target remains Pending/Draft at content revision 2, with its timestamp advanced to `2026-07-21T11:40:37.900296+00:00`; pull request 29's checks pass for the completed Ideas canary commit.
+- Status: The attended `add_comment` canary passed. `submit_for_review` and all reporting write classes remain disabled pending their separate rollout canaries.
+
+## 2026-07-21 - Execute the governed Ideas workflow canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Reconciled the completed `update_entry` action and advanced both proposal allowlists to `create_idea` while keeping local and Edge execution disabled.
+  - Staged inert action `572de5c8-fb92-4d5c-b007-c29457485375` to create an internal-only Ideas workflow canary with no links or publication intent.
+  - Received Dan's exact approval, opened execution only for `create_idea`, applied that action once and immediately returned both execution switches to false.
+  - Fixed the non-cryptographic UUID fallback so its documented minimum length is deterministic, after the commit gate exposed a random 19-character result; added an explicit fallback regression test.
+- Verification:
+  - The proposal hash prefix is `5521bafb2f95`; the Edge action is `applied`, the local receipt is `executed`, and both execution switches are false after reconciliation.
+  - Ideas record `6f833f0f-190e-461a-a4f1-d53fb446c7ea` has the expected internal canary title and records action `572de5c8-fb92-4d5c-b007-c29457485375` as its PM Hermes provenance.
+  - Pull request 29's lint/type-check, test, security and supply-chain checks all pass for the preceding update canary commit.
+  - The focused utility suite passes 29 tests; the full application suite passes 309 tests, with strict lint and TypeScript checks clean.
+- Status: The attended `create_idea` canary passed. `add_comment`, `submit_for_review` and all reporting write classes remain disabled pending their separate rollout canaries.
+
+## 2026-07-21 - Execute the precision-fixed update canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Received exact approval for update action `a8645c0a-eb2c-4549-938b-4f8ca6dc661d` after its two-hour local approval window had expired. Kept both execution switches false and did not call the executor.
+  - Re-read the canary Draft's authoritative revision 1 and microsecond-precision `updated_at`, then staged fresh inert action `65876a12-5362-4dc7-9c17-1af4817bdf29` for the same caption-only update.
+  - Received Dan's exact approval for the fresh action, opened execution only for `update_entry`, applied it once and immediately returned both execution switches to false.
+  - Remediated newly published high-severity audit advisories in development tooling by updating the `js-yaml` override to 4.3.0 and resolving patched `brace-expansion` and ESLint transitive versions.
+- Verification:
+  - The expired Edge action remains unexecuted. The fresh Edge action is `applied`, its local receipt is `executed`, and both local writes and Edge execution are false after reconciliation.
+  - Entry `1edb47ba-aab8-4425-a01d-a9177026d307` remains Pending/Draft, advanced to content revision 2 and records action `65876a12-5362-4dc7-9c17-1af4817bdf29` as its PM Hermes provenance.
+  - Production dependencies were already clean; the complete dependency audit now reports zero vulnerabilities.
+- Status: The attended `update_entry` canary passed without granting approval, scheduling or publication authority. Other write classes remain disabled pending their separate rollout canaries.
+
+## 2026-07-20 - Fail the update canary safely and preserve timestamp precision
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Accepted Dan's exact approval for update action `9034488c-fa0f-4051-aea9-26b3df5b397b`, opened execution only for `update_entry`, received the authoritative `conflict` result and immediately returned both execution switches to false.
+  - Confirmed the Draft remained unchanged. The conflict exposed that `isoTimestamp(...)` re-serialised PostgreSQL microseconds through JavaScript `Date`, truncating the proposal token to milliseconds before the executor's exact equality check.
+  - Changed the action validator to retain the validated timestamp string, added a microsecond-precision regression test and deployed only `content-hub-agent` version 18 with gateway JWT verification still false and HMAC authentication unchanged.
+  - Staged fresh inert update action `a8645c0a-eb2c-4549-938b-4f8ca6dc661d` against the exact unchanged revision and timestamp.
+- Verification:
+  - The failed local receipt and Edge action are both terminal `failed`; the Draft remains revision 1, Draft/Pending, with the original create-action provenance.
+  - All eight focused action tests and the deployed Edge type-check pass. The live function is Active, proposal-only, and execution is disabled.
+  - The replacement proposal is `proposed` / `awaiting_exact_approval` and changed no application record.
+- Status: The conflict/stale canary passed safely and the precision defect is fixed live. Execute the replacement only when Dan's newest direct message is exactly `execute a8645c0a-eb2c-4549-938b-4f8ca6dc661d`.
+
+## 2026-07-20 - Refresh the expired PM Hermes update canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Received exact approval for update action `8de02761-1c7e-4c7e-9817-344fd9b96ae3` after its local approval receipt had expired. Kept both execution switches false and did not transfer that approval or call the execution tool.
+  - Re-read the canary Draft's authoritative revision binding and created a fresh inert `update_entry` proposal, `9034488c-fa0f-4051-aea9-26b3df5b397b`, for the same caption-only change.
+  - Used the deterministic MCP client because the Hermes language-model provider reported a temporary quota limit; no approval boundary was bypassed.
+- Verification:
+  - The Draft remains at content revision 1 with unchanged `updated_at`, and the fresh action is `proposed` / `awaiting_exact_approval` with no application result.
+  - Local writes and Edge execution remain disabled throughout. No Content Hub application record changed.
+- Status: Execute the refreshed update only when Dan's newest direct message is exactly `execute 9034488c-fa0f-4051-aea9-26b3df5b397b`.
+
+## 2026-07-20 - Keep the completed create canary replay-safe
+
+- Tool: Codex (production guard active)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Received the already-consumed exact command for create action `dbdcc1bb-980b-4be6-9119-a4ba9f5d7227` a second time.
+  - Kept both execution switches false and performed only a read-only reconciliation; the execution tool was not called again and no production record changed.
+- Verification:
+  - The local receipt remains `executed`, the Edge action remains `applied`, and both still resolve to the original Draft entry `1edb47ba-aab8-4425-a01d-a9177026d307`.
+  - The local write switch and Edge execution switch are false. The separately staged update action remains `8de02761-1c7e-4c7e-9817-344fd9b96ae3`.
+- Status: Completed create action safely treated as already consumed; no duplicate entry or update was created.
+
+## 2026-07-20 - Execute the first PM Hermes write canary and stage an update
+
+- Tool: Codex (full-access production session with production guard active)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Accepted Dan's exact `execute dbdcc1bb-980b-4be6-9119-a4ba9f5d7227` message, opened execution only for `create_entry`, atomically applied that action once and immediately returned both local and Edge execution switches to false.
+  - Created one Pending/Draft Content Hub entry, `1edb47ba-aab8-4425-a01d-a9177026d307`, with PM Hermes provenance bound to the approved action. No approval, scheduling or publication state was granted.
+  - Advanced the proposal allowlist from `create_entry` to `update_entry` with execution still disabled. Staged revision-bound action `8de02761-1c7e-4c7e-9817-344fd9b96ae3` to update only the canary caption.
+- Verification:
+  - The local receipt is `executed`, the authoritative Edge action is `applied`, the campaign contains exactly one entry, and the record is `Draft` / `Pending` at content revision 1 with matching PM Hermes action provenance.
+  - Reconciliation confirmed both execution switches are false after the write window. The Edge reports proposal-only mode.
+  - The update proposal left the canary's content revision and `updated_at` unchanged and has no application result.
+- Status: The `create_entry` canary passed. Execute the revision-bound update only when Dan's newest direct message is exactly `execute 8de02761-1c7e-4c7e-9817-344fd9b96ae3`; all other write classes remain disabled.
+
+## 2026-07-20 - Activate governed PM Hermes reads and stage the first write canary
+
+- Tool: Codex (full-access production session with production guard active)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Provisioned the Hermes MCP environment hand-off without exposing credential values, enabled signed reads on the canonical `oepehanwmfelowfumkes` backend and kept proposal/execution emergency stops closed during authentication tests.
+  - Corrected the Hermes HMAC client to sign the `/content-hub-agent` path verified after Supabase Edge gateway rewriting, with a focused regression assertion.
+  - Applied only the reviewed `add_pm_hermes_agent_actions` and `lock_down_entry_review_reads` migrations through an isolated migration workspace. Browser roles remain excluded from both agent ledgers and anonymous entry reads now expose zero rows.
+  - Enabled proposal-only access for `create_entry` at the local and Edge boundaries while keeping execution disabled. Staged action `dbdcc1bb-980b-4be6-9119-a4ba9f5d7227`; its campaign matched zero entries before and after proposal creation.
+- Verification:
+  - Live negative probes passed for method restriction, body limit, invalid signature, expired timestamp, operation allowlisting, nonce replay and the 60-request per-minute limit.
+  - Hermes live health, bounded entry list/detail, calendar, reporting, saved-report and publication-status reads passed. Reporting retained null analytics coverage when no measurements were available.
+  - Signed review returned 200 only for a valid token with the bounded projection; missing, expired and tampered tokens returned 400 before and after lockdown. A known entry returned zero rows to the anonymous REST role after lockdown.
+  - The live GitHub Pages app loaded in Brave. That browser profile was signed out, so an authenticated UI read was not claimed from the browser session.
+  - All 10 PM Hermes Python tests passed after the signing correction.
+- Status: Reads and reporting are live. Proposal-only `create_entry` is live, but application writes remain disabled. Execute the canary only when Dan's newest direct message is exactly `execute dbdcc1bb-980b-4be6-9119-a4ba9f5d7227`; otherwise no Draft will be created. Pull request 29 remains draft and unmerged.
+
+## 2026-07-20 - Begin the PM Hermes production backend rollout
+
+- Tool: Codex (`prod` profile for live changes; production guard active)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Verified `oepehanwmfelowfumkes` as the active, healthy shared Intel Hub Supabase backend and preserved the inactive standalone Content Hub project.
+  - Applied the additive `add_pm_hermes_agent_requests` migration and deployed the reviewed signed-review and disabled agent boundaries as `approve-entry` v2, `send-notification` v6 and `content-hub-agent` v1.
+  - Kept pull request 29 unmerged. No PM Hermes credential, read switch, proposal switch, write switch, anonymous-entry RLS policy, action ledger or application record was changed.
+- Verification:
+  - The request ledger has RLS enabled, no browser policies or DML grants, service-role-only DML, and a service-role-only security-definer claim RPC with a pinned search path.
+  - All deployed source files match the reviewed branch byte-for-byte with the intended gateway JWT settings.
+  - The 26 focused Deno contract tests, three Edge type checks and signed review-boundary contract passed; Hermes still discovers all 18 tools and the local wrapper reports no runtime credentials with proposals and writes disabled.
+- Status: Rollout paused safely before credential provisioning. The Supabase CLI remains unauthenticated, outbound shell DNS and the isolated browser are unavailable for live probes, and the active Codex profile changed to `daily`; resume in `prod` through an authenticated production secret workflow, then continue from the signed negative probes. Do not apply the review RLS lockdown or merge pull request 29 yet.
+
+## 2026-07-20 - Revalidate the PM Hermes production rollout checkpoint
+
+- Tool: Codex (`prod` profile with production guard active)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Reconciled the local Supabase link with the approved canonical project `oepehanwmfelowfumkes` and did not merge pull request 29.
+  - Rechecked the rollout runbook, current data reference and focused RLS boundaries for `entries`, `agent_requests` and `agent_actions`; no production migration, function, secret, feature switch or application record was changed.
+  - Refreshed the PM Hermes control-plane and tool-availability reports. The wrapper still fails closed with all 18 tools discoverable, no runtime configuration, and proposal/write switches disabled.
+- Verification:
+  - All 308 Vitest tests, 26 Deno contract tests, 10 PM Hermes Python tests, TypeScript checking, strict lint, the production build, focused PR formatting, the signed review-boundary contract, Ruff and `git diff --check` passed.
+  - Deno checks passed for `content-hub-agent`, `approve-entry` and `send-notification` with automatic npm dependency resolution.
+  - PM Hermes control-plane validation, security scan, tool hygiene and Hermes Doctor passed with zero findings.
+  - The live npm advisory query was unavailable because the sandbox could not resolve the npm registry; the unchanged lockfile last passed with zero vulnerabilities on 19 July.
+- Status: Production rollout remains safely blocked before the first migration because Supabase MCP requires OAuth and the CLI has no access token in this sandbox. Re-authenticate the Supabase MCP from an attended terminal, then resume at `add_pm_hermes_agent_requests`; do not merge pull request 29 until the full backend-readiness sequence passes.
+
+## 2026-07-19 - Align the Hermes release candidate with CI formatting
+
+- Tool: Codex
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Applied the two indentation-only changes required by the lockfile-pinned Prettier 3.6.2 formatter in `useEntries.ts`.
+  - Reinstalled dependencies from the lockfile so local commit hooks and GitHub Actions use the same formatter version.
+- Verification:
+  - Full-repository Prettier checking, TypeScript checking, strict ESLint and `git diff --check` passed.
+- Status: Formatter-only CI repair complete with no behavioural or production change
+
+## 2026-07-19 - Verify the PM Hermes production rollout boundary
+
+- Tool: Codex
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Reconciled the local Supabase link against the canonical shared Intel Hub target without reading `.env*` or reporting secret values.
+  - Confirmed the existing durable publication backend remains healthy and the new `content-hub-agent` function is not yet hosted, preserving the intended pre-rollout baseline.
+  - Kept the production guard active throughout the preflight; no migration, function, runtime secret, feature switch, GitHub Pages deployment or application record was changed.
+- Verification:
+  - All 308 Vitest tests, 86 Deno tests, 10 PM Hermes Python tests, TypeScript checking, strict lint, Ruff, Edge checks, the production build, review-boundary contract, dependency audit and `git diff --check` passed.
+  - The three agent migrations and their RLS, replay, idempotency, conflict and provenance invariants passed in isolated PostgreSQL 17.
+  - The Content Hub MCP server discovered all 18 tools. PM Hermes control-plane, tool-availability, pre-handoff, security, tool-hygiene and Doctor checks passed; the integration correctly reports unavailable while runtime values are absent.
+- Status: Release candidate verified and production-disabled. The current Supabase CLI identity lacks the privileges required to inspect or mutate the canonical linked project, so attended production rollout remains blocked until the production profile and authorised Supabase organisation access are active
+
+## 2026-07-19 - Implement approval-gated PM Hermes Content Hub writes
+
+- Tool: Codex
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Added the service-only `agent_actions` proposal/execution ledger, immutable PM Hermes provenance and a transactional executor for idea/Draft creation, eligible entry updates, comments, Draft-to-review submission and canonical `monthly_reports` create/update.
+  - Added strict allowlisted payload validation, PM language checks, exact payload hashes and idempotency keys, proposal expiry, stale entry/report rejection, one-time local approval receipts and the exact `execute <action-id>` confirmation boundary.
+  - Expanded the local MCP server from nine read tools to 18 read/governed tools. Local and Edge proposal/execution switches remain independently false by default, with no action types enabled.
+  - Made report proposals derive metrics from bounded Content Hub analytics, retain coverage and evidence references, require named sources for manual figures and query campaign reports by the exact campaign. Live reporting also supports bounded campaign, content-pillar and asset-type filters.
+  - Added safe JSONB comment mapping and strictly sanitised provenance labels/timeline context in the entry UI. Updated the implementation plan, data reference, platform documentation and attended rollout/rollback runbook.
+- Verification:
+  - Strict lint, TypeScript checking, the production build, all 308 Vitest tests, the signed review-boundary test and `git diff --check` passed.
+  - All 86 Deno tests and the Edge Function check passed; all 10 app-local Python integration/approval tests and Ruff passed.
+  - The generated action migration and its RLS/idempotency/conflict/provenance invariants passed in an isolated PostgreSQL 17 container.
+  - `hermes mcp test content-hub` discovered 18 tools. PM Hermes control-plane validation, pre-handoff validation, security scan, tool hygiene and Doctor passed with no findings; `npm audit --omit=dev` found no vulnerabilities.
+  - The configured data/platform analyser was unavailable, so both references were reconciled manually against the migration, Edge contract and application types.
+- Residual check: the pre-existing standalone `npm run test:copy-check` command does not load its JSON rule import under the installed Node 25 runtime; the normal Vitest suite and production bundler cover that module successfully.
+- Status: Local Phase 2 implementation complete and production-disabled; no migration, function, runtime secret, proposal flag or write flag was applied to production
+
+## 2026-07-19 - Implement the PM Hermes read and reporting foundation
+
+- Tool: Codex
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Added the fail-closed `content-hub-agent-v1` Edge boundary with HMAC authentication, bounded request streaming, timestamp validation, replay protection, per-client throttling, safe result classes and fixed read projections for entries, calendar summaries, organic reporting, saved reports and publication status.
+  - Added a service-only `agent_requests` ledger and a separately deployable anonymous-review-policy lockdown migration, generated through the Supabase CLI so production rollout can verify signed review reads before removing the old policy.
+  - Replaced guessable public review reads with recipient-specific signed links and a fixed `approve-entry` projection. New tokens contain a keyed recipient identifier rather than a readable email address; legacy signed tokens remain verifiable during transition.
+  - Added a nine-tool read-only PM Hermes MCP client, safe readiness CLI, reporting snapshot compatibility path, control-plane registration and an attended rollout/rotation/rollback runbook.
+  - Kept `monthly_reports` as the first canonical saved-report source, made missing analytics distinct from measured zero, removed stored error text from agent publication responses and treated all returned content as untrusted application data.
+  - Kept every create, update, delete, approval, publication, retry, raw database and administrative capability out of this checkpoint.
+- Verification:
+  - `npm run typecheck`, strict lint, all 307 Vitest tests, review-boundary contract, production build and `git diff --check` passed.
+  - Fourteen Deno tests and Deno checks for the agent, approval and notification Edge functions passed.
+  - Four app-local Python client tests and three migrated Hermes snapshot-wrapper tests passed; `hermes mcp test content-hub` discovered exactly nine read-only tools.
+  - PM Hermes control-plane validation passed with zero findings. The tool probe remains correctly unavailable until production runtime values are provisioned.
+  - `npm audit --omit=dev` reported zero vulnerabilities, the PM Hermes security scan reported zero findings and Hermes Doctor completed successfully.
+  - Both new migrations and `agent_request_invariants.sql` passed in an isolated PostgreSQL container. The full local Supabase stack remains blocked earlier by the pre-existing `20260318_org_events.sql` `CREATE POLICY IF NOT EXISTS` syntax and that historical migration was not changed.
+- Status: Local Phase 1 foundation complete and production-disabled; production migration/function rollout and Phase 2 approval-gated writes remain pending
+
+## 2026-07-19 - Add reporting to the PM Hermes integration plan
+
+- Tool: Codex
+- Branch: `main`
+- Changes:
+  - Made live reporting analysis and saved-report creation/update required PM Hermes outcomes.
+  - Added bounded reporting queries, period comparisons, coverage disclosure, evidence references, and exact approval-gated report writes.
+  - Selected `monthly_reports` as the initial agent write target because it backs the currently rendered Reporting and Insights screens; prohibited dual writes to the unused `reporting_periods` workspace model.
+  - Added report-specific conflict checks, create/update canaries, missing-data handling, observability, risks, and completion criteria.
+- Verification:
+  - Inspected the rendered Reporting and Insights flows, both report models, reporting calculations, metric registry, persistence services, and current organic reporting contract.
+  - Revalidated plan structure, permissions, rollout gates, and completion definition against the reporting requirement.
+- Status: Complete
+
+## 2026-07-19 - Make PM Hermes writing and updating a required outcome
+
+- Tool: Codex
+- Branch: `main`
+- Changes:
+  - Revised `plans/pm-hermes-content-hub-integration.md` so live Content Hub creation and updates are mandatory Phase 2 deliverables rather than an optional future capability.
+  - Defined the initial write scope: ideas, drafts, eligible entry fields, comments, and submission for human review, with authoritative read-after-write results.
+  - Added separate create and update production canaries and made both required for completion.
+  - Retained exact one-time approval for each mutation and kept approval, publication, deletion, administration, arbitrary database access, and edits to Approved or Published records blocked.
+- Verification:
+  - Rechecked the current platform catalogue for Content Hub create/edit capabilities.
+  - Revalidated plan acceptance criteria, rollout gates, and completion definition against the clarified write/update requirement.
+- Status: Complete
+
+## 2026-07-18 - Plan PM Hermes Agent integration
+
+- Tool: Codex
+- Branch: `main`
+- Changes:
+  - Added `plans/pm-hermes-content-hub-integration.md`, defining three larger vertical phases for secure read access, approval-gated content preparation, and production hardening.
+  - Selected a PM-owned local MCP wrapper and versioned Edge API instead of browser automation, raw Supabase access, or direct provider access.
+  - Made removal of the existing anonymous `entries` read dependency a Phase 1 prerequisite and preserved human-only approval and publication as hard boundaries.
+  - Defined HMAC request authentication, replay protection, bounded projections, exact one-time action approvals, revision-safe idempotency, provenance, rollout, rollback, and acceptance tests.
+- Verification:
+  - Cross-checked the plan against the current Content Hub application, platform documentation, production architecture, PM Hermes capability registries, approval policy, plugin runbook, and existing organic reporting wrapper.
+  - Markdown formatting and structural checks recorded with the plan.
+- Status: Complete
+
 ## 2026-07-01 - Add Excel backup workflow to standalone Gantt planner
 
 - Tool: Codex
