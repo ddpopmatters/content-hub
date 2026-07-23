@@ -1,5 +1,18 @@
 # Content Hub — Dev Log
 
+## 2026-07-23 - Execute the governed saved-report canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Received Dan's exact approval, opened execution only for `create_report`, applied action `3cc5a3b3-8fcd-405d-a72f-b9badb53eb9d` once and immediately returned both execution switches to false.
+  - Created the canonical June 2026 monthly report from the previously reviewed, untruncated Content Hub snapshot without adding manual metrics or evidence references.
+- Verification:
+  - The Edge action is `applied`, the local receipt is `executed`, and report `33a81b1f-5c9b-4fc0-86a0-b91b7ca5fe19` records the exact action as its PM Hermes provenance.
+  - The stored report remains monthly/June 2026 and records `numberOfPosts: 0` for Facebook, Instagram, LinkedIn, YouTube and BlueSky, matching the snapshot's explicit no-data coverage rather than inventing performance values.
+  - The stored report timestamp is `2026-07-23T15:33:41.685213+00:00`. Both execution switches are false, and the reviewed transaction path writes only `monthly_reports`, not `reporting_periods`.
+- Status: The attended `create_report` canary passed. `update_report` remains disabled pending its separate conflict-checked rollout canary.
+
 ## 2026-07-23 - Stage the governed saved-report canary
 
 - Tool: Codex (production guard active; deterministic Hermes MCP path)
