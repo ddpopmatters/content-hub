@@ -1,5 +1,19 @@
 # Content Hub — Dev Log
 
+## 2026-07-23 - Stage the governed saved-report update canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Reconciled the successful `create_report` canary, advanced both proposal allowlists to `update_report` and kept local and Edge execution disabled.
+  - Staged timestamp-bound action `34550c4a-39e3-4119-96b9-27358008ed33` against report `33a81b1f-5c9b-4fc0-86a0-b91b7ca5fe19`.
+  - Proposed only a `themes` narrative addition, preserved the existing qualitative fields and recalculated the same zero-post metrics from the bounded snapshot. No manual metric or evidence reference was supplied.
+- Verification:
+  - The proposal hash prefix is `c2cf8c21f7cc`; the Edge action is `proposed`, the local receipt is `awaiting_exact_approval`, and the application report did not change.
+  - The report retains timestamp `2026-07-23T15:33:41.685213+00:00` and its original `create_report` provenance action `3cc5a3b3-8fcd-405d-a72f-b9badb53eb9d`.
+  - Both layers expose only `update_report`, both execution switches remain false, and the reviewed transaction can update only `monthly_reports`, not publish content or write `reporting_periods`.
+- Status: Execute the saved-report update canary only when Dan's newest direct message is exactly `execute 34550c4a-39e3-4119-96b9-27358008ed33` before `2026-07-23T17:43:51.338+00:00`.
+
 ## 2026-07-23 - Execute the governed saved-report canary
 
 - Tool: Codex (production guard active; deterministic Hermes MCP path)
