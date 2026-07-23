@@ -88,9 +88,9 @@ vi.mock('../../../lib/supabase', () => ({
   isDurablePublicationJob: (value: unknown) =>
     Boolean(
       value &&
-      typeof value === 'object' &&
-      typeof (value as Record<string, unknown>).id === 'string' &&
-      Array.isArray((value as Record<string, unknown>).results),
+        typeof value === 'object' &&
+        typeof (value as Record<string, unknown>).id === 'string' &&
+        Array.isArray((value as Record<string, unknown>).results),
     ),
   SUPABASE_API: {
     fetchEntries: mockFetchEntries,
