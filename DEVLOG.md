@@ -1,5 +1,21 @@
 # Content Hub — Dev Log
 
+## 2026-07-23 - Resolve the monthly report RLS adviser findings
+
+- Tool: Codex (explicit production consent; production guard active; independent security review)
+- Branch: `codex/resolve-monthly-reports-rls-flag`
+- Changes:
+  - Generated and applied migration `20260723174659_harden_monthly_reports_authenticated_rls` to the canonical `oepehanwmfelowfumkes` project, recording the exact repository migration in the hosted migration ledger.
+  - Preserved shared report CRUD for signed-in team members while replacing the always-true write predicates with explicit non-null `auth.uid()` checks.
+  - Revoked all direct `monthly_reports` privileges from `anon` and retained `service_role` CRUD for the governed PM Hermes boundary.
+  - Added `supabase/tests/monthly_reports_rls_invariants.sql` to check the exact policy shape, effective role privileges, signed-in CRUD and missing-identity denial.
+- Verification:
+  - The migration and SQL invariant suite passed in isolated PostgreSQL 17; the same invariant suite then passed transactionally against production and rolled back its fixtures.
+  - Production reports the migration recorded, four intended policies, no effective anonymous SELECT privilege and retained service-role CRUD.
+  - Supabase security adviser findings for `monthly_reports` fell from three to zero; the overall warning count fell from 54 to 51, leaving only unrelated pre-existing findings.
+  - All 312 Vitest tests, strict TypeScript, zero-warning ESLint, bundle, dependency and secret checks passed locally; all four pull-request CI checks passed.
+- Status: The outstanding `monthly_reports` RLS adviser findings are resolved in production without changing the signed-in team access model. The SQL invariant remains an explicit database verification command rather than a dedicated CI job.
+
 ## 2026-07-23 - Deploy the hardened PM Hermes backend release
 
 - Tool: Codex (explicit production consent; production guard preflight and attended execution)
