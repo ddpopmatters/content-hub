@@ -13,7 +13,9 @@
   - Signed Hermes health, report listing and saved-report detail reads passed against the live Edge boundary. The returned report detail includes the evidence field.
   - Missing-token and malformed-token GET requests and a malformed-token POST to `approve-entry` all failed closed with HTTP 400.
   - Supabase security advisers report no warning on the new protection function or agent ledgers. The existing internal authenticated-user CRUD policies on `monthly_reports` remain adviser warnings, while the trigger prevents those browser writes from forging or clearing agent evidence.
-- Status: The matched backend release and attended smoke checks are complete. Pull request 29 is ready for final CI, merge and GitHub Pages verification.
+  - Pull request 29 passed final CI and merged as `8cc4e4b`. Its GitHub Pages build and deployment succeeded, and live app, chunk and review-page probes returned HTTP 200 with the new evidence and PM Hermes markers.
+  - Final reconciliation found only `main` locally and remotely, with `HEAD` equal to `origin/main`; local write execution and Edge execution remain disabled.
+- Status: The full PM Hermes Content Hub release is live. Backend, GitHub Pages, branch consolidation and production smoke verification are complete.
 
 ## 2026-07-23 - Harden the PM Hermes production release
 
