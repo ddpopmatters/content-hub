@@ -1,5 +1,19 @@
 # Content Hub — Dev Log
 
+## 2026-07-23 - Execute the governed saved-report update canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Received Dan's exact approval, reconciled the unexpired hash and conflict timestamp, opened execution only for `update_report`, applied action `34550c4a-39e3-4119-96b9-27358008ed33` once and returned both execution switches to false.
+  - Added only the approved `themes` narrative to report `33a81b1f-5c9b-4fc0-86a0-b91b7ca5fe19`, preserving its existing highlights, next-period focus and zero-post metrics. No manual metric or evidence reference was supplied.
+- Verification:
+  - The Edge action is `applied`, the local receipt is `executed`, and the stored report records the exact update action as its PM Hermes provenance.
+  - The report timestamp advanced from `2026-07-23T15:33:41.685213+00:00` to `2026-07-23T16:05:09.526957+00:00`; all five supported platforms still record `numberOfPosts: 0`.
+  - Both execution switches are false. Both action allowlists still contain only `update_report`, and the reviewed transaction path can write only `monthly_reports`, not `reporting_periods`, workflow approval or publication state.
+  - The PM Hermes control-plane and security scans returned zero findings, the Content Hub MCP test discovered all 18 tools, and the broad tool-availability probe completed on retry after one transient browser-host timeout. Hermes Doctor completed with two pre-existing build-tool advisories in unrelated Hermes workspaces.
+- Status: The attended `update_report` canary passed. All seven governed PM Hermes write classes have now completed their separate production canaries; exact approval and closed-by-default execution remain mandatory.
+
 ## 2026-07-23 - Stage the governed saved-report update canary
 
 - Tool: Codex (production guard active; deterministic Hermes MCP path)
