@@ -357,6 +357,7 @@ This section highlights specific areas in the codebase that indicate limitations
 - **Creator/owner**: INSERT + UPDATE + soft-DELETE own entries/opportunities/requests/peaks/series.
 - **Approvers**: Can UPDATE entries where they appear in `approvers` JSONB.
 - **Audit trail**: `activity_log` is INSERT-only for authenticated users — no UPDATE/DELETE.
+- **Saved reports**: Shared CRUD is available to signed-in team members only when `auth.uid()` is present. `anon` has no `monthly_reports` table privileges; governed agent access remains service-role-only.
 
 ### State Machines
 
