@@ -11,7 +11,7 @@ The branch adds a signed, replay-resistant PM Hermes boundary for bounded Conten
 
 The review found two high-severity and six medium-severity issues during implementation. All high and medium findings were remediated before release. No known blocker remains. The remaining low-risk limitation is that review-recipient enforcement is covered by token unit tests, handler type checks and a static boundary contract rather than a fully dependency-injected HTTP handler suite; production negative probes are therefore part of the attended rollout.
 
-Recommendation: deploy the matched migration and Edge bundles with execution disabled, complete the documented negative probes, then merge PR #29 after CI is green.
+Recommendation: merge PR #29 after its final production-evidence commit passes CI. The matched migration and Edge bundles are deployed, execution remains disabled, and the documented live negative probes pass.
 
 ## Scope and blast radius
 
@@ -54,7 +54,7 @@ Permanent authority exclusions remain approval, rejection, scheduling, publicati
 
 Completed locally against the final remediation:
 
-- 311 Vitest tests passed.
+- 312 Vitest tests passed.
 - 94 Deno tests passed.
 - 11 Python integration and approval tests passed.
 - TypeScript strict type-check passed.
@@ -66,14 +66,14 @@ Completed locally against the final remediation:
 - Content Hub MCP registration discovered all 18 intended tools.
 - `git diff --check` passed.
 
-The branch’s earlier commits also passed GitHub CI, security and supply-chain checks. CI must be rerun against the final remediation commit before merge.
+The final remediation and lockfile-Prettier correction commits pass GitHub CI, security and supply-chain checks. The production-evidence documentation commit must receive the same green checks before merge.
 
 ## History review
 
-Commit history was inspected from `origin/main` through the complete branch. The implementation was introduced as one bounded integration, followed by signing-path correction, timestamp-precision and dependency fixes, and separately recorded production canary checkpoints for each governed write class. No unrelated branch history or hidden merge was found. `origin/main` is the sole base and the feature branch is 19 commits ahead with no commits behind.
+Commit history was inspected from `origin/main` through the complete reviewed branch. The implementation was introduced as one bounded integration, followed by signing-path correction, timestamp-precision and dependency fixes, separately recorded production canary checkpoints for each governed write class, final security remediation and a lockfile-version formatting correction. No unrelated branch history or hidden merge was found. `origin/main` is the sole base and the reviewed branch was 21 commits ahead with no commits behind before the production-evidence record.
 
 ## Method and limitations
 
 The review combined source and migration inspection, call-path tracing, focused adversarial review, full local automated verification, isolated PostgreSQL execution, Git history inspection and production metadata reconciliation. No `.env*` file or secret value was read.
 
-The public review handler still lacks a fully dependency-injected HTTP integration suite. Its security-critical token parser and authorisation conditions are tested or statically asserted, and the implementation rejects stale revisions, wrong scopes and removed recipients. Those behaviours must also be confirmed with attended production negative probes after the matched functions are deployed.
+The public review handler still lacks a fully dependency-injected HTTP integration suite. Its security-critical token parser and authorisation conditions are tested or statically asserted, and the implementation rejects stale revisions, wrong scopes and removed recipients. After deployment, attended production probes confirmed that missing and malformed GET tokens and a malformed POST token all fail closed with HTTP 400; stale-revision and removed-recipient behaviour remains covered below the handler boundary.

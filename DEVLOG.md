@@ -1,5 +1,20 @@
 # Content Hub — Dev Log
 
+## 2026-07-23 - Deploy the hardened PM Hermes backend release
+
+- Tool: Codex (explicit production consent; production guard preflight and attended execution)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Applied migration `20260723163337_preserve_pm_hermes_report_evidence` to the canonical `oepehanwmfelowfumkes` project through the authenticated Supabase Management API SQL route, recording the exact repository migration version in the same transaction.
+  - Deployed `approve-entry` v36, `send-notification` v40 and `content-hub-agent` v36 from the reviewed branch. Gateway JWT verification remains enabled for `send-notification`; the other two handlers retain their reviewed signed-token and HMAC authentication boundaries.
+  - Kept local write execution and Edge execution disabled. Proposal-only access remains limited to `update_report` and still requires a separately recorded exact operator approval before any future attended execution window.
+- Verification:
+  - Production exposes the JSONB `agent_evidence` column and enabled protection trigger; `anon` and `authenticated` cannot execute the trigger function.
+  - Signed Hermes health, report listing and saved-report detail reads passed against the live Edge boundary. The returned report detail includes the evidence field.
+  - Missing-token and malformed-token GET requests and a malformed-token POST to `approve-entry` all failed closed with HTTP 400.
+  - Supabase security advisers report no warning on the new protection function or agent ledgers. The existing internal authenticated-user CRUD policies on `monthly_reports` remain adviser warnings, while the trigger prevents those browser writes from forging or clearing agent evidence.
+- Status: The matched backend release and attended smoke checks are complete. Pull request 29 is ready for final CI, merge and GitHub Pages verification.
+
 ## 2026-07-23 - Harden the PM Hermes production release
 
 - Tool: Codex (production guard active; independent security review)
@@ -11,7 +26,7 @@
   - Added the differential security review at `docs/reviews/CONTENT_HUB_DIFFERENTIAL_REVIEW_2026-07-23.md`.
 - Verification:
   - Independent final review reports no high- or medium-severity blockers; one low-risk handler-integration-test limitation is recorded for production negative probing.
-  - 311 Vitest, 94 Deno and 11 Python tests passed, followed by strict TypeScript, zero-warning ESLint, production build, review-boundary and zero-vulnerability dependency checks.
+  - 312 Vitest, 94 Deno and 11 Python tests passed, followed by strict TypeScript, zero-warning ESLint, production build, review-boundary and zero-vulnerability dependency checks.
   - The original agent-action migration, new evidence migration and full action invariant suite passed together on isolated PostgreSQL 17.
   - PM Hermes discovered all 18 intended Content Hub MCP tools; local configuration without the Hermes runtime remains correctly fail-closed.
 - Status: Remediation is release-ready. The matched migration and Edge bundles still require attended production deployment, smoke verification and green GitHub CI before merge.
