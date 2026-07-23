@@ -434,6 +434,111 @@ const manualMetrics = (value: unknown): Record<string, Record<string, ManualMetr
   return result;
 };
 
+const storedReportEvidence = (report: Record<string, unknown>): Record<string, unknown> =>
+  isRecord(report.agentEvidence)
+    ? report.agentEvidence
+    : isRecord(report.agent_evidence)
+      ? report.agent_evidence
+      : {};
+
+const preserveSavedReportMetrics = (
+  report: Record<string, unknown>,
+  supplied: Record<string, Record<string, ManualMetric>>,
+): { metrics: Record<string, Record<string, number>>; sources: Record<string, unknown> } => {
+  const storedMetrics = isRecord(report.platformMetrics)
+    ? report.platformMetrics
+    : isRecord(report.platform_metrics)
+      ? report.platform_metrics
+      : {};
+  const evidence = storedReportEvidence(report);
+  const storedCoverage = isRecord(evidence.coverage) ? evidence.coverage : {};
+  const metrics: Record<string, Record<string, number>> = {};
+  const sources: Record<string, unknown> = {};
+
+  for (const platform of REPORTING_PLATFORMS) {
+    const storedPlatform = isRecord(storedMetrics[platform]) ? storedMetrics[platform] : {};
+    const platformMetrics = Object.fromEntries(
+      Object.entries(storedPlatform).filter(
+        (entry): entry is [string, number] =>
+          typeof entry[1] === 'number' && Number.isFinite(entry[1]),
+      ),
+    );
+    for (const [metric, manual] of Object.entries(supplied[platform] ?? {})) {
+      platformMetrics[metric] = manual.value;
+    }
+    if (Object.keys(platformMetrics).length) metrics[platform] = platformMetrics;
+
+    const storedPlatformCoverage = isRecord(storedCoverage[platform])
+      ? storedCoverage[platform]
+      : {};
+    const storedManual = isRecord(storedPlatformCoverage.manual)
+      ? storedPlatformCoverage.manual
+      : {};
+    sources[platform] = {
+      ...(Object.keys(storedPlatformCoverage).length
+        ? storedPlatformCoverage
+        : {
+            source: 'existing_saved_report',
+            preservedMetricsWithoutSource: Object.keys(platformMetrics),
+          }),
+      manual: {
+        ...storedManual,
+        ...Object.fromEntries(
+          Object.entries(supplied[platform] ?? {}).map(([metric, manual]) => [
+            metric,
+            manual.source,
+          ]),
+        ),
+      },
+    };
+  }
+  return { metrics, sources };
+};
+
+const storedManualMetrics = (
+  report: Record<string, unknown>,
+): Record<string, Record<string, ManualMetric>> => {
+  const storedMetrics = isRecord(report.platformMetrics)
+    ? report.platformMetrics
+    : isRecord(report.platform_metrics)
+      ? report.platform_metrics
+      : {};
+  const evidence = storedReportEvidence(report);
+  const storedCoverage = isRecord(evidence.coverage) ? evidence.coverage : {};
+  const result: Record<string, Record<string, ManualMetric>> = {};
+
+  for (const platform of REPORTING_PLATFORMS) {
+    const platformMetrics = isRecord(storedMetrics[platform]) ? storedMetrics[platform] : {};
+    const platformCoverage = isRecord(storedCoverage[platform]) ? storedCoverage[platform] : {};
+    const manualSources = isRecord(platformCoverage.manual) ? platformCoverage.manual : {};
+    for (const [metric, source] of Object.entries(manualSources)) {
+      const value = platformMetrics[metric];
+      if (
+        typeof value !== 'number' ||
+        !Number.isFinite(value) ||
+        typeof source !== 'string' ||
+        !source.trim()
+      ) {
+        continue;
+      }
+      result[platform] ??= {};
+      result[platform][metric] = { value, source };
+    }
+  }
+  return result;
+};
+
+const mergeManualMetrics = (
+  base: Record<string, Record<string, ManualMetric>>,
+  override: Record<string, Record<string, ManualMetric>>,
+): Record<string, Record<string, ManualMetric>> =>
+  Object.fromEntries(
+    REPORTING_PLATFORMS.flatMap((platform) => {
+      const merged = { ...(base[platform] ?? {}), ...(override[platform] ?? {}) };
+      return Object.keys(merged).length ? [[platform, merged]] : [];
+    }),
+  );
+
 const reportRange = (value: Record<string, unknown>): Record<string, unknown> => {
   const reportType = enumValue(value.reportType, REPORT_TYPES);
   const periodYear = integer(value.periodYear, 2020, 2100);
@@ -582,7 +687,11 @@ const actionSummary = (
       : `${String(payload.reportType)} ${String(payload.periodYear)}`;
   return type === 'create_report'
     ? `Create saved ${period} report from Content Hub analytics.`
-    : `Update saved report ${targetId} for ${period}.`;
+    : `Update saved report ${targetId} for ${period}; ${
+        payload.refreshCalculatedMetrics
+          ? 'refresh calculated metrics from current Content Hub analytics'
+          : 'preserve the saved metrics'
+      }.`;
 };
 
 const publicAction = (action: AgentActionRecord): Record<string, unknown> => ({
@@ -782,6 +891,7 @@ export async function proposeAgentAction(
             'qualitative',
             'evidenceReferences',
             'manualMetrics',
+            'refreshCalculatedMetrics',
           ])
         : new Set([
             'reportType',
@@ -843,8 +953,27 @@ export async function proposeAgentAction(
       ...(range.campaignName ? { campaign: String(range.campaignName) } : {}),
     });
     const supplied = manualMetrics(requestedPayload.manualMetrics);
-    const reportMetrics = snapshotToReportMetrics(snapshot, supplied);
-    const references = evidenceReferences(requestedPayload.evidenceReferences);
+    if (
+      requestedPayload.refreshCalculatedMetrics !== undefined &&
+      typeof requestedPayload.refreshCalculatedMetrics !== 'boolean'
+    ) {
+      invalid();
+    }
+    const refreshCalculatedMetrics = requestedPayload.refreshCalculatedMetrics === true;
+    const reportMetrics =
+      existingReport && !refreshCalculatedMetrics
+        ? preserveSavedReportMetrics(existingReport, supplied)
+        : snapshotToReportMetrics(
+            snapshot,
+            existingReport
+              ? mergeManualMetrics(storedManualMetrics(existingReport), supplied)
+              : supplied,
+          );
+    const previousEvidence = existingReport ? storedReportEvidence(existingReport) : {};
+    const references = evidenceReferences(
+      requestedPayload.evidenceReferences ??
+        (Array.isArray(previousEvidence.references) ? previousEvidence.references : undefined),
+    );
     const referencedEntries = await Promise.all(
       references.map((reference) => repository.getEntry(reference.entryId)),
     );
@@ -877,12 +1006,18 @@ export async function proposeAgentAction(
       ...range,
       expectedUpdatedAt,
       platformMetrics: reportMetrics.metrics,
+      ...(existingReport ? { refreshCalculatedMetrics } : {}),
       qualitative: {
         ...existingQualitative,
         ...qualitative(requestedPayload.qualitative),
       },
       evidence: {
-        source: 'content_hub_entries',
+        source:
+          existingReport && !refreshCalculatedMetrics && typeof previousEvidence.source === 'string'
+            ? previousEvidence.source
+            : existingReport && !refreshCalculatedMetrics
+              ? 'existing_saved_report'
+              : 'content_hub_entries',
         coverage: reportMetrics.sources,
         references,
       },

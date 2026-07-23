@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [reviewPage, emailSource, approvalFunction, migration] = await Promise.all([
+const [reviewPage, emailSource, approvalFunction, approvalToken, migration] = await Promise.all([
   readFile(new URL('../public/review.html', import.meta.url), 'utf8'),
   readFile(new URL('../src/lib/email.ts', import.meta.url), 'utf8'),
   readFile(new URL('../supabase/functions/approve-entry/index.ts', import.meta.url), 'utf8'),
+  readFile(new URL('../supabase/functions/_shared/approvalToken.ts', import.meta.url), 'utf8'),
   readFile(
     new URL(
       '../supabase/migrations/20260719112649_lock_down_entry_review_reads.sql',
@@ -22,6 +23,14 @@ assert.ok(!reviewPage.includes('@supabase/supabase-js'));
 assert.ok(emailSource.includes('{{CONTENT_REVIEW_URL}}'));
 assert.ok(!emailSource.includes('review.html?id='));
 assert.ok(!approvalFunction.includes(".select('*')"));
+assert.ok(approvalFunction.includes("payload.scp !== 'approve'"));
+assert.ok(approvalFunction.includes("payload.scp !== 'review'"));
+assert.ok(approvalFunction.includes(".eq('content_revision', payload.rev)"));
+assert.ok(approvalFunction.includes('tokenRecipientIsCurrentEntryRecipient'));
+assert.ok(approvalToken.includes('rid: string;'));
+assert.ok(approvalToken.includes('rev: number;'));
+assert.ok(approvalToken.includes('scp: ApprovalTokenScope;'));
+assert.ok(!approvalToken.includes('rid?: string;'));
 assert.ok(
   migration.includes('DROP POLICY IF EXISTS "Anon users can view entries via review link"'),
 );

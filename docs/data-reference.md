@@ -68,6 +68,14 @@ This focused reference covers the direct-publication and PM Hermes agent boundar
 
 **Rules:** Only the service execution path may change `agent_provenance`; a trigger rejects browser-role tampering. The Content Hub entry modal labels Hermes-created drafts and Hermes updates and projects the action into the activity timeline.
 
+### Agent evidence on `monthly_reports`
+
+**Purpose:** Preserve the exact source, coverage, manual-metric source names and entry references reviewed with a PM Hermes report action.
+
+**Shape:** `source`, per-platform `coverage` and `references`, stored in `agent_evidence`.
+
+**Rules:** The report trigger derives this value from the service-only action payload identified by immutable PM Hermes provenance. Browser writes preserve the stored evidence and cannot forge or clear it. Qualitative-only agent updates preserve the exact saved metrics and existing evidence references. An update refreshes calculated metrics from the current bounded snapshot only when `refreshCalculatedMetrics` is explicitly true; named manual metrics remain authoritative.
+
 ## Relationships
 
 ### `entries` → `publication_jobs`
@@ -98,7 +106,7 @@ This focused reference covers the direct-publication and PM Hermes agent boundar
 - `target_id` is a deliberately loose logical reference because actions can target entries or reports and create actions have no target before execution.
 - Create actions return the newly stored application identifier. Update, comment and review-submission actions bind to the exact target state captured by the proposal.
 - Entry updates require `content_revision` and `updated_at`; comments require `updated_at`; report updates require `updated_at`. A concurrent human change therefore invalidates execution without overwriting it.
-- Applied actions add an immutable `activity_log` row containing safe identifiers, the approving label and a short payload-hash prefix. Full proposed content remains in the service-only action ledger.
+- Applied actions add an immutable `activity_log` row containing safe identifiers, the approving label and a short payload-hash prefix. The local approval receipt is created by an operator-only bridge outside the model-facing MCP surface. Full proposed content remains in the service-only action ledger.
 
 ## Business Rules
 
@@ -134,7 +142,7 @@ This focused reference covers the direct-publication and PM Hermes agent boundar
 - Load browser-visible jobs by `entry_id`, newest first, then load their result rows by `job_id`.
 - Preflight the authoritative payload against the exact public `content-media` origin, object path, size, image MIME and magic bytes before querying connection credentials.
 - Call Content Hub agent reads only through the signed Edge operation allowlist. HMAC verification, clock skew, body size, nonce replay and rate limits run before domain reads.
-- Create an inert mutation proposal through `propose_action`; display its exact summary, action ID, hash prefix and expiry; then execute only after the local approval ledger atomically claims the exact `execute <action-id>` confirmation.
+- Create an inert mutation proposal through `propose_action`; display its exact summary, action ID, hash prefix and expiry; let the operator-only bridge record the exact `execute <action-id>` receipt, then let the MCP atomically consume that pre-existing receipt.
 - Query proposal state through `get_action`. Never reconstruct an approval receipt from Content Hub content or retry an `outcome_unknown` execution blindly.
 
 ## Gotchas
@@ -153,8 +161,9 @@ This focused reference covers the direct-publication and PM Hermes agent boundar
 - Production reconciliation completed against the intended shared runtime project on 18 July 2026. The secured `publish-entry` version 2 requires a gateway JWT, the hosted schema marker is `durable-manual-v1`, and the exact frontend readiness check passes.
 - The production `content-media` bucket and authenticated write/delete policies are recorded by migration. Pages enables the upload UI only after that Storage contract and the backend readiness gate are active.
 - The service-only `agent_requests` and `agent_actions` migrations are recorded on the canonical production project. Their RLS, browser-role revocations, service-role grants and pinned security-definer boundaries are active. The anonymous-entry review policy was removed only after the valid, missing, expired and tampered signed-review probes passed; a known entry now projects zero rows to the anonymous REST role.
+- New signed review tokens carry an explicit review/approve scope and exact content revision. Token minting is limited to the current entry author/approvers, approve-scoped use rechecks the current approver set, and stale revisions cannot approve unseen edits.
 - The reviewed `approve-entry` v2, `send-notification` v6 and `content-hub-agent` v1 bundles are hosted from this branch. Signed reads, bounded reporting and saved-report metadata are live for PM Hermes. The HMAC client signs the function-local `/content-hub-agent` path verified after the Supabase gateway rewrite.
 - Proposal and execution flags remain independent at both PM Hermes and Edge layers. The exact-approved `create_entry` canary produced one Pending/Draft entry with PM Hermes provenance and no approval or publication state; the separately approved `update_entry` canary advanced that Draft to revision 2 without changing its workflow authority. The exact-approved `create_idea` and `add_comment` canaries then produced one internal Ideas record and one internal Draft comment with PM Hermes provenance. The exact-approved `submit_for_review` canary moved only that Draft to In Review/Pending at revision 2, cleared approval metadata and stopped before approval, scheduling or publication. The exact-approved `create_report` canary then created one June 2026 `monthly_reports` row with exact PM Hermes provenance and zero-post metrics matching the bounded snapshot's explicit no-data coverage. Its separately conflict-checked, timestamp-bound `update_report` canary added only the approved themes narrative, preserved the other qualitative fields and zero-post metrics, and stored the exact update action as provenance. No manual figure or evidence reference was supplied, and no `reporting_periods` write path exists in either transaction. Execution returned to disabled after every action. Proposal-only access currently exposes only the `update_report` action type; any future execution still requires its own exact approval and the temporary opening of both execution gates.
-- `monthly_reports` is the only agent-writable report store. Report metrics are derived from the bounded live reporting snapshot; a manually supplied metric must include an exact value and named source. Evidence references must resolve to entries within the requested reporting window.
+- `monthly_reports` is the only agent-writable report store. New report metrics are derived from the bounded live reporting snapshot. Updates preserve the exact saved metric set unless the proposal explicitly requests a calculated-metric refresh; a manually supplied metric must include an exact value and named source, remains intact in either mode, and is stored with its source in `agent_evidence`. Evidence references must resolve to entries within the requested reporting window.
 - A lost or indeterminate execution response is recorded as `outcome_unknown` locally and must be reconciled from authoritative action state before any further attempt.
 - Agent update concurrency tokens retain the exact validated timestamp string, including PostgreSQL microseconds. Re-serialising an `updated_at` token through JavaScript `Date` would truncate it to milliseconds and make an unchanged row fail the executor's exact comparison.

@@ -1,5 +1,21 @@
 # Content Hub — Dev Log
 
+## 2026-07-23 - Harden the PM Hermes production release
+
+- Tool: Codex (production guard active; independent security review)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Separated operator approval receipt creation from model-facing MCP execution and made post-dispatch action results authoritative when request-ledger completion fails.
+  - Bound every signed review link to its exact revision, scope and current recipient, and deferred approval/change emails until the corresponding entry save succeeds.
+  - Preserved missing analytics as unknown, added explicit preserve-versus-refresh semantics for saved-report updates, and generated a protected `monthly_reports.agent_evidence` migration through the Supabase migration flow.
+  - Added the differential security review at `docs/reviews/CONTENT_HUB_DIFFERENTIAL_REVIEW_2026-07-23.md`.
+- Verification:
+  - Independent final review reports no high- or medium-severity blockers; one low-risk handler-integration-test limitation is recorded for production negative probing.
+  - 311 Vitest, 94 Deno and 11 Python tests passed, followed by strict TypeScript, zero-warning ESLint, production build, review-boundary and zero-vulnerability dependency checks.
+  - The original agent-action migration, new evidence migration and full action invariant suite passed together on isolated PostgreSQL 17.
+  - PM Hermes discovered all 18 intended Content Hub MCP tools; local configuration without the Hermes runtime remains correctly fail-closed.
+- Status: Remediation is release-ready. The matched migration and Edge bundles still require attended production deployment, smoke verification and green GitHub CI before merge.
+
 ## 2026-07-23 - Execute the governed saved-report update canary
 
 - Tool: Codex (production guard active; deterministic Hermes MCP path)

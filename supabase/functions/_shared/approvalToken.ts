@@ -3,10 +3,14 @@ const decoder = new TextDecoder();
 
 export interface ApprovalTokenPayload {
   eid: string;
-  rid?: string;
+  rid: string;
+  rev: number;
+  scp: ApprovalTokenScope;
   iat: number;
   exp: number;
 }
+
+export type ApprovalTokenScope = 'review' | 'approve';
 
 const encodeBase64Url = (bytes: Uint8Array): string =>
   btoa(String.fromCharCode(...bytes))
@@ -38,34 +42,60 @@ const isPayload = (value: unknown): value is ApprovalTokenPayload => {
   return (
     typeof payload.eid === 'string' &&
     payload.eid.length > 0 &&
-    (typeof payload.rid === 'string'
-      ? /^[A-Za-z0-9_-]{22}$/.test(payload.rid)
-      : typeof payload.eml === 'string' && payload.eml.length > 0) &&
+    typeof payload.rid === 'string' &&
+    /^[A-Za-z0-9_-]{22}$/.test(payload.rid) &&
+    (payload.scp === 'review' || payload.scp === 'approve') &&
+    Number.isInteger(payload.rev) &&
+    Number(payload.rev) >= 1 &&
     Number.isInteger(payload.iat) &&
     Number.isInteger(payload.exp)
   );
 };
 
-export async function generateApprovalToken(
+export async function approvalRecipientId(
   secret: string,
-  entryId: string,
   recipient: string,
-  nowSeconds = Math.floor(Date.now() / 1000),
-  ttlSeconds = 7 * 24 * 60 * 60,
 ): Promise<string | null> {
-  if (secret.length < 32 || !entryId || !recipient || ttlSeconds < 60) return null;
+  if (secret.length < 32 || !recipient.trim()) return null;
   const key = await importKey(secret, ['sign']);
   const recipientDigest = await crypto.subtle.sign(
     'HMAC',
     key,
     encoder.encode(recipient.trim().toLowerCase()),
   );
-  const recipientId = encodeBase64Url(new Uint8Array(recipientDigest)).slice(0, 22);
+  return encodeBase64Url(new Uint8Array(recipientDigest)).slice(0, 22);
+}
+
+export async function generateApprovalToken(
+  secret: string,
+  entryId: string,
+  recipient: string,
+  contentRevision: number,
+  scope: ApprovalTokenScope,
+  nowSeconds = Math.floor(Date.now() / 1000),
+  ttlSeconds = 7 * 24 * 60 * 60,
+): Promise<string | null> {
+  if (
+    secret.length < 32 ||
+    !entryId ||
+    !recipient ||
+    !Number.isInteger(contentRevision) ||
+    contentRevision < 1 ||
+    (scope !== 'review' && scope !== 'approve') ||
+    ttlSeconds < 60
+  ) {
+    return null;
+  }
+  const key = await importKey(secret, ['sign']);
+  const recipientId = await approvalRecipientId(secret, recipient);
+  if (!recipientId) return null;
   const header = encodeText(JSON.stringify({ alg: 'HS256', typ: 'APT' }));
   const payload = encodeText(
     JSON.stringify({
       eid: entryId,
       rid: recipientId,
+      rev: contentRevision,
+      scp: scope,
       iat: nowSeconds,
       exp: nowSeconds + ttlSeconds,
     }),

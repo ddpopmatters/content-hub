@@ -13,14 +13,23 @@
 - **Security posture:** no browser automation, raw database tool, service-role key, provider token, approval power or publication power is exposed to Hermes
 - **Migration constraint:** use the approved Supabase migration workflow during implementation; do not edit migration history directly
 
-### Implementation checkpoint — 19 July 2026
+### Production checkpoint — 23 July 2026
+
+- **Secure reads live:** the signed `content-hub-agent-v1` boundary is deployed to the canonical shared project, PM Hermes can use all nine bounded read operations, signed review links use the fixed Edge projection, and broad anonymous `entries` selection is locked down.
+- **Governed writes proven:** all seven action classes have passed separate attended production canaries: `create_idea`, `create_entry`, `update_entry`, `add_comment`, `submit_for_review`, `create_report` and `update_report`. Stored records retain exact action provenance, conflict checks and authoritative read-after-write results.
+- **Authority retained:** the agent can move content no further than In Review. Approval, rejection, publication, scheduling, retry, deletion, administration, analytics import, arbitrary SQL and the unused `reporting_periods` store remain unreachable.
+- **Fail-closed operating state:** both execution switches are false. Proposal allowlists contain only `update_report`; a future mutation still requires its own exact `execute <action-id>` approval and a temporary attended opening of both execution gates.
+- **Release state:** the plan's core completion definition is satisfied in the production backend. Pull request 29 remains the release vehicle for the matching frontend, provenance UI and durable repository history; its merge must be followed by a successful GitHub Pages deployment and live smoke test.
+- **Deliberately deferred:** optional recurring read-only summaries remain disabled until at least one week of clean manual use and audit-volume review. Recurring or scheduled mutations remain prohibited.
+
+### Historical implementation checkpoint — 19 July 2026
 
 - **Implemented locally:** the Phase 1 signed read contract and the Phase 2 service-only action ledger, validated proposal schemas, exact local approval receipts, conflict-safe/idempotent executor, content/report write operations, provenance UI, control-plane registrations, tests and rollout runbook.
 - **Registered locally:** Hermes discovers 18 tools: nine bounded reads and nine governed proposal/status/execution tools. Proposal and execution switches are independently off by default, and no action type is enabled.
 - **Not deployed:** none of the PM Hermes migrations or new/changed Edge Functions have been applied to production in this checkpoint; the anonymous policy remains live until the ordered review smoke test and lockdown step.
 - **Pending:** Phase 1 production rollout, Phase 2 proposal-only and mutation canaries, and Phase 3 production hardening. Approval, publication, retry, deletion, administration and arbitrary database tools remain absent.
 
-This is an implementation plan, not authorisation to change production. Each production mutation performed through PM Hermes will still require the exact human approval defined by the PM Hermes control plane.
+This plan documents the approved integration shape and completed rollout evidence. Each future production mutation performed through PM Hermes still requires the exact human approval defined by the PM Hermes control plane.
 
 ## Outcome
 
@@ -55,7 +64,7 @@ Content Hub already has useful boundaries to build on:
 - public GitHub Pages delivery backed by the shared production Supabase project;
 - an existing PM Hermes organic reporting route and `content-hub-social-snapshot.py` wrapper.
 
-The previous reporting wrapper was not a safe foundation for broader access: it read the `entries` REST endpoint with the public anonymous key and depended on a broad anonymous row-selection policy used by review links. The local Phase 1 implementation now replaces both dependencies with purpose-built Edge projections. Production continues to use the previous boundary until the ordered rollout and review smoke test are completed.
+The previous reporting wrapper was not a safe foundation for broader access: it read the `entries` REST endpoint with the public anonymous key and depended on a broad anonymous row-selection policy used by review links. The deployed Phase 1 boundary replaces both dependencies with purpose-built Edge projections. The ordered review smoke test and anonymous-read lockdown are complete in production.
 
 The repository also contains two report models. The currently rendered Reporting and Insights screens save `monthly_reports`; the richer `reporting_periods` workspace is initialised but not rendered. The first integration must use the live `monthly_reports` path as its single write target and must not dual-write or silently merge the two models.
 
@@ -251,8 +260,8 @@ Rollback disables the MCP registration and integration client first. Restore the
 - Allow Hermes to draft qualitative findings, risks, themes, highlights and next-period focus, while retaining entry/report references that support each material claim.
 - Validate proposed payloads through the same domain rules used by Content Hub, including content format, platform capability, required media metadata, dates and PM language guidance.
 - Return an exact human-readable change summary, action ID, short payload hash, target revision and expiry before approval is requested.
-- Connect proposals to the PM Hermes approval ledger. The explicit confirmation is `execute <action-id>` after the exact summary is shown.
-- Make the execution wrapper reject missing, mismatched, expired, cancelled or previously consumed approval records before any outbound mutation call.
+- Connect proposals to the PM Hermes approval ledger. The explicit confirmation is `execute <action-id>` after the exact summary is shown; a trusted operator-only bridge records the receipt outside the model-facing MCP tool surface.
+- Make the execution wrapper unable to create approval receipts and reject missing, mismatched, expired, cancelled or previously consumed operator receipts before any outbound mutation call.
 - Make the Edge executor re-check action ID, canonical payload hash, action expiry, expected entry revision and idempotency key in one transaction before applying the change.
 - Record immutable Hermes provenance and show it in the entry activity/history surface, including who approved execution and the safe outcome class.
 - Label Hermes-created drafts clearly and route submitted work through the ordinary Content Hub human review process.
@@ -266,11 +275,12 @@ Rollback disables the MCP registration and integration client first. Restore the
 - After a separate exact approval, Hermes can update an eligible existing entry and retrieve the new authoritative revision and saved values.
 - After exact approval, Hermes can create a saved report which appears in the live Reporting and Insights screens with the correct report type and period.
 - After a separate exact approval, Hermes can update that saved report using its expected `updated_at`; a concurrent human edit fails with a conflict and requires a fresh proposal.
+- Qualitative-only report updates preserve the exact saved metrics and evidence references. Calculated values refresh from the bounded snapshot only when `refreshCalculatedMetrics` is explicitly true, while named manual figures remain unchanged.
 - Report proposals state the period, analytics coverage, calculated versus manual metrics, evidence references and every qualitative field that will be saved.
 - Server-derived metrics match the existing per-post aggregation and live Reporting/Insights metric definitions for the same entries and date range.
 - Missing data remains explicit, and generated narrative distinguishes observed evidence from interpretation.
 - The approval summary identifies action type, target, changed fields, planned dates/platforms, payload hash and expiry without exposing implementation or secret data.
-- `execute <action-id>` applies the matching proposal once; retries return the original result and cannot duplicate an entry, comment or state transition.
+- An operator-recorded `execute <action-id>` receipt allows the matching proposal to apply once; the MCP cannot self-attest approval, and retries return the original result without duplicating an entry, comment or state transition.
 - A hash mismatch, expired action, reused approval, disabled client or concurrent human edit makes no application change and asks for a fresh proposal.
 - Hermes can move eligible work only as far as Ready for Review. It cannot populate approval revision/time, approve, publish, schedule, retry or delete.
 - Approved, Published and soft-deleted entries reject direct Hermes updates, including crafted requests that bypass the wrapper.

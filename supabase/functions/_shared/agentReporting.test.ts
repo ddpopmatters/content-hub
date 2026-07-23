@@ -29,6 +29,26 @@ Deno.test('reporting snapshot keeps missing analytics distinct from measured zer
   assertEquals((instagram.totals as Record<string, unknown>).impressions, null);
 });
 
+Deno.test('reporting snapshot does not turn reach-only analytics into zero engagement', () => {
+  const snapshot = buildReportingSnapshot(
+    [
+      {
+        id: 'reach-only',
+        date: '2026-07-01',
+        platforms: ['Instagram'],
+        status: 'Published',
+        analytics: { Instagram: { reach: 100 } },
+      },
+    ],
+    { startDate: '2026-07-01', endDate: '2026-07-31', platform: 'Instagram' },
+  );
+  const instagram = (snapshot.snapshots as Record<string, Record<string, unknown>>).Instagram;
+  const derived = instagram.derivedMetrics as Record<string, unknown>;
+  assertEquals(derived.totalEngagements, null);
+  assertEquals(derived.engagementRatePercent, null);
+  assertEquals((instagram.topPosts as Record<string, unknown>[])[0].engagementScore, null);
+});
+
 Deno.test('reporting snapshot excludes unpublished entries with no platform metrics', () => {
   const snapshot = buildReportingSnapshot(
     [

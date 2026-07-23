@@ -19,6 +19,7 @@ from pm_hermes.content_hub_client import (
     configuration_status,
 )
 from pm_hermes.content_hub_approval import ContentHubWritePolicy
+from pm_hermes.content_hub_approval import ContentHubApprovalLedger
 
 
 PLATFORMS = {
@@ -116,6 +117,33 @@ def _status(live: bool) -> int:
         return 1
 
 
+def _approve_action(action_id: str, confirm: str, approved_by: str | None) -> int:
+    """Record an operator approval outside the model-facing MCP tool surface."""
+
+    policy = ContentHubWritePolicy.load()
+    try:
+        receipt = ContentHubApprovalLedger().approve_exact(
+            action_id,
+            confirm=confirm,
+            approved_by=approved_by or policy.approver_label,
+        )
+    except (OSError, RuntimeError, ValueError) as error:
+        print(json.dumps({"status": "error", "error": str(error)}))
+        return 2
+    print(
+        json.dumps(
+            {
+                "status": "approved",
+                "action_id": receipt["action_id"],
+                "action_type": receipt["action_type"],
+                "short_payload_hash": receipt["short_payload_hash"],
+                "expires_at": receipt["expires_at"],
+            }
+        )
+    )
+    return 0
+
+
 def _snapshot(lookback_days: int, platform_name: str | None, no_write: bool) -> int:
     if lookback_days < 1 or lookback_days > 366:
         print(json.dumps({"status": "error", "error": "lookback_days_out_of_range"}))
@@ -193,6 +221,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     snapshot_parser.add_argument("--platform", choices=list(PLATFORMS))
     snapshot_parser.add_argument("--no-write", action="store_true")
+    approval_parser = subparsers.add_parser(
+        "approve-action",
+        help="Record one exact operator approval outside the MCP tool surface.",
+    )
+    approval_parser.add_argument("action_id")
+    approval_parser.add_argument("--confirm", required=True)
+    approval_parser.add_argument("--approved-by")
     return parser.parse_args(argv)
 
 
@@ -200,6 +235,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     if args.command == "status":
         return _status(args.live)
+    if args.command == "approve-action":
+        return _approve_action(args.action_id, args.confirm, args.approved_by)
     return _snapshot(args.lookback_days, args.platform, args.no_write)
 
 

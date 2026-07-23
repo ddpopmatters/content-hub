@@ -634,6 +634,7 @@ export interface MonthlyReport {
   createdAt: string;
   updatedAt: string;
   agentProvenance?: AgentProvenance;
+  agentEvidence?: Record<string, unknown>;
 }
 
 export type OrgEventType = string;

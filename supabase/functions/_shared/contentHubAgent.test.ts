@@ -377,3 +377,54 @@ Deno.test('enabled execution forwards only the exact approved action binding', a
     approvedBy: 'Dan',
   });
 });
+
+Deno.test('successful execution survives a later request-ledger completion failure', async () => {
+  const actionId = '12345678-1234-4234-9234-123456789abc';
+  const repo = repository();
+  repo.getAction = async () => ({
+    id: actionId,
+    actionType: 'create_entry',
+    targetId: null,
+    payloadHash: 'a'.repeat(64),
+    idempotencyKey: 'proposal:12345678',
+    summary: 'Create one Draft entry.',
+    status: 'proposed',
+    expiresAt: '2001-09-09T02:16:40.000Z',
+    resultClass: null,
+    result: null,
+    createdAt: '2001-09-09T01:46:40.000Z',
+    appliedAt: null,
+  });
+  repo.executeAction = async () => {
+    const action = await repo.getAction(actionId);
+    if (!action) throw new Error('missing action');
+    return { decision: 'applied', action: { ...action, status: 'applied' } };
+  };
+  repo.completeRequest = async () => {
+    throw new Error('audit completion unavailable');
+  };
+  const response = await handleContentHubAgentRequest(
+    await signedRequest({
+      operation: 'execute_action',
+      parameters: {
+        actionId,
+        payloadHash: 'a'.repeat(64),
+        idempotencyKey: 'proposal:12345678',
+        approvalReference: 'cha_1234567890abcdef12345678',
+        approvedBy: 'Dan',
+      },
+    }),
+    {
+      auth: { enabled: true, clientId: CLIENT_ID, secret: SECRET, nowSeconds: 1_000_000_100 },
+      repository: repo,
+      writePolicy: {
+        proposalsEnabled: true,
+        executionEnabled: true,
+        enabledActions: new Set(['create_entry']),
+      },
+    },
+  );
+  const payload = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(payload.data.decision, 'applied');
+});

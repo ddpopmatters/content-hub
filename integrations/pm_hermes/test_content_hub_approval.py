@@ -39,19 +39,25 @@ class ContentHubApprovalLedgerTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temporary_directory.cleanup()
 
-    def test_exact_confirmation_is_claimed_once_and_replays_the_result(self) -> None:
+    def test_operator_approval_is_separate_from_execution_claim(self) -> None:
         registered = self.ledger.register(proposal(self.now_value))
         self.assertEqual(registered["status"], "awaiting_exact_approval")
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
 
         with self.assertRaisesRegex(ValueError, "Confirmation must be exactly"):
-            self.ledger.claim_exact(ACTION_ID, confirm="yes", approved_by="Dan")
+            self.ledger.approve_exact(ACTION_ID, confirm="yes", approved_by="Dan")
 
-        claimed = self.ledger.claim_exact(
+        with self.assertRaisesRegex(ValueError, "no separate operator approval"):
+            self.ledger.claim_approved(ACTION_ID)
+
+        approved = self.ledger.approve_exact(
             ACTION_ID,
             confirm=f"execute {ACTION_ID}",
             approved_by="Dan",
         )
+        self.assertEqual(approved["status"], "approved")
+
+        claimed = self.ledger.claim_approved(ACTION_ID)
         self.assertEqual(claimed["status"], "executing")
         self.assertRegex(str(claimed["approval_reference"]), r"^cha_[a-f0-9]{24}$")
 
@@ -61,11 +67,7 @@ class ContentHubApprovalLedgerTests(unittest.TestCase):
         )
         self.assertEqual(completed["status"], "executed")
 
-        replayed = self.ledger.claim_exact(
-            ACTION_ID,
-            confirm=f"execute {ACTION_ID}",
-            approved_by="Dan",
-        )
+        replayed = self.ledger.claim_approved(ACTION_ID)
         self.assertTrue(replayed["idempotent_replay"])
         self.assertEqual(
             replayed["result"], {"data": {"decision": "applied"}, "ok": True}
@@ -74,12 +76,26 @@ class ContentHubApprovalLedgerTests(unittest.TestCase):
     def test_expired_proposal_fails_before_claim(self) -> None:
         self.ledger.register(proposal(self.now_value))
         self.now_value += timedelta(minutes=31)
-        with self.assertRaisesRegex(ValueError, "cannot execute from state expired"):
-            self.ledger.claim_exact(
+        with self.assertRaisesRegex(
+            ValueError, "cannot be approved from state expired"
+        ):
+            self.ledger.approve_exact(
                 ACTION_ID,
                 confirm=f"execute {ACTION_ID}",
                 approved_by="Dan",
             )
+        self.assertEqual(self.ledger.get(ACTION_ID)["status"], "expired")
+
+    def test_recorded_approval_still_expires_before_execution(self) -> None:
+        self.ledger.register(proposal(self.now_value))
+        self.ledger.approve_exact(
+            ACTION_ID,
+            confirm=f"execute {ACTION_ID}",
+            approved_by="Dan",
+        )
+        self.now_value += timedelta(minutes=31)
+        with self.assertRaisesRegex(ValueError, "no separate operator approval"):
+            self.ledger.claim_approved(ACTION_ID)
         self.assertEqual(self.ledger.get(ACTION_ID)["status"], "expired")
 
     def test_action_id_cannot_be_rebound_to_another_payload(self) -> None:

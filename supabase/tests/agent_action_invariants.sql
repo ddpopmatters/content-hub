@@ -21,6 +21,8 @@ BEGIN
 END;
 $$;
 
+GRANT SELECT, UPDATE ON public.monthly_reports TO authenticated;
+
 DO $$
 DECLARE
   proposed JSONB;
@@ -355,8 +357,37 @@ BEGIN
   );
   IF outcome->>'decision' <> 'applied'
     OR (SELECT count(*) FROM public.monthly_reports WHERE period_year = 2026 AND period_month = 6) <> 1
+    OR (
+      SELECT agent_evidence->>'source'
+        FROM public.monthly_reports
+       WHERE period_year = 2026 AND period_month = 6
+    ) <> 'content_hub_entries'
   THEN
-    RAISE EXCEPTION 'Canonical saved report action failed';
+    RAISE EXCEPTION 'Canonical saved report action failed or discarded its evidence';
+  END IF;
+END;
+$$;
+
+DO $$
+DECLARE
+  report_id UUID;
+  before_value JSONB;
+BEGIN
+  SELECT id, agent_evidence INTO report_id, before_value
+    FROM public.monthly_reports
+   WHERE agent_evidence->>'source' = 'content_hub_entries'
+   LIMIT 1;
+
+  SET LOCAL ROLE authenticated;
+  UPDATE public.monthly_reports
+     SET agent_evidence = jsonb_build_object('source', 'forged')
+   WHERE id = report_id;
+  RESET ROLE;
+
+  IF (SELECT agent_evidence FROM public.monthly_reports WHERE id = report_id)
+    IS DISTINCT FROM before_value
+  THEN
+    RAISE EXCEPTION 'Authenticated browser role altered PM Hermes report evidence';
   END IF;
 END;
 $$;

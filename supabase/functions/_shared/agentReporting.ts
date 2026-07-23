@@ -157,30 +157,36 @@ export function buildReportingSnapshot(
     const totals = Object.fromEntries(
       REPORTING_METRICS.map((metric) => [metric, metricTotal(statsRows, metric)]),
     );
-    const componentEngagements = ['likes', 'comments', 'shares', 'saves'].reduce(
-      (total, key) => total + (totals[key] ?? 0),
-      0,
-    );
-    const totalEngagements = totals.engagements ?? (measured.length ? componentEngagements : null);
+    const engagementComponents = ['likes', 'comments', 'shares', 'saves']
+      .map((key) => totals[key])
+      .filter((value): value is number => typeof value === 'number');
+    const componentEngagements = engagementComponents.reduce((total, value) => total + value, 0);
+    const totalEngagements =
+      totals.engagements ?? (engagementComponents.length ? componentEngagements : null);
     const denominator = totals.reach ?? totals.impressions;
     const topPosts = measured
-      .map(({ entry, stats }) => ({
-        entryId: String(entry.id ?? ''),
-        date: typeof entry.date === 'string' ? entry.date : null,
-        caption: normaliseText(entry.caption),
-        campaign: normaliseText(entry.campaign, 100) || null,
-        contentPillar: normaliseText(entry.content_pillar, 100) || null,
-        url: typeof entry.url === 'string' ? entry.url : null,
-        engagementScore:
-          stats.engagements ??
-          (stats.likes ?? 0) + (stats.comments ?? 0) + (stats.shares ?? 0) + (stats.saves ?? 0),
-        reach: stats.reach ?? null,
-        impressions: stats.impressions ?? null,
-        views: stats.views ?? null,
-      }))
+      .map(({ entry, stats }) => {
+        const components = [stats.likes, stats.comments, stats.shares, stats.saves].filter(
+          (value): value is number => typeof value === 'number',
+        );
+        return {
+          entryId: String(entry.id ?? ''),
+          date: typeof entry.date === 'string' ? entry.date : null,
+          caption: normaliseText(entry.caption),
+          campaign: normaliseText(entry.campaign, 100) || null,
+          contentPillar: normaliseText(entry.content_pillar, 100) || null,
+          url: typeof entry.url === 'string' ? entry.url : null,
+          engagementScore:
+            stats.engagements ??
+            (components.length ? components.reduce((total, value) => total + value, 0) : null),
+          reach: stats.reach ?? null,
+          impressions: stats.impressions ?? null,
+          views: stats.views ?? null,
+        };
+      })
       .sort(
         (left, right) =>
-          right.engagementScore - left.engagementScore ||
+          (right.engagementScore ?? -1) - (left.engagementScore ?? -1) ||
           (right.reach ?? 0) - (left.reach ?? 0) ||
           (right.impressions ?? 0) - (left.impressions ?? 0),
       )

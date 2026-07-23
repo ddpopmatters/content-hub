@@ -55,6 +55,23 @@ const repository = () => {
             periodMonth: 6,
             periodYear: 2026,
             updatedAt: '2026-07-19T11:00:00.000Z',
+            platformMetrics: {
+              Instagram: {
+                numberOfPosts: 7,
+                accountsReached: 99,
+                followersTotal: 4_500,
+              },
+            },
+            agentEvidence: {
+              coverage: {
+                Instagram: {
+                  manual: {
+                    accountsReached: 'Legacy saved report, verified 30 June 2026',
+                    followersTotal: 'Instagram Insights, 30 June 2026',
+                  },
+                },
+              },
+            },
             qualitative: { whatWorked: 'Existing evidence', themes: 'Existing theme' },
           }
         : null,
@@ -135,6 +152,52 @@ Deno.test('report updates preserve qualitative fields not included in the propos
     whatWorked: 'Existing evidence',
     themes: 'Updated theme',
   });
+  const metrics = repo.created[0].payload.platformMetrics as Record<string, Record<string, number>>;
+  assertEquals(repo.created[0].payload.refreshCalculatedMetrics, false);
+  assertEquals(metrics.Instagram.numberOfPosts, 7);
+  assertEquals(metrics.Instagram.accountsReached, 99);
+  assertEquals(metrics.Instagram.followersTotal, 4_500);
+  const evidence = repo.created[0].payload.evidence as {
+    coverage: Record<string, { manual: Record<string, string> }>;
+  };
+  assertEquals(
+    evidence.coverage.Instagram.manual.followersTotal,
+    'Instagram Insights, 30 June 2026',
+  );
+  assertEquals(repo.created[0].summary.includes('preserve the saved metrics'), true);
+});
+
+Deno.test('report updates refresh calculated metrics only when explicitly requested', async () => {
+  const repo = repository();
+  await proposeAgentAction(
+    {
+      actionType: 'update_report',
+      idempotencyKey: 'report:refresh:2026:06',
+      payload: {
+        reportId: REPORT_ID,
+        expectedUpdatedAt: '2026-07-19T11:00:00.000Z',
+        refreshCalculatedMetrics: true,
+      },
+    },
+    'pm_hermes',
+    repo,
+    new Date('2026-07-19T12:00:00.000Z'),
+  );
+  const metrics = repo.created[0].payload.platformMetrics as Record<string, Record<string, number>>;
+  assertEquals(repo.created[0].payload.refreshCalculatedMetrics, true);
+  assertEquals(metrics.Instagram.numberOfPosts, 1);
+  assertEquals(metrics.Instagram.accountsReached, 99);
+  assertEquals(metrics.Instagram.followersTotal, 4_500);
+  const evidence = repo.created[0].payload.evidence as {
+    source: string;
+    coverage: Record<string, { manual: Record<string, string> }>;
+  };
+  assertEquals(evidence.source, 'content_hub_entries');
+  assertEquals(
+    evidence.coverage.Instagram.manual.accountsReached,
+    'Legacy saved report, verified 30 June 2026',
+  );
+  assertEquals(repo.created[0].summary.includes('refresh calculated metrics'), true);
 });
 
 Deno.test('proposal validation blocks PM language violations before persistence', async () => {

@@ -129,6 +129,7 @@ class ContentHubWritePolicy:
             "enabledActions": sorted(self.enabled_actions),
             "approvalScope": "exact_action_id_once",
             "approvalCommand": "execute <action-id>",
+            "approvalReceiptSource": "operator_only_outside_mcp",
         }
 
 
@@ -137,7 +138,7 @@ def _true(value: str) -> bool:
 
 
 class ContentHubApprovalLedger:
-    """Mode-600 SQLite ledger with atomic exact-confirmation claims."""
+    """Mode-600 ledger separating operator approval from MCP execution."""
 
     def __init__(
         self,
@@ -214,7 +215,7 @@ class ContentHubApprovalLedger:
             row = self._expire_if_needed(connection, row)
         return self._normalise(row)
 
-    def claim_exact(
+    def approve_exact(
         self,
         action_id: str,
         *,
@@ -239,24 +240,69 @@ class ContentHubApprovalLedger:
                 result = self._normalise(row)
                 result["idempotent_replay"] = True
                 return result
+            if row["status"] == "approved":
+                return self._normalise(row)
             if row["status"] != "awaiting_exact_approval":
                 raise ValueError(
-                    f"The Content Hub action cannot execute from state {row['status']}."
+                    f"The Content Hub action cannot be approved from state {row['status']}."
                 )
             approval_reference = f"cha_{secrets.token_hex(12)}"
-            claimed_at = self._now().astimezone(timezone.utc).isoformat()
+            approved_at = self._now().astimezone(timezone.utc).isoformat()
             cursor = connection.execute(
                 """
                 UPDATE content_hub_approvals
-                   SET status='executing', approval_reference=?, approved_by=?,
+                   SET status='approved', approval_reference=?, approved_by=?,
                        approved_at=?, updated_at=?
                  WHERE action_id=? AND status='awaiting_exact_approval'
                 """,
                 (
                     approval_reference,
                     clean_approver,
-                    claimed_at,
-                    claimed_at,
+                    approved_at,
+                    approved_at,
+                    clean_id,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("The Content Hub approval was already recorded.")
+            row = connection.execute(
+                "SELECT * FROM content_hub_approvals WHERE action_id = ?",
+                (clean_id,),
+            ).fetchone()
+        if row is None:
+            raise RuntimeError("The Content Hub approval could not be reloaded.")
+        return self._normalise(row)
+
+    def claim_approved(self, action_id: str) -> dict[str, object]:
+        """Atomically consume a separately recorded operator approval."""
+
+        clean_id = _action_id(action_id)
+        with self._connect() as connection:
+            connection.row_factory = sqlite3.Row
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT * FROM content_hub_approvals WHERE action_id = ?",
+                (clean_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"Unknown Content Hub action: {clean_id}.")
+            row = self._expire_if_needed(connection, row)
+            if row["status"] == "executed":
+                result = self._normalise(row)
+                result["idempotent_replay"] = True
+                return result
+            if row["status"] != "approved":
+                raise ValueError(
+                    "The Content Hub action has no separate operator approval receipt."
+                )
+            cursor = connection.execute(
+                """
+                UPDATE content_hub_approvals
+                   SET status='executing', updated_at=?
+                 WHERE action_id=? AND status='approved'
+                """,
+                (
+                    self._now().astimezone(timezone.utc).isoformat(),
                     clean_id,
                 ),
             )
@@ -362,7 +408,7 @@ class ContentHubApprovalLedger:
     def _expire_if_needed(
         self, connection: sqlite3.Connection, row: sqlite3.Row
     ) -> sqlite3.Row:
-        if row["status"] != "awaiting_exact_approval":
+        if row["status"] not in {"awaiting_exact_approval", "approved"}:
             return row
         expires = datetime.fromisoformat(str(row["expires_at"]))
         if expires > self._now().astimezone(timezone.utc):
@@ -372,7 +418,7 @@ class ContentHubApprovalLedger:
             """
             UPDATE content_hub_approvals
                SET status='expired', updated_at=?
-             WHERE action_id=? AND status='awaiting_exact_approval'
+             WHERE action_id=? AND status IN ('awaiting_exact_approval', 'approved')
             """,
             (now, row["action_id"]),
         )

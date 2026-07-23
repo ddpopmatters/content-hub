@@ -584,7 +584,15 @@ export async function handleContentHubAgentRequest(
       auth.clientId,
       dependencies,
     );
-    await dependencies.repository.completeRequest(claim.requestId, result.resultClass);
+    try {
+      await dependencies.repository.completeRequest(claim.requestId, result.resultClass);
+    } catch {
+      if (parsed.operation !== 'execute_action') {
+        return errorResponse(503, 'unavailable', 'The integration request could not be completed.');
+      }
+      // Execution has already reached the transactional action boundary. Preserve its
+      // authoritative response rather than misreporting a committed write as not applied.
+    }
     return result.response;
   } catch (error) {
     if (error instanceof AgentActionError) {

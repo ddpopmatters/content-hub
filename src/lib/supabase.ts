@@ -257,6 +257,7 @@ interface MonthlyReportRow {
   created_at: string;
   updated_at: string;
   agent_provenance: MonthlyReport['agentProvenance'] | null;
+  agent_evidence: MonthlyReport['agentEvidence'] | null;
 }
 
 interface IdeaRow {
@@ -3032,6 +3033,7 @@ export const SUPABASE_API = {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     agentProvenance: row.agent_provenance || undefined,
+    agentEvidence: row.agent_evidence || undefined,
   }),
 
   mapMonthlyReportToDb: (

@@ -5,6 +5,7 @@ import {
   CONTENT_REVIEW_URL_PLACEHOLDER,
   injectRecipientNotificationLinks,
 } from '../_shared/notificationLinks.ts';
+import { notificationRecipientsAreAuthorised } from '../_shared/notificationAuthorization.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -23,8 +24,10 @@ interface NotificationPayload {
   subject: string;
   text: string;
   html?: string;
-  /** When present, a signed "Approve directly" button is injected per recipient */
+  /** When present, a revision-bound signed review link is injected per authorised recipient. */
   entryId?: string;
+  /** Only an explicit approval request may receive approve-scoped links. */
+  approvalRequested?: boolean;
 }
 
 interface ProfileRow {
@@ -32,11 +35,37 @@ interface ProfileRow {
   email: string;
 }
 
+interface NotificationEntryRow {
+  id: string;
+  author: string | string[] | null;
+  approvers: string[] | null;
+  content_revision: number;
+}
+
 // ── Email helpers ───────────────────────────────────────────────────────────
+
+const ensurePeople = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) return ensurePeople(parsed);
+  } catch {
+    // A plain stored name is valid.
+  }
+  return [value.trim()];
+};
 
 async function resolveEmails(names: string[]): Promise<string[]> {
   if (!names.length) return [];
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
   const directEmails = names.filter((n) => n.includes('@'));
   const namesToLookup = names.filter((n) => !n.includes('@'));
   if (!namesToLookup.length) return directEmails;
@@ -69,6 +98,54 @@ async function resolveEmails(names: string[]): Promise<string[]> {
     }
   }
   return [...new Set(resolved)];
+}
+
+async function authorisedEntryRecipients(
+  payload: NotificationPayload,
+): Promise<{ emails: string[]; entry: NotificationEntryRow } | null> {
+  const entryId = payload.entryId;
+  if (!entryId) return null;
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await supabase
+    .from('entries')
+    .select('id,author,approvers,content_revision')
+    .eq('id', entryId)
+    .is('deleted_at', null)
+    .maybeSingle();
+  if (error || !data) return null;
+  const entry = data as NotificationEntryRow;
+  if (!Number.isInteger(entry.content_revision) || entry.content_revision < 1) return null;
+
+  const approvers = ensurePeople(entry.approvers);
+  const allowedNames = payload.approvalRequested
+    ? approvers
+    : [...approvers, ...ensurePeople(entry.author)];
+  const allowedEmails = await resolveEmails(allowedNames);
+  const requestedNames = [...(payload.approvers ?? []), ...(payload.to ?? [])].filter(Boolean);
+  const directEmails = (payload.toEmails ?? []).filter(Boolean);
+
+  if (
+    !notificationRecipientsAreAuthorised({
+      requestedNames,
+      directEmails,
+      allowedNames,
+      allowedEmails,
+    })
+  ) {
+    return null;
+  }
+
+  const requestedEmails = await resolveEmails([...requestedNames, ...directEmails]);
+  const allowedEmailKeys = new Set(allowedEmails.map((email) => email.trim().toLowerCase()));
+  if (
+    !requestedEmails.length ||
+    requestedEmails.some((email) => !allowedEmailKeys.has(email.trim().toLowerCase()))
+  ) {
+    return null;
+  }
+  return { emails: [...new Set(requestedEmails)], entry };
 }
 
 function buildApproveButton(approveUrl: string): string {
@@ -146,11 +223,32 @@ Deno.serve(async (req: Request) => {
 
   try {
     const payload: NotificationPayload = await req.json();
-
-    const directEmails = (payload.toEmails ?? []).filter(Boolean);
-    const allNames = [...(payload.approvers ?? []), ...(payload.to ?? [])].filter(Boolean);
-    const resolvedFromNames = allNames.length ? await resolveEmails(allNames) : [];
-    const emails = [...new Set([...directEmails, ...resolvedFromNames])];
+    let entry: NotificationEntryRow | null = null;
+    let emails: string[];
+    if (payload.entryId) {
+      const authorised = await authorisedEntryRecipients(payload);
+      if (!authorised) {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            sent: 0,
+            failed: 1,
+            error: 'The notification recipients are not authorised for this entry.',
+          }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          },
+        );
+      }
+      entry = authorised.entry;
+      emails = authorised.emails;
+    } else {
+      const directEmails = (payload.toEmails ?? []).filter(Boolean);
+      const allNames = [...(payload.approvers ?? []), ...(payload.to ?? [])].filter(Boolean);
+      const resolvedFromNames = allNames.length ? await resolveEmails(allNames) : [];
+      emails = [...new Set([...directEmails, ...resolvedFromNames])];
+    }
 
     if (!emails.length) {
       console.warn('[send-notification] No emails resolved');
@@ -177,7 +275,14 @@ Deno.serve(async (req: Request) => {
       }
 
       if (payload.entryId) {
-        const token = await generateApprovalToken(APPROVAL_TOKEN_SECRET, payload.entryId, email);
+        if (!entry) throw new Error('The entry is unavailable.');
+        const token = await generateApprovalToken(
+          APPROVAL_TOKEN_SECRET,
+          payload.entryId,
+          email,
+          entry.content_revision,
+          payload.approvalRequested ? 'approve' : 'review',
+        );
         if (!token) throw new Error('Approval links are unavailable.');
         const links = injectRecipientNotificationLinks(
           perRecipientText,
@@ -187,7 +292,7 @@ Deno.serve(async (req: Request) => {
         );
         perRecipientText = links.text;
         perRecipientHtml = links.html;
-        if (perRecipientHtml) {
+        if (perRecipientHtml && payload.approvalRequested) {
           const approveUrl = links.approveUrl;
           const button = buildApproveButton(approveUrl);
           const insertBefore = '</div>\n  </div>';

@@ -70,7 +70,11 @@ const mapReport = (
   dateFrom: row.date_from,
   dateTo: row.date_to,
   ...(includeDetails
-    ? { platformMetrics: row.platform_metrics, qualitative: row.qualitative }
+    ? {
+        platformMetrics: row.platform_metrics,
+        qualitative: row.qualitative,
+        agentEvidence: row.agent_evidence,
+      }
     : {}),
   createdAt: row.created_at,
   updatedAt: row.updated_at,
@@ -255,7 +259,7 @@ function createRepository(): AgentRepository {
       const { data, error } = await supabase
         .from('monthly_reports')
         .select(
-          'id,report_type,period_month,period_quarter,period_year,campaign_name,date_from,date_to,platform_metrics,qualitative,agent_provenance,created_at,updated_at',
+          'id,report_type,period_month,period_quarter,period_year,campaign_name,date_from,date_to,platform_metrics,qualitative,agent_provenance,agent_evidence,created_at,updated_at',
         )
         .eq('id', reportId)
         .maybeSingle();

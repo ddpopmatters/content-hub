@@ -320,6 +320,7 @@ export function useEntries({
       });
       if (createdEntry) {
         const entry = createdEntry as Record<string, unknown>;
+        let approvalRequest: { payload: Record<string, unknown>; label: string } | undefined;
         const descriptor =
           entry.caption && String(entry.caption).trim().length
             ? String(entry.caption).trim()
@@ -338,19 +339,20 @@ export function useEntries({
             const fallbackText = `${requesterName} requested your approval for ${descriptor}, planned for ${new Date(
               entry.date as string,
             ).toLocaleDateString()}.`;
-            notifyViaServer(
-              {
+            approvalRequest = {
+              payload: {
                 teamsWebhookUrl: (guidelines as Record<string, unknown>)?.teamsWebhookUrl,
                 message: `${requesterName} requested approval for entry ${entry.id}`,
                 approvers: entryApprovers,
                 entryId: entry.id,
+                approvalRequested: true,
                 subject:
                   (emailPayload as unknown as Record<string, unknown>)?.subject || fallbackSubject,
                 text: (emailPayload as unknown as Record<string, unknown>)?.text || fallbackText,
                 html: (emailPayload as unknown as Record<string, unknown>)?.html,
               },
-              `Send approval request (${entry.id})`,
-            );
+              label: `Send approval request (${entry.id})`,
+            };
           } catch {
             /* notification failure is non-critical */
           }
@@ -366,6 +368,9 @@ export function useEntries({
             { requiresApi: false },
           ).then((ok: unknown) => {
             if (ok) {
+              if (approvalRequest) {
+                notifyViaServer(approvalRequest.payload, approvalRequest.label);
+              }
               onEntryCreated?.(entry);
               refreshEntries();
             }
@@ -477,15 +482,15 @@ export function useEntries({
       });
       const publicationContentChangedForPersistence = Boolean(
         existingEntry &&
-          sanitizedForPersistence &&
-          hasPublicationRelevantChanges(existingEntry as Partial<Entry>, sanitizedForPersistence),
+        sanitizedForPersistence &&
+        hasPublicationRelevantChanges(existingEntry as Partial<Entry>, sanitizedForPersistence),
       );
       const approvalRevokedForPersistence = Boolean(
         publicationContentChangedForPersistence &&
-          existingEntry &&
-          (existingEntry.workflowStatus === 'Approved' ||
-            existingEntry.workflowStatus === 'Published' ||
-            existingEntry.status === 'Approved'),
+        existingEntry &&
+        (existingEntry.workflowStatus === 'Approved' ||
+          existingEntry.workflowStatus === 'Published' ||
+          existingEntry.status === 'Approved'),
       );
       const updateForPersistence = approvalRevokedForPersistence
         ? {
@@ -593,28 +598,27 @@ export function useEntries({
       // CFA cannot trace assignments made inside the setEntries callback.
       const entryForNotify = newApproverEntryForNotify as Record<string, unknown> | null;
       const approversForNotify = newApproversForNotify;
+      let approvalRequest: { payload: Record<string, unknown>; label: string } | undefined;
       if (entryForNotify && approversForNotify.length) {
         try {
           const emailPayload = buildEntryEmailPayload(entryForNotify);
           const requesterName = currentUser || String(entryForNotify.author || '') || 'A teammate';
-          notifyViaServer(
-            {
+          approvalRequest = {
+            payload: {
               approvers: approversForNotify,
               to: approversForNotify,
               teamsWebhookUrl: (guidelines as Record<string, unknown> | null)?.teamsWebhookUrl,
               entryId: String(entryForNotify.id ?? ''),
+              approvalRequested: true,
               subject: emailPayload?.subject ?? `[PM Dashboard] Approval requested`,
               text: emailPayload?.text ?? `${requesterName} assigned you as an approver.`,
               html: emailPayload?.html,
             },
-            `Send approval request (${entryForNotify.id})`,
-          );
+            label: `Send approval request (${entryForNotify.id})`,
+          };
         } catch {
           /* best-effort — notification failure must not block the save */
         }
-      }
-      if (pendingApproverAlerts.length) {
-        pendingApproverAlerts.forEach((entry) => notifyApproversAboutChange(entry));
       }
       if (approvalRevokedForPersistence) {
         pushSyncToast('Approval cleared because publishing content changed.', 'warning');
@@ -635,6 +639,10 @@ export function useEntries({
               { requiresApi: false },
             ).then((ok: unknown) => {
               if (ok) {
+                if (approvalRequest) {
+                  notifyViaServer(approvalRequest.payload, approvalRequest.label);
+                }
+                pendingApproverAlerts.forEach((entry) => notifyApproversAboutChange(entry));
                 setEntries((prev) =>
                   prev.map((e) => (e.id === updated.id ? { ...e, _isNew: undefined } : e)),
                 );
@@ -656,7 +664,13 @@ export function useEntries({
                 ),
               { requiresApi: false },
             ).then((ok: unknown) => {
-              if (ok) refreshEntries();
+              if (ok) {
+                if (approvalRequest) {
+                  notifyViaServer(approvalRequest.payload, approvalRequest.label);
+                }
+                pendingApproverAlerts.forEach((entry) => notifyApproversAboutChange(entry));
+                refreshEntries();
+              }
             });
           }
         } catch {
