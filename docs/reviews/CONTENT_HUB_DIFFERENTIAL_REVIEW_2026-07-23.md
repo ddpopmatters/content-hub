@@ -11,7 +11,7 @@ The branch adds a signed, replay-resistant PM Hermes boundary for bounded Conten
 
 The review found two high-severity and six medium-severity issues during implementation. All high and medium findings were remediated before release. No known blocker remains. The remaining low-risk limitation is that review-recipient enforcement is covered by token unit tests, handler type checks and a static boundary contract rather than a fully dependency-injected HTTP handler suite; production negative probes are therefore part of the attended rollout.
 
-Recommendation: merge PR #29 after its final production-evidence commit passes CI. The matched migration and Edge bundles are deployed, execution remains disabled, and the documented live negative probes pass.
+Release outcome: PR #29 passed final CI and merged as `8cc4e4b`. The matched migration and Edge bundles are deployed, execution remains disabled, the documented live negative probes pass, and GitHub Pages is serving the merged bundle.
 
 ## Scope and blast radius
 
@@ -66,7 +66,7 @@ Completed locally against the final remediation:
 - Content Hub MCP registration discovered all 18 intended tools.
 - `git diff --check` passed.
 
-The final remediation and lockfile-Prettier correction commits pass GitHub CI, security and supply-chain checks. The production-evidence documentation commit must receive the same green checks before merge.
+The final remediation, lockfile-Prettier correction and production-evidence documentation commits passed GitHub CI, security and supply-chain checks before merge.
 
 ## History review
 
