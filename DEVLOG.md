@@ -1,5 +1,19 @@
 # Content Hub — Dev Log
 
+## 2026-07-23 - Stage the governed saved-report canary
+
+- Tool: Codex (production guard active; deterministic Hermes MCP path)
+- Branch: `codex/pm-hermes-content-hub`
+- Changes:
+  - Reauthorised the Supabase CLI against the PM account after the previously active account could not access the canonical shared project, then confirmed `oepehanwmfelowfumkes` remained the linked target.
+  - Reconciled the Reporting store and selected June 2026, the app's default previous month, as a truthful no-data canary because its bounded snapshot contains no published posts or recorded organic analytics and no June monthly report exists.
+  - Advanced both proposal allowlists to `create_report`, kept local and Edge execution disabled, and staged inert action `3cc5a3b3-8fcd-405d-a72f-b9badb53eb9d`.
+- Verification:
+  - The proposal hash prefix is `9374f046fee7`; the Edge action is `proposed`, the local receipt is `awaiting_exact_approval`, and no `monthly_reports` record was created.
+  - The proposal uses the inclusive 1–30 June 2026 `content_hub_entries` snapshot, which is untruncated and records `no_recent_posts` with zero posts and zero analysed posts for all five supported platforms.
+  - No manual metric or evidence reference was supplied. Both layers expose only `create_report`, and both execution switches remain false.
+- Status: Execute the saved-report canary only when Dan's newest direct message is exactly `execute 3cc5a3b3-8fcd-405d-a72f-b9badb53eb9d` before `2026-07-23T17:26:16.833+00:00`.
+
 ## 2026-07-21 - Execute the governed review-submission canary
 
 - Tool: Codex (production guard active; deterministic Hermes MCP path)
