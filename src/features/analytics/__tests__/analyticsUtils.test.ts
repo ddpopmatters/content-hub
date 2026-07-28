@@ -179,6 +179,46 @@ describe('analyticsUtils', () => {
     expect(snapshot.totalMetricValue).toBeCloseTo(((20 + 20) / (100 + 200)) * 100, 4);
   });
 
+  it('uses an imported platform engagement total when the source provides one', () => {
+    const entries = [
+      createEntry({
+        analytics: {
+          Instagram: {
+            engagements: 25,
+            likes: 10,
+            comments: 2,
+            shares: 1,
+            saves: 1,
+          },
+        },
+      }),
+    ];
+
+    const snapshot = buildInsightsSnapshot(
+      entries,
+      {
+        timePeriod: 'this-month',
+        customStartDate: '',
+        customEndDate: '',
+        platforms: [],
+        metric: 'engagements',
+        reviewReadiness: [],
+        campaigns: [],
+        contentPillars: [],
+        contentCategories: [],
+        responseModes: [],
+        assetTypes: [],
+        statuses: ['Approved', 'Published'],
+        authors: [],
+        audienceSegments: [],
+      },
+      new Date('2026-03-20T09:00:00.000Z'),
+    );
+
+    expect(snapshot.totalMetricValue).toBe(25);
+    expect(snapshot.postsWithSelectedMetric).toBe(1);
+  });
+
   it('exposes dynamic insight filter options from the entry set', () => {
     const entries = [
       createEntry({

@@ -281,9 +281,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           <div className="max-w-3xl">
             <h1 className="heading-font mb-2 text-3xl font-bold">Insights</h1>
             <p className="text-ocean-100">
-              Assess performance across platform, metric, timeframe, pillar, content category,
-              response mode, campaign, asset type, author, audience segment, and status from one
-              workspace.
+              Assess post-level performance for content published in the selected timeframe across
+              platform, metric, pillar, campaign, asset type and audience.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Badge className="bg-white/15 text-white">{insights.rangeLabel}</Badge>
@@ -294,6 +293,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                 <Badge className="bg-white/15 text-white">{activeFilterCount} active filters</Badge>
               ) : null}
             </div>
+            <p className="mt-3 text-xs text-ocean-100">
+              Values reflect the latest metric recorded for each post; some platform imports are
+              lifetime-to-date.
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {onOpenImport ? (

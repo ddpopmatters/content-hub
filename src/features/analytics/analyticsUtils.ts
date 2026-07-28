@@ -253,7 +253,9 @@ const numericValue = (value: unknown) => {
 const hasMetricOnPlatform = (stats: Record<string, unknown>, metric: string) => {
   if (metric === 'posts') return true;
   if (metric === 'engagements') {
-    return ['likes', 'comments', 'shares', 'saves'].some((key) => key in stats);
+    return (
+      'engagements' in stats || ['likes', 'comments', 'shares', 'saves'].some((key) => key in stats)
+    );
   }
   if (metric === 'engagementRate') {
     return 'reach' in stats || 'impressions' in stats;
@@ -263,6 +265,7 @@ const hasMetricOnPlatform = (stats: Record<string, unknown>, metric: string) => 
 
 const platformMetricValue = (stats: Record<string, unknown>, metric: string) => {
   if (metric === 'engagements') {
+    if ('engagements' in stats) return numericValue(stats.engagements);
     return (
       numericValue(stats.likes) +
       numericValue(stats.comments) +

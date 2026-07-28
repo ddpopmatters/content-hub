@@ -100,4 +100,38 @@ describe('AnalyticsView', () => {
     expect(within(metricSummary as HTMLElement).getByText('100')).toBeInTheDocument();
     expect(screen.getByText('1/1 posts include impressions data')).toBeInTheDocument();
   });
+
+  it('shows imported entry analytics without requiring a saved monthly report', () => {
+    const entries = [
+      createEntry({
+        id: 'imported-instagram-post',
+        date: '2026-03-08',
+        platforms: ['Instagram'],
+        analytics: {
+          Instagram: {
+            views: 1210,
+            reach: 860,
+            likes: 74,
+            comments: 9,
+            shares: 18,
+            saves: 12,
+          },
+        },
+      }),
+    ];
+
+    render(<AnalyticsView entries={entries} />);
+
+    fireEvent.change(screen.getByLabelText('Metric'), {
+      target: { value: 'views' },
+    });
+
+    const metricSummary = screen
+      .getByText('Total across the current scope')
+      .closest('div')?.parentElement;
+    expect(metricSummary).not.toBeNull();
+    expect(within(metricSummary as HTMLElement).getByText('1,210')).toBeInTheDocument();
+    expect(screen.getByText('1/1 posts include views data')).toBeInTheDocument();
+    expect(screen.getByText('1/1 posts have any analytics')).toBeInTheDocument();
+  });
 });

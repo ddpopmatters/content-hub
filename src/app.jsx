@@ -6,6 +6,7 @@ import { CalendarView } from './features/calendar/CalendarView';
 import { ApprovalsView } from './features/approvals';
 import { DashboardView } from './features/dashboard';
 import { EngagementView } from './features/engagement/EngagementView';
+import { AnalyticsView } from './features/analytics/AnalyticsView';
 import { ReportingView, ReportInsightsView } from './features/reporting';
 import { ContentPeaksView } from './features/peaks';
 import { ContentSeriesView } from './features/series';
@@ -1675,6 +1676,18 @@ function ContentDashboard() {
                     </Button>
                     <Button
                       variant="ghost"
+                      onClick={() => setPlanTab('report-insights')}
+                      className={cx(
+                        'rounded-2xl px-4 py-2 text-sm transition',
+                        planTab === 'report-insights'
+                          ? 'bg-ocean-500 text-white hover:bg-ocean-600'
+                          : 'text-ocean-600 hover:bg-ocean-100',
+                      )}
+                    >
+                      Report trends
+                    </Button>
+                    <Button
+                      variant="ghost"
                       onClick={() => setPlanTab('engagement')}
                       className={cx(
                         'rounded-2xl px-4 py-2 text-sm transition',
@@ -1687,7 +1700,14 @@ function ContentDashboard() {
                     </Button>
                   </div>
                 </div>
-                {planTab === 'analytics' && <ReportInsightsView />}
+                {planTab === 'analytics' && (
+                  <AnalyticsView
+                    entries={entries}
+                    onUpdateEntry={(id, updates) => upsert({ id, ...updates })}
+                    onOpenImport={() => setPerformanceImportOpen(true)}
+                  />
+                )}
+                {planTab === 'report-insights' && <ReportInsightsView />}
                 {planTab === 'engagement' && (
                   <EngagementView
                     activities={engagementActivities}
