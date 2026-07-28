@@ -13,6 +13,7 @@ import type { Entry } from '../../types/models';
 export const TIME_PERIODS = [
   { value: 'this-week', label: 'This week' },
   { value: 'last-30-days', label: 'Last 30 days' },
+  { value: 'last-12-months', label: 'Last 12 months' },
   { value: 'this-month', label: 'This month' },
   { value: 'last-month', label: 'Last month' },
   { value: 'this-quarter', label: 'This quarter' },
@@ -461,6 +462,8 @@ export const getDateRange = (
       return { start: startOfWeek(today), end: endOfWeek(today) };
     case 'last-30-days':
       return { start: startOfDay(addDays(today, -29)), end: endOfDay(today) };
+    case 'last-12-months':
+      return { start: startOfDay(addDays(today, -364)), end: endOfDay(today) };
     case 'this-month':
       return { start: startOfMonth(today), end: endOfMonth(today) };
     case 'last-month': {
@@ -726,7 +729,7 @@ export const formatMetricValue = (metric: string, value: number) => {
 };
 
 export const createDefaultInsightFilters = (entries: Entry[]): InsightFilters => ({
-  timePeriod: 'this-month',
+  timePeriod: 'last-12-months',
   customStartDate: '',
   customEndDate: '',
   platforms: [],
@@ -739,7 +742,7 @@ export const createDefaultInsightFilters = (entries: Entry[]): InsightFilters =>
   contentCategories: [],
   responseModes: [],
   assetTypes: [],
-  statuses: ['Approved', 'Published'],
+  statuses: ['Published'],
   authors: [],
   audienceSegments: [],
 });

@@ -231,7 +231,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         assetTypes: current.assetTypes.filter((assetType) =>
           filterOptions.assetTypes.includes(assetType),
         ),
-        statuses: current.statuses.filter((status) => filterOptions.statuses.includes(status)),
+        statuses: filterOptions.statuses.length
+          ? current.statuses.filter((status) => filterOptions.statuses.includes(status))
+          : current.statuses,
         authors: current.authors.filter((author) => filterOptions.authors.includes(author)),
         audienceSegments: current.audienceSegments.filter((segment) =>
           filterOptions.audienceSegments.includes(segment),

@@ -105,7 +105,7 @@ describe('AnalyticsView', () => {
     const entries = [
       createEntry({
         id: 'imported-instagram-post',
-        date: '2026-03-08',
+        date: '2025-04-08',
         platforms: ['Instagram'],
         analytics: {
           Instagram: {
@@ -118,9 +118,23 @@ describe('AnalyticsView', () => {
           },
         },
       }),
+      createEntry({
+        id: 'approved-unpublished-post',
+        date: '2025-04-09',
+        platforms: ['Instagram'],
+        status: 'Approved',
+        workflowStatus: 'Approved',
+        analytics: {
+          Instagram: {
+            views: 9999,
+          },
+        },
+      }),
     ];
 
     render(<AnalyticsView entries={entries} />);
+
+    expect(screen.getByLabelText('Timeframe')).toHaveValue('last-12-months');
 
     fireEvent.change(screen.getByLabelText('Metric'), {
       target: { value: 'views' },

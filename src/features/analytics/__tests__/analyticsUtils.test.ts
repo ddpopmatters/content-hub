@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry } from '../../../types/models';
-import { buildInsightsSnapshot, getInsightFilterOptions } from '../analyticsUtils';
+import {
+  buildInsightsSnapshot,
+  createDefaultInsightFilters,
+  getDateRange,
+  getInsightFilterOptions,
+} from '../analyticsUtils';
 
 const createEntry = (overrides: Partial<Entry>): Entry => ({
   id: overrides.id || 'entry-1',
@@ -64,6 +69,21 @@ describe('analyticsUtils', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-20T09:00:00.000Z'));
+  });
+
+  it('defaults Insights to the last 12 months of Published content', () => {
+    const filters = createDefaultInsightFilters([]);
+    const range = getDateRange(
+      filters.timePeriod,
+      filters.customStartDate,
+      filters.customEndDate,
+      new Date('2026-03-20T09:00:00.000Z'),
+    );
+
+    expect(filters.timePeriod).toBe('last-12-months');
+    expect(filters.statuses).toEqual(['Published']);
+    expect(range.start.toISOString()).toBe('2025-03-21T00:00:00.000Z');
+    expect(range.end.toISOString()).toBe('2026-03-20T23:59:59.999Z');
   });
 
   it('builds a scoped snapshot across timeframe, platform, and pillar filters', () => {
